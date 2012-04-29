@@ -1527,3 +1527,57 @@ func TestRor(test *testing.T) {
         test.Errorf("A was 0x%x, expected 0x7F\n", cpu.A)
     }
 }
+
+func TestBit(test *testing.T) {
+    runTest(append(setupZeroPageMemory(),
+        0xA9, 0x10,
+        0x18,
+        0x24, 0xFA, // BIT #$10
+    ))
+
+    switch {
+    case cpu.A != 0x10:
+        test.Errorf("A was 0x%x, expected 0x10\n", cpu.A)
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Overflow:
+        test.Error("Overflow bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest([]Word{
+        0xA9, 0xFF,
+        0x85, 0xFA,
+        0xA9, 0x00,
+        0x24, 0xFA, // BIT $#FA
+    })
+
+    switch {
+    case cpu.A != 0x00:
+        test.Errorf("A was 0x%x, expected 0x00\n", cpu.A)
+    case !cpu.Zero:
+        test.Error("Zero bit was not set")
+    case !cpu.Overflow:
+        test.Error("Overflow bit was not set")
+    case !cpu.Negative:
+        test.Error("Negative bit was not set")
+    }
+
+    runTest(append(setupAbsoluteMemory(),
+        0xA9, 0x0C,
+        0x18,
+        0x2C, 0x23, 0xEB, // BIT $EB,$23
+    ))
+
+    switch {
+    case cpu.A != 0x0C:
+        test.Errorf("A was 0x%x, expected 0x0C\n", cpu.A)
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case !cpu.Overflow:
+        test.Error("Overflow bit was not set")
+    case !cpu.Negative:
+        test.Error("Negative bit was not set")
+    }
+}
