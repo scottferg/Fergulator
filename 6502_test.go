@@ -1217,3 +1217,169 @@ func TestJsr(test *testing.T) {
         test.Errorf("Program counter was 0x%x, expected 0x07\n", programCounter)
     }
 }
+
+func TestLsr(test *testing.T) {
+    runTest(append(setupZeroPageMemory(),
+        0x18,
+        0x46, 0xfa, // LSR #$FA
+    ))
+
+    switch {
+    case memory[0x00fa] != 0x18:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x18\n", memory[0x00fa])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest(append(setupZeroPageIndexedXMemory(),
+        0x38, // SEC
+        0x56, 0xf7, // LSR #$F7,X
+    ))
+
+    switch {
+    case memory[0x00fa] != 0x18:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x18\n", memory[0x00fa])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest(append(setupAbsoluteMemory(),
+        0x18,
+        0x4e, 0x23, 0xeb, // LSR #$EB23
+    ))
+
+    switch {
+    case memory[0xeb23] != 0x7e:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0x7E\n", memory[0xEB23])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest(append(setupAbsoluteIndexedXMemory(),
+        0x18,
+        0x5e, 0xfe, 0xea, // LSR #$EAFE,X
+    ))
+
+    switch {
+    case memory[0xeb25] != 0x7f:
+        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0x7F\n", memory[0xEB25])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest([]Word{
+        0xa9, 0xfe,
+        0x18,
+        0x4a, // LSR (shift accumulator)
+    })
+
+    switch {
+    case cpu.A != 0x7f:
+        test.Errorf("A was 0x%x, expected 0x7F\n", cpu.A)
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+}
+
+func TestAsl(test *testing.T) {
+    runTest(append(setupZeroPageMemory(),
+        0x18,
+        0x06, 0xfa, // ASL #$FA
+    ))
+
+    switch {
+    case memory[0x00fa] != 0x60:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x60\n", memory[0x00fa])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest(append(setupZeroPageIndexedXMemory(),
+        0x38, // SEC
+        0x16, 0xf7, // ASL #$F7,X
+    ))
+
+    switch {
+    case memory[0x00fa] != 0x60:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x60\n", memory[0x00fa])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest(append(setupAbsoluteMemory(),
+        0x18,
+        0x0e, 0x23, 0xeb, // ASL #$EB23
+    ))
+
+    switch {
+    case memory[0xeb23] != 0xf8:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xF8\n", memory[0xEB23])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case !cpu.Carry:
+        test.Error("Carry bit was not set")
+    case !cpu.Negative:
+        test.Error("Negative bit was not set")
+    }
+
+    runTest(append(setupAbsoluteIndexedXMemory(),
+        0x18,
+        0x1e, 0xfe, 0xea, // ASL #$EAFE,X
+    ))
+
+    switch {
+    case memory[0xeb25] != 0xfc:
+        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFC\n", memory[0xEB25])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case !cpu.Carry:
+        test.Error("Carry bit was not set")
+    case !cpu.Negative:
+        test.Error("Negative bit was not set")
+    }
+
+    runTest([]Word{
+        0xa9, 0xfe,
+        0x18,
+        0x0a, // ASL (shift accumulator)
+    })
+
+    switch {
+    case cpu.A != 0xfc:
+        test.Errorf("A was 0x%x, expected 0xfc\n", cpu.A)
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case !cpu.Carry:
+        test.Error("Carry bit was not set")
+    case !cpu.Negative:
+        test.Error("Negative bit was not set")
+    }
+}
