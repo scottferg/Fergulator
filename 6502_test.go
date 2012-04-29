@@ -1131,3 +1131,45 @@ func TestDec(test *testing.T) {
         test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFD\n", memory[0xEB25])
     }
 }
+
+func TestInc(test *testing.T) {
+    runTest(append(setupZeroPageMemory(),
+        0xe6, 0xfa,
+    ))
+
+    switch {
+    case memory[0x00fa] != 0x31:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x31\n", memory[0x00fa])
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    }
+
+    runTest(append(setupZeroPageIndexedXMemory(),
+        0xf6, 0xf7,
+    ))
+
+    if memory[0x00fa] != 0x31 {
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x31\n", memory[0x00fa])
+    }
+
+    runTest(append(setupAbsoluteMemory(),
+        0xee, 0x23, 0xeb,
+    ))
+
+    switch {
+    case memory[0xeb23] != 0xfd:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xFD\n", memory[0xEB23])
+    case !cpu.Negative:
+        test.Error("Negative bit was not set")
+    }
+
+    runTest(append(setupAbsoluteIndexedXMemory(),
+        0xfe, 0xfe, 0xea,
+    ))
+
+    if memory[0xeb25] != 0xff {
+        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFF\n", memory[0xEB25])
+    }
+}
