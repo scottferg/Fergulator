@@ -26,7 +26,6 @@ func runTest(program []Word) {
 }
 
 func step(times int) {
-    fmt.Printf("STEP ----------- %d\n", times)
     for i := 0; i < times; i++ {
         cpu.Step()
     }
@@ -38,71 +37,71 @@ func dumpState() {
 
 func setupZeroPageMemory() ([]Word) {
     return []Word{
-        0xa9, 0x30, // LDA #$30
-        0x85, 0xfa, // STA $FA
+        0xA9, 0x30, // LDA #$30
+        0x85, 0xFA, // STA $FA
     }
 }
 
 func setupZeroPageIndexedXMemory() ([]Word) {
     return []Word{
-        0xa9, 0x30, // LDA #$30
-        0x85, 0xfa, // STA $FA
-        0xa2, 0x03, // LDX $#03
+        0xA9, 0x30, // LDA #$30
+        0x85, 0xFA, // STA $FA
+        0xA2, 0x03, // LDX $#03
     }
 }
 
 func setupZeroPageIndexedYMemory() ([]Word) {
     return []Word{
-        0xa9, 0x30, // LDA #$30
-        0x85, 0xfa, // STA $FA
-        0xa0, 0x03, // LDY $#03
+        0xA9, 0x30, // LDA #$30
+        0x85, 0xFA, // STA $FA
+        0xA0, 0x03, // LDY $#03
     }
 }
 
 func setupIndexedIndirectMemory() ([]Word) {
     return []Word{
-        0xa9, 0xfa,        // LDA #$FA
-		0x85, 0xda,        // STA $DA
-		0xa9, 0xea,        // LDA #$EA
-		0x85, 0xdb,        // STA $DB
-		0xa2, 0x27,	       // LDX $#27
-		0xa9, 0xcc,        // LDA #$CC
-		0x8d, 0xfa, 0xea,  // STA $#EAFA
+        0xA9, 0xFA,        // LDA #$FA
+		0x85, 0xDA,        // STA $DA
+		0xA9, 0xEA,        // LDA #$EA
+		0x85, 0xDB,        // STA $DB
+		0xA2, 0x27,	       // LDX $#27
+		0xA9, 0xCC,        // LDA #$CC
+		0x8D, 0xFA, 0xEA,  // STA $#EAFA
     }
 }
 
 func setupIndirectIndexedMemory() ([]Word) {
     return []Word{
-        0xa9, 0xfb,        // LDA #$FB
-		0x85, 0xdc,        // STA $DC
-		0xa9, 0xea,        // LDA #$EA
-		0x85, 0xdd,        // STA $DD
-		0xa0, 0x27,	       // LDY $#27
-		0xa9, 0xcd,        // LDA #$CD
-		0x8d, 0x22, 0xeb,  // STA $#EB22
+        0xA9, 0xFB,        // LDA #$FB
+		0x85, 0xDC,        // STA $DC
+		0xA9, 0xEA,        // LDA #$EA
+		0x85, 0xDD,        // STA $DD
+		0xA0, 0x27,	       // LDY $#27
+		0xA9, 0xCD,        // LDA #$CD
+		0x8D, 0x22, 0xEB,  // STA $#EB22
     }
 }
 
 func setupAbsoluteMemory() ([]Word) {
     return []Word{
-        0xa9, 0xfc,        // LDA #$FC
-		0x8d, 0x23, 0xeb,  // STA $#EB23
+        0xA9, 0xFC,        // LDA #$FC
+		0x8D, 0x23, 0xEB,  // STA $#EB23
     }
 }
 
 func setupAbsoluteIndexedYMemory() ([]Word) {
     return []Word{
-        0xa9, 0xfd,        // LDA #$FD
-		0x8d, 0x24, 0xeb,  // STA $24,$EB
-		0xa0, 0x27,       //  LDY $#27
+        0xA9, 0xFD,        // LDA #$FD
+		0x8D, 0x24, 0xEB,  // STA $24,$EB
+		0xA0, 0x27,       //  LDY $#27
     }
 }
 
 func setupAbsoluteIndexedXMemory() ([]Word) {
     return []Word{
-        0xa9, 0xfe,        // LDA #$FD
-		0x8d, 0x25, 0xeb,  // STA $25,$EB
-		0xa2, 0x27,       //  LDX $#27
+        0xA9, 0xFE,        // LDA #$FD
+		0x8D, 0x25, 0xEB,  // STA $25,$EB
+		0xA2, 0x27,       //  LDX $#27
     }
 }
 
@@ -110,7 +109,7 @@ func testAdc(test *testing.T) {
     cpu.Reset()
 
     program := []Word{
-        0xa9, 0x01, // LDA #$01
+        0xA9, 0x01, // LDA #$01
         0x69, 0x40, // ADC $#40
     }
 
@@ -121,9 +120,9 @@ func testAdc(test *testing.T) {
     }
 
     runTest(append(setupZeroPageMemory(),
-                0xa9 , 0x01, // LDA #$01
+                0xA9 , 0x01, // LDA #$01
                 0x18,        // CLC
-                0x65, 0xfa,  // ADC $#FA
+                0x65, 0xFA,  // ADC $#FA
                 ))
 
     if cpu.A != 0x31 {
@@ -131,9 +130,9 @@ func testAdc(test *testing.T) {
     }
 
     runTest(append(setupZeroPageIndexedXMemory(),
-                0xa9 , 0x01, // LDA #$01
+                0xA9 , 0x01, // LDA #$01
                 0x18,        // CLC
-                0x75, 0xf7,  // ADC $#4F,X
+                0x75, 0xF7,  // ADC $#4F,X
                 ))
 
     if cpu.A != 0x31 {
@@ -141,9 +140,9 @@ func testAdc(test *testing.T) {
     }
 
     runTest(append(setupIndexedIndirectMemory(),
-                0xa9 , 0x01, // LDA #$01
+                0xA9 , 0x01, // LDA #$01
                 0x18,        // CLC
-                0x61, 0xb3,  // ADC ($#B3,X)
+                0x61, 0xB3,  // ADC ($#B3,X)
                 ))
 
     if cpu.A != 0xcd {
@@ -1381,5 +1380,150 @@ func TestAsl(test *testing.T) {
         test.Error("Carry bit was not set")
     case !cpu.Negative:
         test.Error("Negative bit was not set")
+    }
+}
+
+func TestRol(test *testing.T) {
+    runTest(append(setupZeroPageMemory(),
+        0x18,
+        0x26, 0xFA, // ROL #$FA
+    ))
+
+    switch {
+    case memory[0x00fa] != 0x60:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x60\n", memory[0x00fa])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest(append(setupZeroPageIndexedXMemory(),
+        0x38,
+        0x36, 0xF7, // ROL $#F7,X
+    ))
+
+    switch {
+    case memory[0x00fa] != 0x61:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x61\n", memory[0x00fa])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest(append(setupAbsoluteMemory(),
+        0x18,
+        0x2E, 0x23, 0xEB, // ROL $#EB23
+    ))
+
+    switch {
+    case memory[0xEB23] != 0xF8:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xF8\n", memory[0xEB23])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case !cpu.Carry:
+        test.Error("Carry bit was not set")
+    case !cpu.Negative:
+        test.Error("Negative bit was not set")
+    }
+
+    runTest(append(setupAbsoluteIndexedXMemory(),
+        0x18,
+        0x3E, 0xFE, 0xEA, // ROL $#EAFE,X
+    ))
+
+    if memory[0xEB25] != 0xFC {
+        test.Errorf("Memory at 0xEB25 was 0x%X, expected 0xFC\n", memory[0xEB25])
+    }
+
+    runTest([]Word{
+        0xA9, 0xFE,
+        0x18,
+        0x2A,
+    })
+
+    if cpu.A != 0xFC {
+        test.Errorf("A was 0x%x, expected 0xFC\n", cpu.A)
+    }
+}
+
+func TestRor(test *testing.T) {
+    runTest(append(setupZeroPageMemory(),
+        0x18,
+        0x66, 0xFA, // ROR #$FA
+    ))
+
+    switch {
+    case memory[0x00FA] != 0x18:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x18\n", memory[0x00fa])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest(append(setupZeroPageIndexedXMemory(),
+        0x38,
+        0x76, 0xF7, // ROR $#F7,X
+    ))
+
+    switch {
+    case memory[0x00FA] != 0x98:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x98\n", memory[0x00fa])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case !cpu.Negative:
+        test.Error("Negative bit was not set")
+    }
+
+    runTest(append(setupAbsoluteMemory(),
+        0x18,
+        0x6E, 0x23, 0xEB, // ROR $#EB23
+    ))
+
+    switch {
+    case memory[0xEB23] != 0x7E:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0x7E\n", memory[0xEB23])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest(append(setupAbsoluteIndexedXMemory(),
+        0x18,
+        0x7E, 0xFE, 0xEA, // ROR $#EAFE,X
+    ))
+
+    switch {
+    case memory[0xEB25] != 0x7F:
+        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0x7F\n", memory[0xEB25])
+    case cpu.Zero:
+        test.Error("Zero bit was set")
+    case cpu.Carry:
+        test.Error("Carry bit was set")
+    case cpu.Negative:
+        test.Error("Negative bit was set")
+    }
+
+    runTest([]Word{
+        0xA9, 0xFE,
+        0x18,
+        0x6A,
+    })
+
+    if cpu.A != 0x7F {
+        test.Errorf("A was 0x%x, expected 0x7F\n", cpu.A)
     }
 }

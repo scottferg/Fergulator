@@ -666,12 +666,12 @@ func (cpu *Cpu) RolAcc() {
 func (cpu *Cpu) Ror(location int) {
     value := memory[location]
 
-    carry := value & 0x80
+    carry := value & 0x1
 
     value = value >> 1
 
     if cpu.Carry {
-        value += 1
+        value += 0x80
     }
 
     if carry > 0x00 {
@@ -687,7 +687,7 @@ func (cpu *Cpu) Ror(location int) {
 }
 
 func (cpu *Cpu) RorAcc() {
-    carry := cpu.A & 0x01
+    carry := cpu.A & 0x1
 
     cpu.A = cpu.A >> 1
 
