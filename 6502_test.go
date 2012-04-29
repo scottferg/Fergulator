@@ -105,7 +105,7 @@ func setupAbsoluteIndexedXMemory() ([]Word) {
     }
 }
 
-func testAdc(test *testing.T) {
+func TestAdc(test *testing.T) {
     cpu.Reset()
 
     program := []Word{
