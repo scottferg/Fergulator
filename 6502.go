@@ -755,6 +755,7 @@ func (cpu *Cpu) Step() {
     opcode := memory[programCounter]
     programCounter++
 
+    fmt.Printf("Instruction: 0x%x\n", opcode)
     switch opcode {
     // ADC
     case 0x69:

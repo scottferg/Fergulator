@@ -106,7 +106,7 @@ func setupAbsoluteIndexedXMemory() ([]Word) {
     }
 }
 
-func TestAdc(test *testing.T) {
+func testAdc(test *testing.T) {
     cpu.Reset()
 
     program := []Word{
@@ -1171,5 +1171,49 @@ func TestInc(test *testing.T) {
 
     if memory[0xeb25] != 0xff {
         test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFF\n", memory[0xEB25])
+    }
+}
+
+func TestJsr(test *testing.T) {
+    programCounter = 0
+
+    program := []Word{
+        0xea, // NOP
+        0xea,
+        0xea,
+        0x20, 0x34, 0x12, // JSR #$1234
+        0xea,
+        0xea,
+        0xea,
+    }
+
+    for index,value := range program {
+        memory[index] = value
+    }
+
+    step(3)
+
+    if programCounter != 0x03 {
+        test.Errorf("Program counter was 0x%x, expected 0x03\n", programCounter)
+    }
+
+    step(1)
+
+    if programCounter != 0x1234 {
+        test.Errorf("Program counter was 0x%x, expected 0x1234\n", programCounter)
+    }
+
+    // TODO: Add stack logic tests
+    // memory[0x01ff] == 0x00
+    // memory[0x01fe] == 0x05
+
+    // Force in some instructions
+    memory[0x1234] = 0x38 // SEC
+    memory[0x1235] = 0x60 // RTS
+
+    step(3)
+
+    if programCounter != 0x07 {
+        test.Errorf("Program counter was 0x%x, expected 0x07\n", programCounter)
     }
 }
