@@ -17,6 +17,7 @@ type Cpu struct {
     Zero         bool
     Carry        bool
     StackPointer Word
+    Verbose      bool
 }
 
 func (cpu *Cpu) testAndSetNegative(value Word) {
@@ -89,8 +90,8 @@ func (cpu *Cpu) immediateAddress() (int) {
 func (cpu *Cpu) absoluteAddress() (result int) {
     // Switch to an int (or more appropriately uint16) since we 
     // will overflow when shifting the high byte
-    high := int(memory[programCounter + 1])
-    low := int(memory[programCounter])
+    high := int(Ram[programCounter + 1])
+    low := int(Ram[programCounter])
 
     programCounter += 2
     return (high << 8) + low
@@ -98,11 +99,11 @@ func (cpu *Cpu) absoluteAddress() (result int) {
 
 func (cpu *Cpu) zeroPageAddress() (int) {
     programCounter++
-    return int(memory[programCounter - 1])
+    return int(Ram[programCounter - 1])
 }
 
 func (cpu *Cpu) indirectAbsoluteAddress() (result int) {
-    result = int((memory[programCounter + 1] << 8) + memory[programCounter])
+    result = int((Ram[programCounter + 1] << 8) + Ram[programCounter])
     programCounter++
     return
 }
@@ -110,38 +111,38 @@ func (cpu *Cpu) indirectAbsoluteAddress() (result int) {
 func (cpu *Cpu) absoluteIndexedAddress(index Word) (result int) {
     // Switch to an int (or more appropriately uint16) since we 
     // will overflow when shifting the high byte
-    high := int(memory[programCounter + 1])
-    low := int(memory[programCounter])
+    high := int(Ram[programCounter + 1])
+    low := int(Ram[programCounter])
 
     programCounter++
     return (high << 8) + low + int(index)
 }
 
 func (cpu *Cpu) zeroPageIndexedAddress(index Word) (int) {
-    location := int(memory[programCounter] + index)
+    location := int(Ram[programCounter] + index)
     programCounter++
     return location
 }
 
 func (cpu *Cpu) indexedIndirectAddress() (int) {
-    location := memory[programCounter] + cpu.X
+    location := Ram[programCounter] + cpu.X
     programCounter++
 
     // Switch to an int (or more appropriately uint16) since we 
     // will overflow when shifting the high byte
-    high := int(memory[location + 1])
-    low := int(memory[location])
+    high := int(Ram[location + 1])
+    low := int(Ram[location])
 
     return (high << 8) + low
 }
 
 func (cpu *Cpu) indirectIndexedAddress() (int) {
-    location := memory[programCounter]
+    location := Ram[programCounter]
 
     // Switch to an int (or more appropriately uint16) since we 
     // will overflow when shifting the high byte
-    high := int(memory[location + 1])
-    low := int(memory[location])
+    high := int(Ram[location + 1])
+    low := int(Ram[location])
 
     programCounter++
     return (high << 8) + low + int(cpu.Y)
@@ -156,7 +157,7 @@ func (cpu *Cpu) accumulatorAddress() (int) {
 }
 
 func (cpu *Cpu) Adc(location int) {
-    cpu.A = cpu.A + memory[location]
+    cpu.A = cpu.A + Ram[location]
 
     if cpu.Carry {
         cpu.A++
@@ -164,41 +165,41 @@ func (cpu *Cpu) Adc(location int) {
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
-    cpu.testAndSetOverflowAddition(cpu.A, memory[location])
-    cpu.testAndSetCarryAddition(cpu.A, memory[location])
+    cpu.testAndSetOverflowAddition(cpu.A, Ram[location])
+    cpu.testAndSetCarryAddition(cpu.A, Ram[location])
 }
 
 func (cpu *Cpu) Lda(location int) {
-    cpu.A = memory[location]
+    cpu.A = Ram[location]
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
 }
 
 func (cpu *Cpu) Ldx(location int) {
-    cpu.X = memory[location]
+    cpu.X = Ram[location]
 
     cpu.testAndSetNegative(cpu.X)
     cpu.testAndSetZero(cpu.X)
 }
 
 func (cpu *Cpu) Ldy(location int) {
-    cpu.Y = memory[location]
+    cpu.Y = Ram[location]
 
     cpu.testAndSetNegative(cpu.Y)
     cpu.testAndSetZero(cpu.Y)
 }
 
 func (cpu *Cpu) Sta(location int) {
-    memory[location] = cpu.A
+    Ram[location] = cpu.A
 }
 
 func (cpu *Cpu) Stx(location int) {
-    memory[location] = cpu.X
+    Ram[location] = cpu.X
 }
 
 func (cpu *Cpu) Sty(location int) {
-    memory[location] = cpu.Y
+    Ram[location] = cpu.Y
 }
 
 func (cpu *Cpu) Jmp(location int) {
@@ -280,7 +281,7 @@ func (cpu *Cpu) Branch(offset Word) {
 
 func (cpu *Cpu) Bpl() {
     if !cpu.Negative {
-        cpu.Branch(memory[programCounter])
+        cpu.Branch(Ram[programCounter])
     } else {
         programCounter++
     }
@@ -288,7 +289,7 @@ func (cpu *Cpu) Bpl() {
 
 func (cpu *Cpu) Bmi() {
     if cpu.Negative {
-        cpu.Branch(memory[programCounter])
+        cpu.Branch(Ram[programCounter])
     } else {
         programCounter++
     }
@@ -296,7 +297,7 @@ func (cpu *Cpu) Bmi() {
 
 func (cpu *Cpu) Bvc() {
     if !cpu.Overflow {
-        cpu.Branch(memory[programCounter])
+        cpu.Branch(Ram[programCounter])
     } else {
         programCounter++
     }
@@ -304,7 +305,7 @@ func (cpu *Cpu) Bvc() {
 
 func (cpu *Cpu) Bvs() {
     if cpu.Overflow {
-        cpu.Branch(memory[programCounter])
+        cpu.Branch(Ram[programCounter])
     } else {
         programCounter++
     }
@@ -312,7 +313,7 @@ func (cpu *Cpu) Bvs() {
 
 func (cpu *Cpu) Bcc() {
     if !cpu.Carry {
-        cpu.Branch(memory[programCounter])
+        cpu.Branch(Ram[programCounter])
     } else {
         programCounter++
     }
@@ -320,7 +321,7 @@ func (cpu *Cpu) Bcc() {
 
 func (cpu *Cpu) Bcs() {
     if cpu.Carry {
-        cpu.Branch(memory[programCounter])
+        cpu.Branch(Ram[programCounter])
     } else {
         programCounter++
     }
@@ -328,7 +329,7 @@ func (cpu *Cpu) Bcs() {
 
 func (cpu *Cpu) Bne() {
     if !cpu.Zero {
-        cpu.Branch(memory[programCounter])
+        cpu.Branch(Ram[programCounter])
     } else {
         programCounter++
     }
@@ -336,27 +337,27 @@ func (cpu *Cpu) Bne() {
 
 func (cpu *Cpu) Beq() {
     if cpu.Zero {
-        cpu.Branch(memory[programCounter])
+        cpu.Branch(Ram[programCounter])
     } else {
         programCounter++
     }
 }
 
 func (cpu *Cpu) Txs() {
-    memory[cpu.StackPointer] = cpu.X
+    Ram[cpu.StackPointer] = cpu.X
 }
 
 func (cpu *Cpu) Tsx() {
-    cpu.X = memory[cpu.StackPointer]
+    cpu.X = Ram[cpu.StackPointer]
 }
 
 func (cpu *Cpu) Pha() {
     cpu.StackPointer--
-    memory[cpu.StackPointer] = cpu.A
+    Ram[cpu.StackPointer] = cpu.A
 }
 
 func (cpu *Cpu) Pla() {
-    cpu.A = memory[cpu.StackPointer]
+    cpu.A = Ram[cpu.StackPointer]
     cpu.StackPointer++
 
     cpu.testAndSetNegative(cpu.A)
@@ -427,11 +428,11 @@ func (cpu *Cpu) SetProcessorStatus(status Word) {
 
 func (cpu *Cpu) Php() {
     cpu.StackPointer--
-    memory[cpu.StackPointer] = cpu.ProcessorStatus()
+    Ram[cpu.StackPointer] = cpu.ProcessorStatus()
 }
 
 func (cpu *Cpu) Plp() {
-    cpu.SetProcessorStatus(memory[cpu.StackPointer])
+    cpu.SetProcessorStatus(Ram[cpu.StackPointer])
     cpu.StackPointer++
 }
 
@@ -453,19 +454,19 @@ func (cpu *Cpu) Compare(register Word, value Word) {
 }
 
 func (cpu *Cpu) Cmp(location int) {
-    cpu.Compare(cpu.A, memory[location])
+    cpu.Compare(cpu.A, Ram[location])
 }
 
 func (cpu *Cpu) Cpx(location int) {
-    cpu.Compare(cpu.X, memory[location])
+    cpu.Compare(cpu.X, Ram[location])
 }
 
 func (cpu *Cpu) Cpy(location int) {
-    cpu.Compare(cpu.Y, memory[location])
+    cpu.Compare(cpu.Y, Ram[location])
 }
 
 func (cpu *Cpu) Sbc(location int) {
-    cpu.A = cpu.A - memory[location]
+    cpu.A = cpu.A - Ram[location]
 
     if cpu.Carry {
         cpu.A--
@@ -473,8 +474,10 @@ func (cpu *Cpu) Sbc(location int) {
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
-    cpu.testAndSetOverflowSubtraction(cpu.A, memory[location])
-    cpu.testAndSetCarrySubtraction(cpu.A, memory[location])
+    cpu.testAndSetOverflowSubtraction(cpu.A, Ram[location])
+    cpu.testAndSetCarrySubtraction(cpu.A, Ram[location])
+
+    cpu.A = cpu.A & 0xff
 }
 
 func (cpu *Cpu) Clc() {
@@ -506,38 +509,38 @@ func (cpu *Cpu) Sed() {
 }
 
 func (cpu *Cpu) And(location int) {
-    cpu.A = cpu.A & memory[location]
+    cpu.A = cpu.A & Ram[location]
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
 }
 
 func (cpu *Cpu) Ora(location int) {
-    cpu.A = cpu.A | memory[location]
+    cpu.A = cpu.A | Ram[location]
 
-    cpu.testAndSetNegative(memory[location])
-    cpu.testAndSetZero(memory[location])
+    cpu.testAndSetNegative(Ram[location])
+    cpu.testAndSetZero(Ram[location])
 }
 
 func (cpu *Cpu) Eor(location int) {
-    cpu.A = cpu.A ^ memory[location]
+    cpu.A = cpu.A ^ Ram[location]
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
 }
 
 func (cpu *Cpu) Dec(location int) {
-    memory[location] = memory[location] - 1
+    Ram[location] = Ram[location] - 1
 
-    cpu.testAndSetNegative(memory[location])
-    cpu.testAndSetZero(memory[location])
+    cpu.testAndSetNegative(Ram[location])
+    cpu.testAndSetZero(Ram[location])
 }
 
 func (cpu *Cpu) Inc(location int) {
-    memory[location] = memory[location] + 1
+    Ram[location] = Ram[location] + 1
 
-    cpu.testAndSetNegative(memory[location])
-    cpu.testAndSetZero(memory[location])
+    cpu.testAndSetNegative(Ram[location])
+    cpu.testAndSetZero(Ram[location])
 }
 
 func (cpu *Cpu) Brk() {
@@ -547,7 +550,7 @@ func (cpu *Cpu) Brk() {
 
 func (cpu *Cpu) Jsr(location int) {
     cpu.StackPointer--
-    memory[cpu.StackPointer] = Word(programCounter - 1)
+    Ram[cpu.StackPointer] = Word(programCounter - 1)
 
     programCounter = location
 }
@@ -555,31 +558,31 @@ func (cpu *Cpu) Jsr(location int) {
 func (cpu *Cpu) Rti() {
     cpu.Plp()
 
-    programCounter = int(memory[cpu.StackPointer])
+    programCounter = int(Ram[cpu.StackPointer])
     cpu.StackPointer++
 }
 
 func (cpu *Cpu) Rts() {
-    low := memory[cpu.StackPointer]
+    low := Ram[cpu.StackPointer]
     cpu.StackPointer++
 
-    high := memory[cpu.StackPointer]
+    high := Ram[cpu.StackPointer]
     cpu.StackPointer++
 
     programCounter = int(((high << 8) + low) + 1)
 }
 
 func (cpu *Cpu) Lsr(location int) {
-    if memory[location] & 0x01 > 0x00 {
+    if Ram[location] & 0x01 > 0x00 {
         cpu.Carry = true
     } else {
         cpu.Carry = false
     }
 
-    memory[location] = memory[location] >> 1
+    Ram[location] = Ram[location] >> 1
 
-    cpu.testAndSetNegative(memory[location])
-    cpu.testAndSetZero(memory[location])
+    cpu.testAndSetNegative(Ram[location])
+    cpu.testAndSetZero(Ram[location])
 }
 
 func (cpu *Cpu) LsrAcc() {
@@ -596,16 +599,16 @@ func (cpu *Cpu) LsrAcc() {
 }
 
 func (cpu *Cpu) Asl(location int) {
-    if memory[location] & 0x80 > 0 {
+    if Ram[location] & 0x80 > 0 {
         cpu.Carry = true
     } else {
         cpu.Carry = false
     }
 
-    memory[location] = memory[location] << 1
+    Ram[location] = Ram[location] << 1
 
-    cpu.testAndSetNegative(memory[location])
-    cpu.testAndSetZero(memory[location])
+    cpu.testAndSetNegative(Ram[location])
+    cpu.testAndSetZero(Ram[location])
 }
 
 func (cpu *Cpu) AslAcc() {
@@ -622,7 +625,7 @@ func (cpu *Cpu) AslAcc() {
 }
 
 func (cpu *Cpu) Rol(location int) {
-    value := memory[location]
+    value := Ram[location]
 
     carry := value & 0x80
 
@@ -638,10 +641,10 @@ func (cpu *Cpu) Rol(location int) {
         cpu.Carry = false
     }
 
-    memory[location] = value
+    Ram[location] = value
 
-    cpu.testAndSetNegative(memory[location])
-    cpu.testAndSetZero(memory[location])
+    cpu.testAndSetNegative(Ram[location])
+    cpu.testAndSetZero(Ram[location])
 }
 
 func (cpu *Cpu) RolAcc() {
@@ -664,7 +667,7 @@ func (cpu *Cpu) RolAcc() {
 }
 
 func (cpu *Cpu) Ror(location int) {
-    value := memory[location]
+    value := Ram[location]
 
     carry := value & 0x1
 
@@ -680,10 +683,10 @@ func (cpu *Cpu) Ror(location int) {
         cpu.Carry = false
     }
 
-    memory[location] = value
+    Ram[location] = value
 
-    cpu.testAndSetNegative(memory[location])
-    cpu.testAndSetZero(memory[location])
+    cpu.testAndSetNegative(Ram[location])
+    cpu.testAndSetZero(Ram[location])
 }
 
 func (cpu *Cpu) RorAcc() {
@@ -706,19 +709,19 @@ func (cpu *Cpu) RorAcc() {
 }
 
 func (cpu *Cpu) Bit(location int) {
-    if memory[location] & cpu.A == 0 {
+    if Ram[location] & cpu.A == 0 {
         cpu.Zero = true
     } else {
         cpu.Zero = false
     }
 
-    if memory[location] & 0x80 > 0x00 {
+    if Ram[location] & 0x80 > 0x00 {
         cpu.Negative = true
     } else {
         cpu.Negative = false
     }
 
-    if memory[location] & 0x40 > 0x00 {
+    if Ram[location] & 0x40 > 0x00 {
         cpu.Overflow = true
     } else {
         cpu.Overflow = false
@@ -744,18 +747,25 @@ func (cpu *Cpu) Reset() {
     cpu.StackPointer = 0xff
 }
 
-func (cpu *Cpu) Step() {
-    fmt.Printf("X: 0x%x Y: 0x%x A: 0x%x PC: %d\n", cpu.X, cpu.Y, cpu.A, programCounter)
+func (cpu *Cpu) DumpState() string {
+    return fmt.Sprintf("X: 0x%X Y: 0x%X A: 0x%X PC: 0x%X PPU1: 0x%X PPU2: 0x%X Mem: 0x%X", cpu.X, cpu.Y, cpu.A, programCounter, Ram[0x2000], Ram[0x2001], Ram[0x4014])
+}
 
+func (cpu *Cpu) Step() {
     if cpu.CycleCount > 1 && false {
         cpu.CycleCount--
         return
     }
 
-    opcode := memory[programCounter]
+    opcode := Ram[programCounter]
+
+    if cpu.Verbose {
+        fmt.Printf("Opcode: 0x%X\n", opcode)
+    }
+
     programCounter++
 
-    fmt.Printf("Instruction: 0x%x\n", opcode)
+
     switch opcode {
     // ADC
     case 0x69:
@@ -767,7 +777,7 @@ func (cpu *Cpu) Step() {
     case 0x75:
         cpu.CycleCount = 4
         cpu.Adc(cpu.zeroPageIndexedAddress(cpu.X))
-    case 0x6d:
+    case 0x6D:
         cpu.CycleCount = 4
         cpu.Adc(cpu.absoluteAddress())
     case 0x7D:
@@ -783,60 +793,60 @@ func (cpu *Cpu) Step() {
         cpu.CycleCount = 5
         cpu.Adc(cpu.indirectIndexedAddress())
     // LDA
-    case 0xa9:
+    case 0xA9:
         cpu.CycleCount = 2
         cpu.Lda(cpu.immediateAddress())
-    case 0xa5:
+    case 0xA5:
         cpu.CycleCount = 3
         cpu.Lda(cpu.zeroPageAddress())
-    case 0xb5:
+    case 0xB5:
         cpu.CycleCount = 4
         cpu.Lda(cpu.zeroPageIndexedAddress(cpu.X))
-    case 0xad:
+    case 0xAD:
         cpu.CycleCount = 4
         cpu.Lda(cpu.absoluteAddress())
-    case 0xbd:
+    case 0xBD:
         cpu.CycleCount = 4
         cpu.Lda(cpu.absoluteIndexedAddress(cpu.X))
-    case 0xb9:
+    case 0xB9:
         cpu.CycleCount = 4
         cpu.Lda(cpu.absoluteIndexedAddress(cpu.Y))
-    case 0xa1:
+    case 0xA1:
         cpu.CycleCount = 6
         cpu.Lda(cpu.indexedIndirectAddress())
-    case 0xb1:
+    case 0xB1:
         cpu.CycleCount = 5
         cpu.Lda(cpu.indirectIndexedAddress())
     // LDX
-    case 0xa2:
+    case 0xA2:
         cpu.CycleCount = 2
         cpu.Ldx(cpu.immediateAddress())
-    case 0xa6:
+    case 0xA6:
         cpu.CycleCount = 3
         cpu.Ldx(cpu.zeroPageAddress())
-    case 0xb6:
+    case 0xB6:
         cpu.CycleCount = 4
         cpu.Ldx(cpu.zeroPageIndexedAddress(cpu.Y))
-    case 0xae:
+    case 0xAE:
         cpu.CycleCount = 4
         cpu.Ldx(cpu.absoluteAddress())
-    case 0xbe:
+    case 0xBE:
         cpu.CycleCount = 4
         cpu.Ldx(cpu.absoluteIndexedAddress(cpu.Y))
     // LDY
-    case 0xa0:
+    case 0xA0:
         cpu.CycleCount = 2
         cpu.Ldy(cpu.immediateAddress())
-    case 0xa4:
+    case 0xA4:
         cpu.CycleCount = 3
         cpu.Ldy(cpu.zeroPageAddress())
-    case 0xb4:
+    case 0xB4:
         cpu.CycleCount = 4
         cpu.Ldy(cpu.zeroPageIndexedAddress(cpu.X))
-    case 0xac:
+    case 0xAC:
         cpu.CycleCount = 4
         cpu.Ldy(cpu.absoluteAddress())
-    case 0xbc:
+    case 0xBC:
         cpu.CycleCount = 4
         cpu.Ldy(cpu.absoluteIndexedAddress(cpu.X))
     // STA
@@ -846,10 +856,10 @@ func (cpu *Cpu) Step() {
     case 0x95:
         cpu.CycleCount = 4
         cpu.Sta(cpu.zeroPageIndexedAddress(cpu.X))
-    case 0x8d:
+    case 0x8D:
         cpu.CycleCount = 4
         cpu.Sta(cpu.absoluteAddress())
-    case 0x9d:
+    case 0x9D:
         cpu.CycleCount = 5
         cpu.Sta(cpu.absoluteIndexedAddress(cpu.X))
     case 0x99:
@@ -868,7 +878,7 @@ func (cpu *Cpu) Step() {
     case 0x96:
         cpu.CycleCount = 4
         cpu.Stx(cpu.zeroPageIndexedAddress(cpu.Y))
-    case 0x8e:
+    case 0x8E:
         cpu.CycleCount = 4
         cpu.Stx(cpu.absoluteAddress())
     // STY
@@ -878,14 +888,14 @@ func (cpu *Cpu) Step() {
     case 0x94:
         cpu.CycleCount = 4
         cpu.Sty(cpu.zeroPageIndexedAddress(cpu.X))
-    case 0x8c:
+    case 0x8C:
         cpu.CycleCount = 4
         cpu.Sty(cpu.absoluteAddress())
     // JMP
-    case 0x4c:
+    case 0x4C:
         cpu.CycleCount = 3
         cpu.Jmp(cpu.absoluteAddress())
-    case 0x6c:
+    case 0x6C:
         cpu.CycleCount = 5
         cpu.Jmp(cpu.indirectAbsoluteAddress())
     // JSR
@@ -893,19 +903,19 @@ func (cpu *Cpu) Step() {
         cpu.CycleCount = 6
         cpu.Jsr(cpu.absoluteAddress())
     // Register Instructions
-    case 0xaa:
+    case 0xAA:
         cpu.CycleCount = 2
         cpu.Tax()
-    case 0x8a:
+    case 0x8A:
         cpu.CycleCount = 2
         cpu.Txa()
-    case 0xca:
+    case 0xCA:
         cpu.CycleCount = 2
         cpu.Dex()
-    case 0xe8:
+    case 0xE8:
         cpu.CycleCount = 2
         cpu.Inx()
-    case 0xa8:
+    case 0xA8:
         cpu.CycleCount = 2
         cpu.Tay()
     case 0x98:
@@ -914,7 +924,7 @@ func (cpu *Cpu) Step() {
     case 0x88:
         cpu.CycleCount = 2
         cpu.Dey()
-    case 0xc8:
+    case 0xC8:
         cpu.CycleCount = 2
         cpu.Iny()
     // Branch Instructions
@@ -933,83 +943,83 @@ func (cpu *Cpu) Step() {
     case 0x90:
         cpu.CycleCount = 2
         cpu.Bcc()
-    case 0xb0:
+    case 0xB0:
         cpu.CycleCount = 2
         cpu.Bcs()
-    case 0xd0:
+    case 0xD0:
         cpu.CycleCount = 2
         cpu.Bne()
-    case 0xf0:
+    case 0xF0:
         cpu.CycleCount = 2
         cpu.Beq()
     // CMP
-    case 0xc9:
+    case 0xC9:
         cpu.CycleCount = 2
         cpu.Cmp(cpu.immediateAddress())
-    case 0xc5:
+    case 0xC5:
         cpu.CycleCount = 3
         cpu.Cmp(cpu.zeroPageAddress())
-    case 0xd5:
+    case 0xD5:
         cpu.CycleCount = 4
         cpu.Cmp(cpu.zeroPageIndexedAddress(cpu.X))
-    case 0xcd:
+    case 0xCD:
         cpu.CycleCount = 4
         cpu.Cmp(cpu.absoluteAddress())
-    case 0xdd:
+    case 0xDD:
         cpu.CycleCount = 4
         cpu.Cmp(cpu.absoluteIndexedAddress(cpu.X))
-    case 0xd9:
+    case 0xD9:
         cpu.CycleCount = 4
         cpu.Cmp(cpu.absoluteIndexedAddress(cpu.Y))
-    case 0xc1:
+    case 0xC1:
         cpu.CycleCount = 6
         cpu.Cmp(cpu.indexedIndirectAddress())
-    case 0xd1:
+    case 0xD1:
         cpu.CycleCount = 5
         cpu.Cmp(cpu.indirectIndexedAddress())
     // CPX
-    case 0xe0:
+    case 0xE0:
         cpu.CycleCount = 2
         cpu.Cpx(cpu.immediateAddress())
-    case 0xe4:
+    case 0xE4:
         cpu.CycleCount = 3
         cpu.Cpx(cpu.zeroPageAddress())
-    case 0xec:
+    case 0xEC:
         cpu.CycleCount = 4
         cpu.Cpx(cpu.absoluteAddress())
     // CPY
-    case 0xc0:
+    case 0xC0:
         cpu.CycleCount = 2
         cpu.Cpy(cpu.immediateAddress())
-    case 0xc4:
+    case 0xC4:
         cpu.CycleCount = 3
         cpu.Cpy(cpu.zeroPageAddress())
-    case 0xcc:
+    case 0xCC:
         cpu.CycleCount = 4
         cpu.Cpy(cpu.absoluteAddress())
     // SBC
-    case 0xe9:
+    case 0xE9:
         cpu.CycleCount = 2
         cpu.Sbc(cpu.immediateAddress())
-    case 0xe5:
+    case 0xE5:
         cpu.CycleCount = 3
         cpu.Sbc(cpu.zeroPageAddress())
-    case 0xf5:
+    case 0xF5:
         cpu.CycleCount = 4
         cpu.Sbc(cpu.zeroPageIndexedAddress(cpu.X))
-    case 0xed:
+    case 0xED:
         cpu.CycleCount = 4
         cpu.Sbc(cpu.absoluteAddress())
-    case 0xfd:
+    case 0xFD:
         cpu.CycleCount = 4
         cpu.Sbc(cpu.absoluteIndexedAddress(cpu.X))
-    case 0xf9:
+    case 0xF9:
         cpu.CycleCount = 4
         cpu.Sbc(cpu.absoluteIndexedAddress(cpu.Y))
-    case 0xe1:
+    case 0xE1:
         cpu.CycleCount = 6
         cpu.Sbc(cpu.indexedIndirectAddress())
-    case 0xf1:
+    case 0xF1:
         cpu.CycleCount = 5
         cpu.Sbc(cpu.indirectIndexedAddress())
     // Flag Instructions
