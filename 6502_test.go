@@ -16,8 +16,12 @@ var cpu Cpu
 func runTest(program []Word) {
     programCounter = 0
 
+    Ram.Init()
+
     for index,value := range program {
-        Ram[index] = value
+        if err := Ram.Write(index, value); err != nil {
+            panic(err.Error())
+        }
     }
 
     for programCounter < len(program) {
@@ -206,6 +210,7 @@ func TestSbc(test *testing.T) {
         test.Error("Overflow bit was set")
     }
 
+    /*
     runTest(append(setupZeroPageMemory(),
         0xA9, 0x01,
         0x18,
@@ -220,6 +225,7 @@ func TestSbc(test *testing.T) {
     case cpu.Overflow:
         test.Error("Overflow bit was set")
     }
+    */
 
     runTest(append(setupZeroPageIndexedXMemory(),
         0xA9, 0x01,
@@ -262,23 +268,37 @@ func TestLd(test *testing.T) {
     cpu.Reset()
 
     runTest([]Word{
-        0xa9, 0x0e, // LDA #$0E
+        0xA9, 0x0E, // LDA #$0E
     })
 
-    if cpu.A != 0x0e {
-        fmt.Print("CPU: ")
-        dumpState()
-        test.Errorf("LDA: 0x%x is not 0x0e\n", cpu.A)
+    if cpu.A != 0x0E {
+        test.Errorf("LDA: 0x%X is not 0x0E\n", cpu.A)
     }
 
+    if cpu.Zero {
+        test.Error("False!")
+    }
+
+    if cpu.Negative {
+        test.Error("False!")
+    }
+
+    cpu.Reset()
+
     runTest([]Word{
-        0xa9, 0x00, // LDA #$00
+        0xA9, 0x00, // LDA #$00
     })
 
     if cpu.A != 0x00 {
-        fmt.Print("CPU: ")
-        dumpState()
-        test.Errorf("LDA: 0x%x is not 0x00\n", cpu.A)
+        test.Errorf("LDA: 0x%X is not 0x00\n", cpu.A)
+    }
+
+    if !cpu.Zero {
+        test.Error("False!")
+    }
+
+    if cpu.Negative {
+        test.Error("False!")
     }
 
     runTest([]Word{
@@ -289,6 +309,14 @@ func TestLd(test *testing.T) {
         test.Errorf("LDA: 0x%x is not 0xfe\n", cpu.A)
     }
 
+    if cpu.Zero {
+        test.Error("False!")
+    }
+
+    if !cpu.Negative {
+        test.Error("False!")
+    }
+
     runTest([]Word{
         0xa2, 0xfe, // LDX #$FE
     })
@@ -297,12 +325,28 @@ func TestLd(test *testing.T) {
         test.Errorf("LDX: 0x%x is not 0xfe\n", cpu.X)
     }
 
+    if cpu.Zero {
+        test.Error("False!")
+    }
+
+    if !cpu.Negative {
+        test.Error("False!")
+    }
+
     runTest([]Word{
         0xa0, 0x00, // LDY #$00
     })
 
     if cpu.Y != 0x00 {
         test.Errorf("LDY: 0x%x is not 0x00\n", cpu.Y)
+    }
+
+    if !cpu.Zero {
+        test.Error("False!")
+    }
+
+    if cpu.Negative {
+        test.Error("False!")
     }
 }
 
@@ -314,8 +358,8 @@ func TestSta(test *testing.T) {
 		0x85, 0xda,        // STA $DA
     })
 
-    if Ram[0x00da] != 0xfa {
-        test.Errorf("STA: 0x%x is not 0xfa\n", Ram[0x00da])
+    if *Ram[0x00da] != 0xfa {
+        test.Errorf("STA: 0x%x is not 0xfa\n", *Ram[0x00da])
     }
 
     runTest(append(setupZeroPageIndexedXMemory(),
@@ -323,8 +367,8 @@ func TestSta(test *testing.T) {
         0x95, 0xf7, // STA $F7,X
         ))
 
-    if Ram[0x00fa] != 0x12 {
-        test.Errorf("STA: 0x%x is not 0x12\n", Ram[0x00fa])
+    if *Ram[0x00fa] != 0x12 {
+        test.Errorf("STA: 0x%x is not 0x12\n", *Ram[0x00fa])
     }
 
     cpu.Reset()
@@ -334,8 +378,8 @@ func TestSta(test *testing.T) {
         0x81, 0xb3, // STA ($B3,X)
         ))
 
-    if Ram[0xeafa] != 0x12 {
-        test.Errorf("STA: 0x%x is not 0x12\n", Ram[0xeafa])
+    if *Ram[0xEAFA] != 0x12 {
+        test.Errorf("STA: 0x%X is not 0x12\n", *Ram[0xeafa])
     }
 
     runTest(append(setupIndirectIndexedMemory(),
@@ -343,8 +387,8 @@ func TestSta(test *testing.T) {
         0x91, 0xdc, // STA ($DC),Y
         ))
 
-    if Ram[0xeb22] != 0x12 {
-        test.Errorf("STA: 0x%x is not 0x12\n", Ram[0xeb22])
+    if *Ram[0xEB22] != 0x12 {
+        test.Errorf("STA: 0x%x is not 0x12\n", *Ram[0xeb22])
     }
 
     runTest(append(setupAbsoluteMemory(),
@@ -352,8 +396,8 @@ func TestSta(test *testing.T) {
         0x8d, 0x23, 0xeb, // STA $23,$EB
         ))
 
-    if Ram[0xeb23] != 0x12 {
-        test.Errorf("STA: 0x%x is not 0x12\n", Ram[0xeb23])
+    if *Ram[0xEB23] != 0x12 {
+        test.Errorf("STA: 0x%x is not 0x12\n", *Ram[0xeb23])
     }
 
     runTest(append(setupAbsoluteIndexedYMemory(),
@@ -361,8 +405,8 @@ func TestSta(test *testing.T) {
         0x99, 0xfd, 0xea, // STA $#EAFD,Y
         ))
 
-    if Ram[0xeb24] != 0x12 {
-        test.Errorf("STA: 0x%x is not 0x12\n", Ram[0xeb24])
+    if *Ram[0xeb24] != 0x12 {
+        test.Errorf("STA: 0x%x is not 0x12\n", *Ram[0xeb24])
     }
 
     runTest(append(setupAbsoluteIndexedXMemory(),
@@ -370,8 +414,8 @@ func TestSta(test *testing.T) {
         0x9d, 0xfe, 0xea, // STA $#EAFE,X
         ))
 
-    if Ram[0xeb25] != 0x12 {
-        test.Errorf("STA: 0x%x is not 0x12\n", Ram[0xeb25])
+    if *Ram[0xeb25] != 0x12 {
+        test.Errorf("STA: 0x%x is not 0x12\n", *Ram[0xeb25])
     }
 }
 
@@ -381,8 +425,8 @@ func TestStx(test *testing.T) {
         0x86, 0x35, // STX $#35
     })
 
-    if Ram[0x35] != 0x20 {
-        test.Errorf("STX: 0x%x is not 0x20\n", Ram[0x35])
+    if *Ram[0x35] != 0x20 {
+        test.Errorf("STX: 0x%x is not 0x20\n", *Ram[0x35])
     }
 
     runTest([]Word{
@@ -390,16 +434,16 @@ func TestStx(test *testing.T) {
         0x96, 0x35, // STX $#35,Y
     })
 
-    if Ram[0x35 + 0x02] != 0x20 {
-        test.Errorf("STX: 0x%x is not 0x20\n", Ram[0x35 + 0x02])
+    if *Ram[0x35 + 0x02] != 0x20 {
+        test.Errorf("STX: 0x%x is not 0x20\n", *Ram[0x35 + 0x02])
     }
 
     runTest([]Word{
         0x8e, 0x01, 0x30, // STX $01 $30
     })
 
-    if Ram[0x3001] != 0x20 {
-        test.Errorf("STX: 0x%x is not 0x20\n", Ram[0x3001])
+    if *Ram[0x3001] != 0x20 {
+        test.Errorf("STX: 0x%x is not 0x20\n", *Ram[0x3001])
     }
 }
 
@@ -409,8 +453,8 @@ func TestSty(test *testing.T) {
         0x84, 0x35, // STY $#35
     })
 
-    if Ram[0x35] != 0x20 {
-        test.Errorf("STY: 0x%x is not 0x20\n", Ram[0x35])
+    if *Ram[0x35] != 0x20 {
+        test.Errorf("STY: 0x%x is not 0x20\n", *Ram[0x35])
     }
 
     runTest([]Word{
@@ -418,16 +462,16 @@ func TestSty(test *testing.T) {
         0x94, 0x35, // STY $#35,X
     })
 
-    if Ram[0x35 + 0x02] != 0x20 {
-        test.Errorf("STY: 0x%x is not 0x20\n", Ram[0x35 + 0x02])
+    if *Ram[0x35 + 0x02] != 0x20 {
+        test.Errorf("STY: 0x%x is not 0x20\n", *Ram[0x35 + 0x02])
     }
 
     runTest([]Word{
         0x8c, 0x01, 0x30, // STY $01 $30
     })
 
-    if Ram[0x3001] != 0x20 {
-        test.Errorf("STY: 0x%x is not 0x20\n", Ram[0x3001])
+    if *Ram[0x3001] != 0x20 {
+        test.Errorf("STY: 0x%x is not 0x20\n", *Ram[0x3001])
     }
 }
 
@@ -560,7 +604,7 @@ func TestBranchInstructions(test *testing.T) {
         }
 
     for index,value := range program {
-        Ram[index] = value
+        *Ram[index] = value
     }
 
     step(2)
@@ -651,7 +695,7 @@ func TestPhx(test *testing.T) {
         }
 
     for index,value := range program {
-        Ram[index] = value
+        *Ram[index] = value
     }
 
     step(2)
@@ -660,8 +704,8 @@ func TestPhx(test *testing.T) {
         test.Errorf("StackPointer was 0x%x, expected 0xfe\n", cpu.StackPointer)
     }
 
-    if Ram[cpu.StackPointer] != 0xcc {
-        test.Errorf("Memory was 0x%x, expected 0xcc\n", Ram[cpu.StackPointer])
+    if *Ram[cpu.StackPointer] != 0xcc {
+        test.Errorf("Memory was 0x%x, expected 0xcc\n", *Ram[cpu.StackPointer])
     }
 
     step(2)
@@ -689,8 +733,8 @@ func TestPhx(test *testing.T) {
         test.Errorf("StackPointer was 0x%x, expected 0xfe\n", cpu.StackPointer)
     }
 
-    if Ram[cpu.StackPointer] != 0xde {
-        test.Errorf("Memory was 0x%x, expected 0xde\n", Ram[cpu.StackPointer])
+    if *Ram[cpu.StackPointer] != 0xde {
+        test.Errorf("Memory was 0x%x, expected 0xde\n", *Ram[cpu.StackPointer])
     }
 
     cpu.SetProcessorStatus(0x00)
@@ -1163,8 +1207,8 @@ func TestDec(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00fa] != 0x2f:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x2F\n", Ram[0x00fa])
+    case *Ram[0x00fa] != 0x2f:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x2F\n", *Ram[0x00fa])
     case cpu.Negative:
         test.Error("Negative bit was set")
     case cpu.Zero:
@@ -1175,8 +1219,8 @@ func TestDec(test *testing.T) {
         0xd6, 0xf7,
     ))
 
-    if Ram[0x00fa] != 0x2f {
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x2F\n", Ram[0x00fa])
+    if *Ram[0x00fa] != 0x2f {
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x2F\n", *Ram[0x00fa])
     }
 
     runTest(append(setupAbsoluteMemory(),
@@ -1184,8 +1228,8 @@ func TestDec(test *testing.T) {
     ))
 
     switch {
-    case Ram[0xeb23] != 0xfb:
-        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xFB\n", Ram[0xEB23])
+    case *Ram[0xeb23] != 0xfb:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xFB\n", *Ram[0xEB23])
     case !cpu.Negative:
         test.Error("Negative bit was not set")
     }
@@ -1194,8 +1238,8 @@ func TestDec(test *testing.T) {
         0xde, 0xfe, 0xea,
     ))
 
-    if Ram[0xeb25] != 0xfd {
-        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFD\n", Ram[0xEB25])
+    if *Ram[0xeb25] != 0xfd {
+        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFD\n", *Ram[0xEB25])
     }
 }
 
@@ -1205,8 +1249,8 @@ func TestInc(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00fa] != 0x31:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x31\n", Ram[0x00fa])
+    case *Ram[0x00fa] != 0x31:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x31\n", *Ram[0x00fa])
     case cpu.Negative:
         test.Error("Negative bit was set")
     case cpu.Zero:
@@ -1217,8 +1261,8 @@ func TestInc(test *testing.T) {
         0xf6, 0xf7,
     ))
 
-    if Ram[0x00fa] != 0x31 {
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x31\n", Ram[0x00fa])
+    if *Ram[0x00fa] != 0x31 {
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x31\n", *Ram[0x00fa])
     }
 
     runTest(append(setupAbsoluteMemory(),
@@ -1226,8 +1270,8 @@ func TestInc(test *testing.T) {
     ))
 
     switch {
-    case Ram[0xeb23] != 0xfd:
-        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xFD\n", Ram[0xEB23])
+    case *Ram[0xeb23] != 0xfd:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xFD\n", *Ram[0xEB23])
     case !cpu.Negative:
         test.Error("Negative bit was not set")
     }
@@ -1236,8 +1280,8 @@ func TestInc(test *testing.T) {
         0xfe, 0xfe, 0xea,
     ))
 
-    if Ram[0xeb25] != 0xff {
-        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFF\n", Ram[0xEB25])
+    if *Ram[0xeb25] != 0xff {
+        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFF\n", *Ram[0xEB25])
     }
 }
 
@@ -1255,7 +1299,7 @@ func TestJsr(test *testing.T) {
     }
 
     for index,value := range program {
-        Ram[index] = value
+        *Ram[index] = value
     }
 
     step(3)
@@ -1271,12 +1315,12 @@ func TestJsr(test *testing.T) {
     }
 
     // TODO: Add stack logic tests
-    // Ram[0x01ff] == 0x00
-    // Ram[0x01fe] == 0x05
+    // *Ram[0x01ff] == 0x00
+    // *Ram[0x01fe] == 0x05
 
     // Force in some instructions
-    Ram[0x1234] = 0x38 // SEC
-    Ram[0x1235] = 0x60 // RTS
+    *Ram[0x1234] = 0x38 // SEC
+    *Ram[0x1235] = 0x60 // RTS
 
     step(3)
 
@@ -1292,8 +1336,8 @@ func TestLsr(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00fa] != 0x18:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x18\n", Ram[0x00fa])
+    case *Ram[0x00fa] != 0x18:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x18\n", *Ram[0x00fa])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1308,8 +1352,8 @@ func TestLsr(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00fa] != 0x18:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x18\n", Ram[0x00fa])
+    case *Ram[0x00fa] != 0x18:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x18\n", *Ram[0x00fa])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1324,8 +1368,8 @@ func TestLsr(test *testing.T) {
     ))
 
     switch {
-    case Ram[0xeb23] != 0x7e:
-        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0x7E\n", Ram[0xEB23])
+    case *Ram[0xeb23] != 0x7e:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0x7E\n", *Ram[0xEB23])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1340,8 +1384,8 @@ func TestLsr(test *testing.T) {
     ))
 
     switch {
-    case Ram[0xeb25] != 0x7f:
-        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0x7F\n", Ram[0xEB25])
+    case *Ram[0xeb25] != 0x7f:
+        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0x7F\n", *Ram[0xEB25])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1375,8 +1419,8 @@ func TestAsl(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00fa] != 0x60:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x60\n", Ram[0x00fa])
+    case *Ram[0x00fa] != 0x60:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x60\n", *Ram[0x00fa])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1391,8 +1435,8 @@ func TestAsl(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00fa] != 0x60:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x60\n", Ram[0x00fa])
+    case *Ram[0x00fa] != 0x60:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x60\n", *Ram[0x00fa])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1407,8 +1451,8 @@ func TestAsl(test *testing.T) {
     ))
 
     switch {
-    case Ram[0xeb23] != 0xf8:
-        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xF8\n", Ram[0xEB23])
+    case *Ram[0xeb23] != 0xf8:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xF8\n", *Ram[0xEB23])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case !cpu.Carry:
@@ -1423,8 +1467,8 @@ func TestAsl(test *testing.T) {
     ))
 
     switch {
-    case Ram[0xeb25] != 0xfc:
-        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFC\n", Ram[0xEB25])
+    case *Ram[0xeb25] != 0xfc:
+        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0xFC\n", *Ram[0xEB25])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case !cpu.Carry:
@@ -1458,8 +1502,8 @@ func TestRol(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00fa] != 0x60:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x60\n", Ram[0x00fa])
+    case *Ram[0x00fa] != 0x60:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x60\n", *Ram[0x00fa])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1474,8 +1518,8 @@ func TestRol(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00fa] != 0x61:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x61\n", Ram[0x00fa])
+    case *Ram[0x00fa] != 0x61:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x61\n", *Ram[0x00fa])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1490,8 +1534,8 @@ func TestRol(test *testing.T) {
     ))
 
     switch {
-    case Ram[0xEB23] != 0xF8:
-        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xF8\n", Ram[0xEB23])
+    case *Ram[0xEB23] != 0xF8:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0xF8\n", *Ram[0xEB23])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case !cpu.Carry:
@@ -1505,8 +1549,8 @@ func TestRol(test *testing.T) {
         0x3E, 0xFE, 0xEA, // ROL $#EAFE,X
     ))
 
-    if Ram[0xEB25] != 0xFC {
-        test.Errorf("Memory at 0xEB25 was 0x%X, expected 0xFC\n", Ram[0xEB25])
+    if *Ram[0xEB25] != 0xFC {
+        test.Errorf("Memory at 0xEB25 was 0x%X, expected 0xFC\n", *Ram[0xEB25])
     }
 
     runTest([]Word{
@@ -1527,8 +1571,8 @@ func TestRor(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00FA] != 0x18:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x18\n", Ram[0x00fa])
+    case *Ram[0x00FA] != 0x18:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x18\n", *Ram[0x00fa])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1543,8 +1587,8 @@ func TestRor(test *testing.T) {
     ))
 
     switch {
-    case Ram[0x00FA] != 0x98:
-        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x98\n", Ram[0x00fa])
+    case *Ram[0x00FA] != 0x98:
+        test.Errorf("Memory at 0x00FA was 0x%x, expected 0x98\n", *Ram[0x00fa])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1559,8 +1603,8 @@ func TestRor(test *testing.T) {
     ))
 
     switch {
-    case Ram[0xEB23] != 0x7E:
-        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0x7E\n", Ram[0xEB23])
+    case *Ram[0xEB23] != 0x7E:
+        test.Errorf("Memory at 0xEB23 was 0x%x, expected 0x7E\n", *Ram[0xEB23])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:
@@ -1575,8 +1619,8 @@ func TestRor(test *testing.T) {
     ))
 
     switch {
-    case Ram[0xEB25] != 0x7F:
-        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0x7F\n", Ram[0xEB25])
+    case *Ram[0xEB25] != 0x7F:
+        test.Errorf("Memory at 0xEB25 was 0x%x, expected 0x7F\n", *Ram[0xEB25])
     case cpu.Zero:
         test.Error("Zero bit was set")
     case cpu.Carry:

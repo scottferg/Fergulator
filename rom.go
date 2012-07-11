@@ -13,8 +13,7 @@ type Rom struct {
 
 func (r *Rom) WriteRamBank(start int, length int, offset int) {
     for i := 0; i < length; i++ {
-        Ram[i + start] = Word(r.Data[i + offset])
-        fmt.Printf("0x%X\n", Ram[i + start])
+        Ram.Write(i + start, Word(r.Data[i + offset]))
     }
 }
 

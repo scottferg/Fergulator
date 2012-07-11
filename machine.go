@@ -9,8 +9,8 @@ import (
 
 var (
     programCounter = 0x8000
-    // clockspeed, _ = time.ParseDuration("559ns") // 1.79Mhz
-    clockspeed, _ = time.ParseDuration("10ms")
+    clockspeed, _ = time.ParseDuration("559ns") // 1.79Mhz
+    //clockspeed, _ = time.ParseDuration("200ms")
     running = true
 )
 
@@ -19,26 +19,30 @@ func main() {
     rom := new(Rom)
     video := new(Video)
 
-    v := make(chan string)
+    Ram.Init()
+    cpu.Reset()
+
+    v := make(chan Cpu)
     video.Init(v)
 
     defer video.Close()
 
-    go video.Render()
-
-    cpu.Verbose = true
+    cpu.Verbose = false
 
     if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
         if err = rom.Init(contents); err != nil {
             fmt.Println(err.Error())
+            return
         }
-    }
 
-    for running {
-        cpu.Step()
-        time.Sleep(clockspeed)
+        go video.Render()
 
-        v <- cpu.DumpState()
+        for running {
+            cpu.Step()
+            v <- *cpu
+
+            time.Sleep(clockspeed)
+        }
     }
 
     return

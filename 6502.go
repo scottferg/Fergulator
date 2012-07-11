@@ -18,11 +18,12 @@ type Cpu struct {
     Carry        bool
     StackPointer Word
     Verbose      bool
+    Opcode       Word
 }
 
 func (cpu *Cpu) testAndSetNegative(value Word) {
     if value & 0x80 > 0x00 {
-        cpu.Negative= true
+        cpu.Negative = true
         return
     }
 
@@ -90,20 +91,25 @@ func (cpu *Cpu) immediateAddress() (int) {
 func (cpu *Cpu) absoluteAddress() (result int) {
     // Switch to an int (or more appropriately uint16) since we 
     // will overflow when shifting the high byte
-    high := int(Ram[programCounter + 1])
-    low := int(Ram[programCounter])
+    high, _ := Ram.Read(programCounter + 1)
+    low, _ := Ram.Read(programCounter)
 
     programCounter += 2
-    return (high << 8) + low
+    return (int(high) << 8) + int(low)
 }
 
 func (cpu *Cpu) zeroPageAddress() (int) {
     programCounter++
-    return int(Ram[programCounter - 1])
+    res, _ := Ram.Read(programCounter - 1)
+
+    return int(res)
 }
 
 func (cpu *Cpu) indirectAbsoluteAddress() (result int) {
-    result = int((Ram[programCounter + 1] << 8) + Ram[programCounter])
+    high, _ := Ram.Read(programCounter + 1)
+    low, _ := Ram.Read(programCounter)
+
+    result = (int(high) << 8) + int(low)
     programCounter++
     return
 }
@@ -111,41 +117,43 @@ func (cpu *Cpu) indirectAbsoluteAddress() (result int) {
 func (cpu *Cpu) absoluteIndexedAddress(index Word) (result int) {
     // Switch to an int (or more appropriately uint16) since we 
     // will overflow when shifting the high byte
-    high := int(Ram[programCounter + 1])
-    low := int(Ram[programCounter])
+    high, _ := Ram.Read(programCounter + 1)
+    low, _ := Ram.Read(programCounter)
 
     programCounter++
-    return (high << 8) + low + int(index)
+    return (int(high) << 8) + int(low) + int(index)
 }
 
 func (cpu *Cpu) zeroPageIndexedAddress(index Word) (int) {
-    location := int(Ram[programCounter] + index)
+    location, _ := Ram.Read(programCounter)
     programCounter++
-    return location
+    return int(location + index)
 }
 
 func (cpu *Cpu) indexedIndirectAddress() (int) {
-    location := Ram[programCounter] + cpu.X
+    location, _ := Ram.Read(programCounter)
+    location = location + cpu.X
+
     programCounter++
 
     // Switch to an int (or more appropriately uint16) since we 
     // will overflow when shifting the high byte
-    high := int(Ram[location + 1])
-    low := int(Ram[location])
+    high, _ := Ram.Read(location + 1)
+    low, _ := Ram.Read(location)
 
-    return (high << 8) + low
+    return (int(high) << 8) + int(low)
 }
 
 func (cpu *Cpu) indirectIndexedAddress() (int) {
-    location := Ram[programCounter]
+    location, _ := Ram.Read(programCounter)
 
     // Switch to an int (or more appropriately uint16) since we 
     // will overflow when shifting the high byte
-    high := int(Ram[location + 1])
-    low := int(Ram[location])
+    high, _ := Ram.Read(location + 1)
+    low, _ := Ram.Read(location)
 
     programCounter++
-    return (high << 8) + low + int(cpu.Y)
+    return (int(high) << 8) + int(low) + int(cpu.Y)
 }
 
 func (cpu *Cpu) relativeAddress() (int) {
@@ -157,7 +165,8 @@ func (cpu *Cpu) accumulatorAddress() (int) {
 }
 
 func (cpu *Cpu) Adc(location int) {
-    cpu.A = cpu.A + Ram[location]
+    val, _ := Ram.Read(location)
+    cpu.A = cpu.A + val
 
     if cpu.Carry {
         cpu.A++
@@ -165,41 +174,44 @@ func (cpu *Cpu) Adc(location int) {
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
-    cpu.testAndSetOverflowAddition(cpu.A, Ram[location])
-    cpu.testAndSetCarryAddition(cpu.A, Ram[location])
+    cpu.testAndSetOverflowAddition(cpu.A, val)
+    cpu.testAndSetCarryAddition(cpu.A, val)
 }
 
 func (cpu *Cpu) Lda(location int) {
-    cpu.A = Ram[location]
+    val, _ := Ram.Read(location)
+    cpu.A = val
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
 }
 
 func (cpu *Cpu) Ldx(location int) {
-    cpu.X = Ram[location]
+    val, _ := Ram.Read(location)
+    cpu.X = val
 
     cpu.testAndSetNegative(cpu.X)
     cpu.testAndSetZero(cpu.X)
 }
 
 func (cpu *Cpu) Ldy(location int) {
-    cpu.Y = Ram[location]
+    val, _ := Ram.Read(location)
+    cpu.Y = val
 
     cpu.testAndSetNegative(cpu.Y)
     cpu.testAndSetZero(cpu.Y)
 }
 
 func (cpu *Cpu) Sta(location int) {
-    Ram[location] = cpu.A
+    Ram.Write(location, cpu.A)
 }
 
 func (cpu *Cpu) Stx(location int) {
-    Ram[location] = cpu.X
+    Ram.Write(location, cpu.X)
 }
 
 func (cpu *Cpu) Sty(location int) {
-    Ram[location] = cpu.Y
+    Ram.Write(location, cpu.Y)
 }
 
 func (cpu *Cpu) Jmp(location int) {
@@ -281,7 +293,8 @@ func (cpu *Cpu) Branch(offset Word) {
 
 func (cpu *Cpu) Bpl() {
     if !cpu.Negative {
-        cpu.Branch(Ram[programCounter])
+        val, _ := Ram.Read(programCounter)
+        cpu.Branch(val)
     } else {
         programCounter++
     }
@@ -289,7 +302,8 @@ func (cpu *Cpu) Bpl() {
 
 func (cpu *Cpu) Bmi() {
     if cpu.Negative {
-        cpu.Branch(Ram[programCounter])
+        val, _ := Ram.Read(programCounter)
+        cpu.Branch(val)
     } else {
         programCounter++
     }
@@ -297,7 +311,8 @@ func (cpu *Cpu) Bmi() {
 
 func (cpu *Cpu) Bvc() {
     if !cpu.Overflow {
-        cpu.Branch(Ram[programCounter])
+        val, _ := Ram.Read(programCounter)
+        cpu.Branch(val)
     } else {
         programCounter++
     }
@@ -305,7 +320,8 @@ func (cpu *Cpu) Bvc() {
 
 func (cpu *Cpu) Bvs() {
     if cpu.Overflow {
-        cpu.Branch(Ram[programCounter])
+        val, _ := Ram.Read(programCounter)
+        cpu.Branch(val)
     } else {
         programCounter++
     }
@@ -313,7 +329,8 @@ func (cpu *Cpu) Bvs() {
 
 func (cpu *Cpu) Bcc() {
     if !cpu.Carry {
-        cpu.Branch(Ram[programCounter])
+        val, _ := Ram.Read(programCounter)
+        cpu.Branch(val)
     } else {
         programCounter++
     }
@@ -321,7 +338,8 @@ func (cpu *Cpu) Bcc() {
 
 func (cpu *Cpu) Bcs() {
     if cpu.Carry {
-        cpu.Branch(Ram[programCounter])
+        val, _ := Ram.Read(programCounter)
+        cpu.Branch(val)
     } else {
         programCounter++
     }
@@ -329,7 +347,8 @@ func (cpu *Cpu) Bcs() {
 
 func (cpu *Cpu) Bne() {
     if !cpu.Zero {
-        cpu.Branch(Ram[programCounter])
+        val, _ := Ram.Read(programCounter)
+        cpu.Branch(val)
     } else {
         programCounter++
     }
@@ -337,60 +356,63 @@ func (cpu *Cpu) Bne() {
 
 func (cpu *Cpu) Beq() {
     if cpu.Zero {
-        cpu.Branch(Ram[programCounter])
+        val, _ := Ram.Read(programCounter)
+        cpu.Branch(val)
     } else {
         programCounter++
     }
 }
 
 func (cpu *Cpu) Txs() {
-    Ram[cpu.StackPointer] = cpu.X
+    Ram.Write(cpu.StackPointer, cpu.X)
 }
 
 func (cpu *Cpu) Tsx() {
-    cpu.X = Ram[cpu.StackPointer]
+    val, _ := Ram.Read(cpu.StackPointer)
+    cpu.X = val
 }
 
 func (cpu *Cpu) Pha() {
     cpu.StackPointer--
-    Ram[cpu.StackPointer] = cpu.A
+    Ram.Write(cpu.StackPointer, cpu.A)
 }
 
 func (cpu *Cpu) Pla() {
-    cpu.A = Ram[cpu.StackPointer]
+    val, _ := Ram.Read(cpu.StackPointer)
+    cpu.A = val
     cpu.StackPointer++
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
 }
 
-func (cpu *Cpu) ProcessorStatus() (status Word) {
+func (cpu *Cpu) ProcessorStatus() (status int) {
     if cpu.Carry {
         status += 0x1
     }
 
     if cpu.Zero {
-        status += 0x2
+        status += (0x2 << 1)
     }
 
     if cpu.IrqDisable {
-        status += 0x4
+        status += (0x4 << 2)
     }
 
     if cpu.DecimalMode {
-        status += 0x8
+        status += (0x8 << 3)
     }
 
     if cpu.BrkCommand {
-        status += 0x10
+        status += (0x10 << 4)
     }
 
     if cpu.Overflow {
-        status += 0x40
+        status += (0x40 << 6)
     }
 
     if cpu.Negative {
-        status += 0x80
+        status += (0x80 << 7)
     }
 
     return
@@ -428,11 +450,13 @@ func (cpu *Cpu) SetProcessorStatus(status Word) {
 
 func (cpu *Cpu) Php() {
     cpu.StackPointer--
-    Ram[cpu.StackPointer] = cpu.ProcessorStatus()
+    Ram.Write(cpu.StackPointer, Word(cpu.ProcessorStatus()))
 }
 
 func (cpu *Cpu) Plp() {
-    cpu.SetProcessorStatus(Ram[cpu.StackPointer])
+    val, _ := Ram.Read(cpu.StackPointer)
+
+    cpu.SetProcessorStatus(val)
     cpu.StackPointer++
 }
 
@@ -454,19 +478,23 @@ func (cpu *Cpu) Compare(register Word, value Word) {
 }
 
 func (cpu *Cpu) Cmp(location int) {
-    cpu.Compare(cpu.A, Ram[location])
+    val, _ := Ram.Read(location)
+    cpu.Compare(cpu.A, val)
 }
 
 func (cpu *Cpu) Cpx(location int) {
-    cpu.Compare(cpu.X, Ram[location])
+    val, _ := Ram.Read(location)
+    cpu.Compare(cpu.X, val)
 }
 
 func (cpu *Cpu) Cpy(location int) {
-    cpu.Compare(cpu.Y, Ram[location])
+    val, _ := Ram.Read(location)
+    cpu.Compare(cpu.Y, val)
 }
 
 func (cpu *Cpu) Sbc(location int) {
-    cpu.A = cpu.A - Ram[location]
+    val, _ := Ram.Read(location)
+    cpu.A = cpu.A - val
 
     if cpu.Carry {
         cpu.A--
@@ -474,8 +502,8 @@ func (cpu *Cpu) Sbc(location int) {
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
-    cpu.testAndSetOverflowSubtraction(cpu.A, Ram[location])
-    cpu.testAndSetCarrySubtraction(cpu.A, Ram[location])
+    cpu.testAndSetOverflowSubtraction(cpu.A, val)
+    cpu.testAndSetCarrySubtraction(cpu.A, val)
 
     cpu.A = cpu.A & 0xff
 }
@@ -509,38 +537,43 @@ func (cpu *Cpu) Sed() {
 }
 
 func (cpu *Cpu) And(location int) {
-    cpu.A = cpu.A & Ram[location]
+    val, _ := Ram.Read(location)
+    cpu.A = cpu.A & val
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
 }
 
 func (cpu *Cpu) Ora(location int) {
-    cpu.A = cpu.A | Ram[location]
+    val, _ := Ram.Read(location)
+    cpu.A = cpu.A | val
 
-    cpu.testAndSetNegative(Ram[location])
-    cpu.testAndSetZero(Ram[location])
+    cpu.testAndSetNegative(val)
+    cpu.testAndSetZero(val)
 }
 
 func (cpu *Cpu) Eor(location int) {
-    cpu.A = cpu.A ^ Ram[location]
+    val, _ := Ram.Read(location)
+    cpu.A = cpu.A ^ val
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
 }
 
 func (cpu *Cpu) Dec(location int) {
-    Ram[location] = Ram[location] - 1
+    val, _ := Ram.Read(location)
+    Ram.Write(location, val - 1)
 
-    cpu.testAndSetNegative(Ram[location])
-    cpu.testAndSetZero(Ram[location])
+    cpu.testAndSetNegative(val)
+    cpu.testAndSetZero(val)
 }
 
 func (cpu *Cpu) Inc(location int) {
-    Ram[location] = Ram[location] + 1
+    val, _ := Ram.Read(location)
+    Ram.Write(location, val + 1)
 
-    cpu.testAndSetNegative(Ram[location])
-    cpu.testAndSetZero(Ram[location])
+    cpu.testAndSetNegative(val)
+    cpu.testAndSetZero(val)
 }
 
 func (cpu *Cpu) Brk() {
@@ -549,8 +582,14 @@ func (cpu *Cpu) Brk() {
 }
 
 func (cpu *Cpu) Jsr(location int) {
+    high := (programCounter - 1) >> 8
+    low := (programCounter - 1) & 0xFF
+
     cpu.StackPointer--
-    Ram[cpu.StackPointer] = Word(programCounter - 1)
+    Ram.Write(cpu.StackPointer, Word(high))
+
+    cpu.StackPointer--
+    Ram.Write(cpu.StackPointer, Word(low))
 
     programCounter = location
 }
@@ -558,31 +597,37 @@ func (cpu *Cpu) Jsr(location int) {
 func (cpu *Cpu) Rti() {
     cpu.Plp()
 
-    programCounter = int(Ram[cpu.StackPointer])
+    val, _ := Ram.Read(cpu.StackPointer)
+
+    programCounter = int(val)
     cpu.StackPointer++
 }
 
 func (cpu *Cpu) Rts() {
-    low := Ram[cpu.StackPointer]
+    high, _ := Ram.Read(cpu.StackPointer + 1)
+    low, _ := Ram.Read(cpu.StackPointer)
+
+    cpu.StackPointer++
     cpu.StackPointer++
 
-    high := Ram[cpu.StackPointer]
-    cpu.StackPointer++
-
-    programCounter = int(((high << 8) + low) + 1)
+    programCounter = ((int(high) << 8) + int(low)) + 1
 }
 
 func (cpu *Cpu) Lsr(location int) {
-    if Ram[location] & 0x01 > 0x00 {
+    val, _ := Ram.Read(location)
+
+    if val & 0x01 > 0x00 {
         cpu.Carry = true
     } else {
         cpu.Carry = false
     }
 
-    Ram[location] = Ram[location] >> 1
+    Ram.Write(location, val >> 1)
 
-    cpu.testAndSetNegative(Ram[location])
-    cpu.testAndSetZero(Ram[location])
+    val, _ = Ram.Read(location)
+
+    cpu.testAndSetNegative(val)
+    cpu.testAndSetZero(val)
 }
 
 func (cpu *Cpu) LsrAcc() {
@@ -599,16 +644,19 @@ func (cpu *Cpu) LsrAcc() {
 }
 
 func (cpu *Cpu) Asl(location int) {
-    if Ram[location] & 0x80 > 0 {
+    val, _ := Ram.Read(location)
+
+    if val & 0x80 > 0 {
         cpu.Carry = true
     } else {
         cpu.Carry = false
     }
 
-    Ram[location] = Ram[location] << 1
+    Ram.Write(location, val << 1)
 
-    cpu.testAndSetNegative(Ram[location])
-    cpu.testAndSetZero(Ram[location])
+    val, _ = Ram.Read(location)
+    cpu.testAndSetNegative(val)
+    cpu.testAndSetZero(val)
 }
 
 func (cpu *Cpu) AslAcc() {
@@ -625,7 +673,7 @@ func (cpu *Cpu) AslAcc() {
 }
 
 func (cpu *Cpu) Rol(location int) {
-    value := Ram[location]
+    value, _ := Ram.Read(location)
 
     carry := value & 0x80
 
@@ -641,10 +689,11 @@ func (cpu *Cpu) Rol(location int) {
         cpu.Carry = false
     }
 
-    Ram[location] = value
+    Ram.Write(location, value)
 
-    cpu.testAndSetNegative(Ram[location])
-    cpu.testAndSetZero(Ram[location])
+    value, _ = Ram.Read(location)
+    cpu.testAndSetNegative(value)
+    cpu.testAndSetZero(value)
 }
 
 func (cpu *Cpu) RolAcc() {
@@ -667,7 +716,7 @@ func (cpu *Cpu) RolAcc() {
 }
 
 func (cpu *Cpu) Ror(location int) {
-    value := Ram[location]
+    value, _ := Ram.Read(location)
 
     carry := value & 0x1
 
@@ -683,10 +732,11 @@ func (cpu *Cpu) Ror(location int) {
         cpu.Carry = false
     }
 
-    Ram[location] = value
+    Ram.Write(location, value)
 
-    cpu.testAndSetNegative(Ram[location])
-    cpu.testAndSetZero(Ram[location])
+    value, _ = Ram.Read(location)
+    cpu.testAndSetNegative(value)
+    cpu.testAndSetZero(value)
 }
 
 func (cpu *Cpu) RorAcc() {
@@ -709,19 +759,21 @@ func (cpu *Cpu) RorAcc() {
 }
 
 func (cpu *Cpu) Bit(location int) {
-    if Ram[location] & cpu.A == 0 {
+    val, _ := Ram.Read(location)
+
+    if val & cpu.A == 0 {
         cpu.Zero = true
     } else {
         cpu.Zero = false
     }
 
-    if Ram[location] & 0x80 > 0x00 {
+    if val & 0x80 > 0x00 {
         cpu.Negative = true
     } else {
         cpu.Negative = false
     }
 
-    if Ram[location] & 0x40 > 0x00 {
+    if val & 0x40 > 0x00 {
         cpu.Overflow = true
     } else {
         cpu.Overflow = false
@@ -744,11 +796,7 @@ func (cpu *Cpu) Reset() {
     cpu.IrqDisable = false
     cpu.Zero = false
     cpu.Carry = false
-    cpu.StackPointer = 0xff
-}
-
-func (cpu *Cpu) DumpState() string {
-    return fmt.Sprintf("X: 0x%X Y: 0x%X A: 0x%X PC: 0x%X PPU1: 0x%X PPU2: 0x%X Mem: 0x%X", cpu.X, cpu.Y, cpu.A, programCounter, Ram[0x2000], Ram[0x2001], Ram[0x4014])
+    cpu.StackPointer = 0xFF
 }
 
 func (cpu *Cpu) Step() {
@@ -757,14 +805,15 @@ func (cpu *Cpu) Step() {
         return
     }
 
-    opcode := Ram[programCounter]
+    opcode, _ := Ram.Read(programCounter)
+
+    cpu.Opcode = opcode
 
     if cpu.Verbose {
         fmt.Printf("Opcode: 0x%X\n", opcode)
     }
 
     programCounter++
-
 
     switch opcode {
     // ADC
@@ -1251,4 +1300,6 @@ func (cpu *Cpu) Step() {
         cpu.CycleCount = 4
         cpu.Bit(cpu.absoluteAddress())
     }
+
+    // fmt.Printf("Processor Status: 0x%X\n", cpu.ProcessorStatus())
 }

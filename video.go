@@ -4,15 +4,20 @@ import (
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/ttf"
     "log"
+    "fmt"
 )
 
 type Video struct {
     screen *sdl.Surface
     font *ttf.Font
-    tick <-chan string
+    tick <-chan Cpu
 }
 
-func (v *Video) Init(t <-chan string) {
+func (cpu *Cpu) DumpRegisterState() string {
+    return fmt.Sprintf("X: 0x%X Y: 0x%X A: 0x%X SP: 0x%X", cpu.X, cpu.Y, cpu.A, cpu.StackPointer)
+}
+
+func (v *Video) Init(t <-chan Cpu) {
 	if sdl.Init(sdl.INIT_EVERYTHING) != 0 {
 		log.Fatal(sdl.GetError())
 	}
@@ -46,10 +51,35 @@ func (v *Video) Render() {
     for {
         select {
         case val := <-v.tick:
-            text := ttf.RenderText_Blended(v.font, val, white)
+            registers := ttf.RenderText_Solid(v.font, val.DumpRegisterState(), white)
+            opcode := ttf.RenderText_Solid(v.font, fmt.Sprintf("Opcode: 0x%X", val.Opcode), white)
+            pc := ttf.RenderText_Solid(v.font, fmt.Sprintf("PC: 0x%X", programCounter), white)
+            stack := ttf.RenderText_Solid(v.font, fmt.Sprintf("0xFF: 0x%X 0xFE: 0x%X 0xFD: 0x%X", *Ram[0xFF], *Ram[0xFE], *Ram[0xFD]), white)
+
+            ppuctl := make([]*sdl.Surface, 8)
+
+            ppuctl[0] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUCTL: 0x%X", *Ram[0x2000]), white)
+            ppuctl[1] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUMASK: 0x%X", *Ram[0x2001]), white)
+            ppuctl[2] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUSTATUS: 0x%X", *Ram[0x2002]), white)
+            ppuctl[3] = ttf.RenderText_Solid(v.font, fmt.Sprintf("OAMADDR: 0x%X", *Ram[0x2003]), white)
+            ppuctl[4] = ttf.RenderText_Solid(v.font, fmt.Sprintf("OAMDATA: 0x%X", *Ram[0x2004]), white)
+            ppuctl[5] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUSCROLL: 0x%X", *Ram[0x2005]), white)
+            ppuctl[6] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUADDR: 0x%X", *Ram[0x2006]), white)
+            ppuctl[7] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUDATA: 0x%X", *Ram[0x2007]), white)
 
             v.screen.FillRect(nil, 0x000000)
-            v.screen.Blit(&sdl.Rect{2, 460, 0, 0}, text, nil)
+
+            ppuY := int16(320)
+            for _, val := range ppuctl {
+                v.screen.Blit(&sdl.Rect{460, ppuY, 0, 0}, val, nil)
+                ppuY = ppuY + 20
+            }
+
+            v.screen.Blit(&sdl.Rect{2, 400, 0, 0}, stack, nil)
+            v.screen.Blit(&sdl.Rect{2, 420, 0, 0}, opcode, nil)
+            v.screen.Blit(&sdl.Rect{2, 440, 0, 0}, pc, nil)
+            v.screen.Blit(&sdl.Rect{2, 460, 0, 0}, registers, nil)
+
             v.screen.Flip()
 
         case ev := <-sdl.Events:
