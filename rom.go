@@ -2,7 +2,6 @@ package main
 
 import (
     "errors"
-    "fmt"
 )
 
 type Rom struct {
@@ -19,7 +18,7 @@ func (r *Rom) WriteRamBank(start int, length int, offset int) {
 
 func (r *Rom) WriteVramBank(start int, length int, offset int) {
     for i := start; i < length; i++ {
-        Vram[i] = Word(r.Data[i + offset])
+        ppu.Vram[i] = Word(r.Data[i + offset])
     }
 }
 
@@ -35,8 +34,6 @@ func (r *Rom) Init(rom []byte) error {
     r.PrgFlag = Word(rom[4])
     r.ChrFlag = Word(rom[5])
 
-    fmt.Printf("PRG Flag: %X\n", r.PrgFlag)
-
     r.Data = rom[16:]
 
     // PRG ROM starts at byte 16
@@ -50,8 +47,6 @@ func (r *Rom) Init(rom []byte) error {
     }
 
     r.WriteVramBank(0x0000, 0x2000, 0x0)
-
-    fmt.Println("ROM loaded!")
 
     return nil
 }

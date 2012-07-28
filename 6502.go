@@ -8,79 +8,159 @@ type Cpu struct {
     X            Word
     Y            Word
     A            Word
+    P            Word
     CycleCount   int
-    Negative     bool
-    Overflow     bool
-    BrkCommand   bool
-    DecimalMode  bool
-    IrqDisable   bool
-    Zero         bool
-    Carry        bool
     StackPointer Word
     Verbose      bool
     Opcode       Word
 }
 
+func (cpu *Cpu) getCarry() bool {
+    return cpu.P & 0x01 == 0x01
+}
+
+func (cpu *Cpu) getZero() bool {
+    return cpu.P & 0x02 == 0x02
+}
+
+func (cpu *Cpu) getIrqDisable() bool {
+    return cpu.P & 0x04 == 0x04
+}
+
+func (cpu *Cpu) getDecimalMode() bool {
+    return cpu.P & 0x08 == 0x08
+}
+
+func (cpu *Cpu) getBrkCommand() bool {
+    return cpu.P & 0x10 == 0x10
+}
+
+func (cpu *Cpu) getOverflow() bool {
+    return cpu.P & 0x40 == 0x40
+}
+
+func (cpu *Cpu) getNegative() bool {
+    return cpu.P & 0x80 == 0x80
+}
+
+func (cpu *Cpu) setCarry() {
+    cpu.P = cpu.P | 0x01
+}
+
+func (cpu *Cpu) setZero() {
+    cpu.P = cpu.P | 0x02
+}
+
+func (cpu *Cpu) setIrqDisable() {
+    cpu.P = cpu.P | 0x04
+}
+
+func (cpu *Cpu) setDecimalMode() {
+    cpu.P = cpu.P | 0x08
+}
+
+func (cpu *Cpu) setBrkCommand() {
+    cpu.P = cpu.P | 0x10
+}
+
+func (cpu *Cpu) setOverflow() {
+    cpu.P = cpu.P | 0x40
+}
+
+func (cpu *Cpu) setNegative() {
+    cpu.P = cpu.P | 0x80
+}
+
+func (cpu *Cpu) clearCarry() {
+    cpu.P = cpu.P & 0xFE
+}
+
+func (cpu *Cpu) clearZero() {
+    cpu.P = cpu.P & 0xFD
+}
+
+func (cpu *Cpu) clearIrqDisable() {
+    cpu.P = cpu.P & 0xFB
+}
+
+func (cpu *Cpu) clearDecimalMode() {
+    cpu.P = cpu.P & 0xF7
+}
+
+func (cpu *Cpu) clearBrkCommand() {
+    cpu.P = cpu.P & 0xEF
+}
+
+func (cpu *Cpu) clearOverflow() {
+    cpu.P = cpu.P & 0xBF
+}
+
+func (cpu *Cpu) clearNegative() {
+    cpu.P = cpu.P & 0x7F
+}
+
 func (cpu *Cpu) testAndSetNegative(value Word) {
     if value & 0x80 > 0x00 {
-        cpu.Negative = true
+        cpu.setNegative()
         return
     }
 
-    cpu.Negative = false
+    cpu.clearNegative()
 }
 
 func (cpu *Cpu) testAndSetZero(value Word) {
     if value == 0x00 {
-        cpu.Zero = true
+        cpu.setZero()
         return
     }
 
-    cpu.Zero = false
+    cpu.clearZero()
 }
 
 func (cpu *Cpu) testAndSetCarryAddition(a Word, b Word) {
     if int(a + b) > 0xff {
-        cpu.Carry = true
+        cpu.setCarry()
         return
     }
 
-    cpu.Carry = false
+    cpu.clearCarry()
 }
 
 func (cpu *Cpu) testAndSetCarrySubtraction(a Word, b Word) {
     if int(a - b) < 0x00 {
-        cpu.Carry = false
+        cpu.clearCarry()
         return
     }
 
-    cpu.Carry = true
+    cpu.setCarry()
 }
 
 func (cpu *Cpu) testAndSetOverflowAddition(a Word, b Word) {
     if (a & 0x80) == (b & 0x80) {
         switch {
         case int(a + b) > 127:
+            fallthrough
         case int(a + b) < -128:
-            cpu.Overflow = true
+            cpu.setOverflow()
             return
         }
     }
 
-    cpu.Overflow = false
+    cpu.clearOverflow()
 }
 
 func (cpu *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
     if (a & 0x80) != (b & 0x80) {
         switch {
         case int(a - b) > 127:
+            fallthrough
         case int(a - b) < -128:
-            cpu.Overflow = true
+            cpu.setOverflow()
             return
         }
     }
 
-    cpu.Overflow = false
+    cpu.clearOverflow()
 }
 
 func (cpu *Cpu) immediateAddress() (int) {
@@ -165,20 +245,25 @@ func (cpu *Cpu) accumulatorAddress() (int) {
 }
 
 func (cpu *Cpu) Adc(location int) {
+    fmt.Printf("P (ADC): 0x%X\n", cpu.P)
     val, _ := Ram.Read(location)
+
+    cached := cpu.A
+
     cpu.A = cpu.A + val
 
-    if cpu.Carry {
+    if cpu.getCarry() {
         cpu.A++
     }
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
-    cpu.testAndSetOverflowAddition(cpu.A, val)
+    cpu.testAndSetOverflowAddition(cached, val)
     cpu.testAndSetCarryAddition(cpu.A, val)
 }
 
 func (cpu *Cpu) Lda(location int) {
+    fmt.Printf("P (LDA): 0x%X\n", cpu.P)
     val, _ := Ram.Read(location)
     cpu.A = val
 
@@ -236,7 +321,7 @@ func (cpu *Cpu) Dex() {
     cpu.X = cpu.X - 1
 
     if cpu.X == 0 {
-        cpu.Zero = true
+        cpu.setZero()
     }
 
     cpu.testAndSetNegative(cpu.X)
@@ -268,7 +353,7 @@ func (cpu *Cpu) Dey() {
     cpu.Y = cpu.Y - 1
 
     if cpu.X == 0 {
-        cpu.Zero = true
+        cpu.setZero()
     }
 
     cpu.testAndSetNegative(cpu.Y)
@@ -292,7 +377,8 @@ func (cpu *Cpu) Branch(offset Word) {
 }
 
 func (cpu *Cpu) Bpl() {
-    if !cpu.Negative {
+    fmt.Printf("P (BPL): 0x%X\n", cpu.P)
+    if !cpu.getNegative() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
     } else {
@@ -301,7 +387,7 @@ func (cpu *Cpu) Bpl() {
 }
 
 func (cpu *Cpu) Bmi() {
-    if cpu.Negative {
+    if cpu.getNegative() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
     } else {
@@ -310,7 +396,9 @@ func (cpu *Cpu) Bmi() {
 }
 
 func (cpu *Cpu) Bvc() {
-    if !cpu.Overflow {
+    fmt.Printf("P (BVC): 0x%X\n", cpu.P)
+
+    if !cpu.getOverflow() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
     } else {
@@ -319,7 +407,7 @@ func (cpu *Cpu) Bvc() {
 }
 
 func (cpu *Cpu) Bvs() {
-    if cpu.Overflow {
+    if cpu.getOverflow() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
     } else {
@@ -328,7 +416,7 @@ func (cpu *Cpu) Bvs() {
 }
 
 func (cpu *Cpu) Bcc() {
-    if !cpu.Carry {
+    if !cpu.getCarry() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
     } else {
@@ -337,7 +425,7 @@ func (cpu *Cpu) Bcc() {
 }
 
 func (cpu *Cpu) Bcs() {
-    if cpu.Carry {
+    if cpu.getCarry() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
     } else {
@@ -346,7 +434,7 @@ func (cpu *Cpu) Bcs() {
 }
 
 func (cpu *Cpu) Bne() {
-    if !cpu.Zero {
+    if !cpu.getZero() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
     } else {
@@ -355,7 +443,7 @@ func (cpu *Cpu) Bne() {
 }
 
 func (cpu *Cpu) Beq() {
-    if cpu.Zero {
+    if cpu.getZero() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
     } else {
@@ -364,12 +452,14 @@ func (cpu *Cpu) Beq() {
 }
 
 func (cpu *Cpu) Txs() {
+    cpu.StackPointer--
     Ram.Write(cpu.StackPointer, cpu.X)
 }
 
 func (cpu *Cpu) Tsx() {
     val, _ := Ram.Read(cpu.StackPointer)
     cpu.X = val
+    cpu.StackPointer++
 }
 
 func (cpu *Cpu) Pha() {
@@ -386,98 +476,38 @@ func (cpu *Cpu) Pla() {
     cpu.testAndSetZero(cpu.A)
 }
 
-func (cpu *Cpu) ProcessorStatus() (status int) {
-    if cpu.Carry {
-        status += 0x1
-    }
-
-    if cpu.Zero {
-        status += (0x2 << 1)
-    }
-
-    if cpu.IrqDisable {
-        status += (0x4 << 2)
-    }
-
-    if cpu.DecimalMode {
-        status += (0x8 << 3)
-    }
-
-    if cpu.BrkCommand {
-        status += (0x10 << 4)
-    }
-
-    if cpu.Overflow {
-        status += (0x40 << 6)
-    }
-
-    if cpu.Negative {
-        status += (0x80 << 7)
-    }
-
-    return
-}
-
-func (cpu *Cpu) SetProcessorStatus(status Word) {
-    if status & 0x1 == 0x1 {
-        cpu.Carry = true
-    }
-
-    if status & 0x2 == 0x2 {
-        cpu.Zero = true
-    }
-
-    if status & 0x4 == 0x4 {
-        cpu.IrqDisable = true
-    }
-
-    if status & 0x8 == 0x8 {
-        cpu.DecimalMode = true
-    }
-
-    if status & 0x10 == 0x10 {
-        cpu.BrkCommand = true
-    }
-
-    if status & 0x40 == 0x40 {
-        cpu.Overflow = true
-    }
-
-    if status & 0x80 == 0x80 {
-        cpu.Negative = true
-    }
-}
-
 func (cpu *Cpu) Php() {
     cpu.StackPointer--
-    Ram.Write(cpu.StackPointer, Word(cpu.ProcessorStatus()))
+    Ram.Write(cpu.StackPointer, Word(cpu.P))
 }
 
 func (cpu *Cpu) Plp() {
     val, _ := Ram.Read(cpu.StackPointer)
 
-    cpu.SetProcessorStatus(val)
+    // Unset bit 5 since it's unused in the NES
+    cpu.P = (val | 0x30) - 0x10
     cpu.StackPointer++
 }
 
 func (cpu *Cpu) Compare(register Word, value Word) {
     switch {
     case register < value:
-        cpu.Negative = true
-        cpu.Zero = false
-        cpu.Carry = false
+        cpu.setNegative()
+        cpu.clearZero()
+        cpu.clearCarry()
     case register == value:
-        cpu.Negative = false
-        cpu.Zero = true
-        cpu.Carry = true
+        cpu.clearNegative()
+        cpu.setZero()
+        cpu.setCarry()
     case register > value:
-        cpu.Negative = false
-        cpu.Zero = false
-        cpu.Carry = true
+        cpu.clearNegative()
+        cpu.clearZero()
+        cpu.setCarry()
     }
 }
 
 func (cpu *Cpu) Cmp(location int) {
+    fmt.Printf("P (CMP): 0x%X\n", cpu.P)
     val, _ := Ram.Read(location)
     cpu.Compare(cpu.A, val)
 }
@@ -494,46 +524,48 @@ func (cpu *Cpu) Cpy(location int) {
 
 func (cpu *Cpu) Sbc(location int) {
     val, _ := Ram.Read(location)
+
+    cache := cpu.A
     cpu.A = cpu.A - val
 
-    if cpu.Carry {
+    if cpu.getCarry() {
         cpu.A--
     }
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
-    cpu.testAndSetOverflowSubtraction(cpu.A, val)
+    cpu.testAndSetOverflowSubtraction(cache, val)
     cpu.testAndSetCarrySubtraction(cpu.A, val)
 
     cpu.A = cpu.A & 0xff
 }
 
 func (cpu *Cpu) Clc() {
-    cpu.Carry = false
+    cpu.clearCarry()
 }
 
 func (cpu *Cpu) Sec() {
-    cpu.Carry = true
+    cpu.setCarry()
 }
 
 func (cpu *Cpu) Cli() {
-    cpu.IrqDisable = false
+    cpu.clearIrqDisable()
 }
 
 func (cpu *Cpu) Sei() {
-    cpu.IrqDisable = true
+    cpu.setIrqDisable()
 }
 
 func (cpu *Cpu) Clv() {
-    cpu.Overflow = false
+    cpu.clearOverflow()
 }
 
 func (cpu *Cpu) Cld() {
-    cpu.DecimalMode = false
+    cpu.clearDecimalMode()
 }
 
 func (cpu *Cpu) Sed() {
-    cpu.DecimalMode = true
+    cpu.setDecimalMode()
 }
 
 func (cpu *Cpu) And(location int) {
@@ -577,7 +609,7 @@ func (cpu *Cpu) Inc(location int) {
 }
 
 func (cpu *Cpu) Brk() {
-    cpu.BrkCommand = true
+    cpu.setBrkCommand()
     programCounter++
 }
 
@@ -617,9 +649,9 @@ func (cpu *Cpu) Lsr(location int) {
     val, _ := Ram.Read(location)
 
     if val & 0x01 > 0x00 {
-        cpu.Carry = true
+        cpu.setCarry()
     } else {
-        cpu.Carry = false
+        cpu.clearCarry()
     }
 
     Ram.Write(location, val >> 1)
@@ -632,9 +664,9 @@ func (cpu *Cpu) Lsr(location int) {
 
 func (cpu *Cpu) LsrAcc() {
     if cpu.A & 0x01 > 0 {
-        cpu.Carry = true
+        cpu.setCarry()
     } else {
-        cpu.Carry = false
+        cpu.clearCarry()
     }
 
     cpu.A = cpu.A >> 1
@@ -647,9 +679,9 @@ func (cpu *Cpu) Asl(location int) {
     val, _ := Ram.Read(location)
 
     if val & 0x80 > 0 {
-        cpu.Carry = true
+        cpu.setCarry()
     } else {
-        cpu.Carry = false
+        cpu.clearCarry()
     }
 
     Ram.Write(location, val << 1)
@@ -661,9 +693,9 @@ func (cpu *Cpu) Asl(location int) {
 
 func (cpu *Cpu) AslAcc() {
     if cpu.A & 0x80 > 0 {
-        cpu.Carry = true
+        cpu.setCarry()
     } else {
-        cpu.Carry = false
+        cpu.clearCarry()
     }
 
     cpu.A = cpu.A << 1
@@ -679,14 +711,14 @@ func (cpu *Cpu) Rol(location int) {
 
     value = value << 1
 
-    if cpu.Carry {
+    if cpu.getCarry() {
         value += 1
     }
 
     if carry > 0x00 {
-        cpu.Carry = true
+        cpu.setCarry()
     } else {
-        cpu.Carry = false
+        cpu.clearCarry()
     }
 
     Ram.Write(location, value)
@@ -701,14 +733,14 @@ func (cpu *Cpu) RolAcc() {
 
     cpu.A = cpu.A << 1
 
-    if cpu.Carry {
+    if cpu.getCarry() {
         cpu.A += 1
     }
 
     if carry > 0x00 {
-        cpu.Carry = true
+        cpu.setCarry()
     } else {
-        cpu.Carry = false
+        cpu.clearCarry()
     }
 
     cpu.testAndSetNegative(cpu.A)
@@ -722,14 +754,14 @@ func (cpu *Cpu) Ror(location int) {
 
     value = value >> 1
 
-    if cpu.Carry {
+    if cpu.getCarry() {
         value += 0x80
     }
 
     if carry > 0x00 {
-        cpu.Carry = true
+        cpu.setCarry()
     } else {
-        cpu.Carry = false
+        cpu.clearCarry()
     }
 
     Ram.Write(location, value)
@@ -744,14 +776,14 @@ func (cpu *Cpu) RorAcc() {
 
     cpu.A = cpu.A >> 1
 
-    if cpu.Carry {
+    if cpu.getCarry() {
         cpu.A += 0x80
     }
 
     if carry > 0x00 {
-        cpu.Carry = true
+        cpu.setCarry()
     } else {
-        cpu.Carry = false
+        cpu.clearCarry()
     }
 
     cpu.testAndSetNegative(cpu.A)
@@ -762,21 +794,21 @@ func (cpu *Cpu) Bit(location int) {
     val, _ := Ram.Read(location)
 
     if val & cpu.A == 0 {
-        cpu.Zero = true
+        cpu.setZero()
     } else {
-        cpu.Zero = false
+        cpu.clearZero()
     }
 
     if val & 0x80 > 0x00 {
-        cpu.Negative = true
+        cpu.setNegative()
     } else {
-        cpu.Negative = false
+        cpu.clearNegative()
     }
 
     if val & 0x40 > 0x00 {
-        cpu.Overflow = true
+        cpu.setOverflow()
     } else {
-        cpu.Overflow = false
+        cpu.clearOverflow()
     }
 }
 
@@ -789,14 +821,8 @@ func (cpu *Cpu) Reset() {
     cpu.Y = 0
     cpu.A = 0
     cpu.CycleCount = 0
-    cpu.Negative = false
-    cpu.Overflow = false
-    cpu.BrkCommand = false
-    cpu.DecimalMode = false
-    cpu.IrqDisable = false
-    cpu.Zero = false
-    cpu.Carry = false
-    cpu.StackPointer = 0xFF
+    cpu.P = 0x34
+    cpu.StackPointer = 0xFD
 }
 
 func (cpu *Cpu) Step() {
@@ -809,11 +835,11 @@ func (cpu *Cpu) Step() {
 
     cpu.Opcode = opcode
 
-    if cpu.Verbose {
-        fmt.Printf("Opcode: 0x%X\n", opcode)
-    }
-
     programCounter++
+
+    if cpu.Verbose {
+        Disassemble(opcode, cpu, programCounter)
+    }
 
     switch opcode {
     // ADC
@@ -1084,20 +1110,20 @@ func (cpu *Cpu) Step() {
     case 0x78:
         cpu.CycleCount = 2
         cpu.Sei()
-    case 0xb8:
+    case 0xB8:
         cpu.CycleCount = 2
         cpu.Clv()
-    case 0xd8:
+    case 0xD8:
         cpu.CycleCount = 2
         cpu.Cld()
-    case 0xf8:
+    case 0xF8:
         cpu.CycleCount = 2
         cpu.Sed()
     // Stack instructions
-    case 0x9a:
+    case 0x9A:
         cpu.CycleCount = 2
         cpu.Txs()
-    case 0xba:
+    case 0xBA:
         cpu.CycleCount = 2
         cpu.Tsx()
     case 0x48:
@@ -1299,7 +1325,7 @@ func (cpu *Cpu) Step() {
     case 0x2c:
         cpu.CycleCount = 4
         cpu.Bit(cpu.absoluteAddress())
+    default:
+        panic("Invalid opcode")
     }
-
-    // fmt.Printf("Processor Status: 0x%X\n", cpu.ProcessorStatus())
 }

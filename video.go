@@ -54,7 +54,9 @@ func (v *Video) Render() {
             registers := ttf.RenderText_Solid(v.font, val.DumpRegisterState(), white)
             opcode := ttf.RenderText_Solid(v.font, fmt.Sprintf("Opcode: 0x%X", val.Opcode), white)
             pc := ttf.RenderText_Solid(v.font, fmt.Sprintf("PC: 0x%X", programCounter), white)
-            stack := ttf.RenderText_Solid(v.font, fmt.Sprintf("0xFF: 0x%X 0xFE: 0x%X 0xFD: 0x%X", *Ram[0xFF], *Ram[0xFE], *Ram[0xFD]), white)
+            status := ttf.RenderText_Solid(v.font, fmt.Sprintf("P: 0x%X", val.P), white)
+            negative := ttf.RenderText_Solid(v.font, fmt.Sprintf("Neg Flag: %t", val.getNegative()), white)
+            test := ttf.RenderText_Solid(v.font, fmt.Sprintf("Test Output: %s", *Ram[0x6004]), white)
 
             ppuctl := make([]*sdl.Surface, 8)
 
@@ -75,7 +77,9 @@ func (v *Video) Render() {
                 ppuY = ppuY + 20
             }
 
-            v.screen.Blit(&sdl.Rect{2, 400, 0, 0}, stack, nil)
+            v.screen.Blit(&sdl.Rect{2, 360, 0, 0}, test, nil)
+            v.screen.Blit(&sdl.Rect{2, 380, 0, 0}, negative, nil)
+            v.screen.Blit(&sdl.Rect{2, 400, 0, 0}, status, nil)
             v.screen.Blit(&sdl.Rect{2, 420, 0, 0}, opcode, nil)
             v.screen.Blit(&sdl.Rect{2, 440, 0, 0}, pc, nil)
             v.screen.Blit(&sdl.Rect{2, 460, 0, 0}, registers, nil)

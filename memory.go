@@ -31,8 +31,7 @@ func fitAddressSize(addr interface{}) (v int, e error) {
 
 func (m *Memory) Init() {
     for index, _ := range m {
-        w := new(Word)
-        m[index] = w
+        m[index] = new(Word)
     }
 }
 
