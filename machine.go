@@ -18,8 +18,8 @@ var (
     rom Rom
     video Video
 
-    breakpoint = 0xC94A
-    terminate  = 0xC962
+    breakpoint = 0xC7DC
+    terminate  = 0xC7F3
 )
 
 func setResetVector() {

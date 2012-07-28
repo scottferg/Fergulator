@@ -117,8 +117,8 @@ func (cpu *Cpu) testAndSetZero(value Word) {
     cpu.clearZero()
 }
 
-func (cpu *Cpu) testAndSetCarryAddition(a Word, b Word) {
-    if int(a + b) > 0xff {
+func (cpu *Cpu) testAndSetCarryAddition(result int) {
+    if result > 0xff {
         cpu.setCarry()
         return
     }
@@ -126,8 +126,8 @@ func (cpu *Cpu) testAndSetCarryAddition(a Word, b Word) {
     cpu.clearCarry()
 }
 
-func (cpu *Cpu) testAndSetCarrySubtraction(a Word, b Word) {
-    if int(a - b) < 0x00 {
+func (cpu *Cpu) testAndSetCarrySubtraction(result int) {
+    if result < 0x00 {
         cpu.clearCarry()
         return
     }
@@ -259,7 +259,7 @@ func (cpu *Cpu) Adc(location int) {
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
     cpu.testAndSetOverflowAddition(cached, val)
-    cpu.testAndSetCarryAddition(cpu.A, val)
+    cpu.testAndSetCarryAddition(int(cached) + int(val) + int(cpu.P & 0x01))
 }
 
 func (cpu *Cpu) Lda(location int) {
@@ -434,6 +434,7 @@ func (cpu *Cpu) Bcs() {
 }
 
 func (cpu *Cpu) Bne() {
+    fmt.Printf("P (BNE): 0x%X\n", cpu.P)
     if !cpu.getZero() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
@@ -490,26 +491,18 @@ func (cpu *Cpu) Plp() {
 }
 
 func (cpu *Cpu) Compare(register Word, value Word) {
-    switch {
-    case register < value:
-        cpu.setNegative()
-        cpu.clearZero()
-        cpu.clearCarry()
-    case register == value:
-        cpu.clearNegative()
-        cpu.setZero()
-        cpu.setCarry()
-    case register > value:
-        cpu.clearNegative()
-        cpu.clearZero()
-        cpu.setCarry()
-    }
+    r := register - value
+
+    cpu.testAndSetZero(r)
+    cpu.testAndSetNegative(r)
+    cpu.testAndSetCarrySubtraction(int(register) - int(value))
 }
 
 func (cpu *Cpu) Cmp(location int) {
-    fmt.Printf("P (CMP): 0x%X\n", cpu.P)
     val, _ := Ram.Read(location)
+    fmt.Printf("Comparing: 0x%X and 0x%X\n", cpu.A, val)
     cpu.Compare(cpu.A, val)
+    fmt.Printf("P (CMP): 0x%X\n", cpu.P)
 }
 
 func (cpu *Cpu) Cpx(location int) {
@@ -535,7 +528,7 @@ func (cpu *Cpu) Sbc(location int) {
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
     cpu.testAndSetOverflowSubtraction(cache, val)
-    cpu.testAndSetCarrySubtraction(cpu.A, val)
+    cpu.testAndSetCarrySubtraction(int(cache) - int(val) - int(cpu.P & 0x01))
 
     cpu.A = cpu.A & 0xff
 }
