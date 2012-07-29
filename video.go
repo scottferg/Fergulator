@@ -14,7 +14,7 @@ type Video struct {
 }
 
 func (cpu *Cpu) DumpRegisterState() string {
-    return fmt.Sprintf("X: 0x%X Y: 0x%X A: 0x%X SP: 0x%X", cpu.X, cpu.Y, cpu.A, cpu.StackPointer)
+    return fmt.Sprintf("A: 0x%X X: 0x%X Y: 0x%X SP: 0x%X", cpu.A, cpu.X, cpu.Y, cpu.StackPointer)
 }
 
 func (v *Video) Init(t <-chan Cpu) {

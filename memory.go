@@ -55,6 +55,7 @@ func (m *Memory) WriteMirrorable(address interface{}, val *Word) error {
 
 func (m *Memory) Read(address interface{}) (Word, error) {
     a, _ := fitAddressSize(address)
+
     return *m[a], nil
 }
 

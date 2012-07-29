@@ -99,8 +99,20 @@ func (cpu *Cpu) clearNegative() {
     cpu.P = cpu.P & 0x7F
 }
 
+func (cpu *Cpu) pushToStack(value Word) {
+    Ram.Write(0x100 + int(cpu.StackPointer), value)
+    cpu.StackPointer--
+}
+
+func (cpu *Cpu) pullFromStack() Word {
+    cpu.StackPointer++
+    val, _ := Ram.Read(0x100 + int(cpu.StackPointer))
+
+    return val
+}
+
 func (cpu *Cpu) testAndSetNegative(value Word) {
-    if value & 0x80 > 0x00 {
+    if value & 0x80 == 0x80 {
         cpu.setNegative()
         return
     }
@@ -150,17 +162,14 @@ func (cpu *Cpu) testAndSetOverflowAddition(a Word, b Word) {
 }
 
 func (cpu *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
-    if (a & 0x80) != (b & 0x80) {
-        switch {
-        case int(a - b) > 127:
-            fallthrough
-        case int(a - b) < -128:
-            cpu.setOverflow()
-            return
-        }
-    }
+    fmt.Printf("A: 0x%X B: 0x%X\n", a, b)
 
-    cpu.clearOverflow()
+    val := a - b - (1 - cpu.P & 0x01)
+    if ((a ^ val) & 0x80) != 0 && ((a ^ b) & 0x80) != 0 {
+        cpu.setOverflow()
+    } else {
+        cpu.clearOverflow()
+    }
 }
 
 func (cpu *Cpu) immediateAddress() (int) {
@@ -245,7 +254,6 @@ func (cpu *Cpu) accumulatorAddress() (int) {
 }
 
 func (cpu *Cpu) Adc(location int) {
-    fmt.Printf("P (ADC): 0x%X\n", cpu.P)
     val, _ := Ram.Read(location)
 
     cached := cpu.A
@@ -263,9 +271,10 @@ func (cpu *Cpu) Adc(location int) {
 }
 
 func (cpu *Cpu) Lda(location int) {
-    fmt.Printf("P (LDA): 0x%X\n", cpu.P)
     val, _ := Ram.Read(location)
     cpu.A = val
+
+    fmt.Printf("Loaded 0x%X into A from 0x%X\n", val, location)
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
@@ -275,6 +284,8 @@ func (cpu *Cpu) Ldx(location int) {
     val, _ := Ram.Read(location)
     cpu.X = val
 
+    fmt.Printf("Loaded 0x%X into X\n", val)
+
     cpu.testAndSetNegative(cpu.X)
     cpu.testAndSetZero(cpu.X)
 }
@@ -282,6 +293,8 @@ func (cpu *Cpu) Ldx(location int) {
 func (cpu *Cpu) Ldy(location int) {
     val, _ := Ram.Read(location)
     cpu.Y = val
+
+    fmt.Printf("Loaded 0x%X into Y\n", val)
 
     cpu.testAndSetNegative(cpu.Y)
     cpu.testAndSetZero(cpu.Y)
@@ -377,7 +390,6 @@ func (cpu *Cpu) Branch(offset Word) {
 }
 
 func (cpu *Cpu) Bpl() {
-    fmt.Printf("P (BPL): 0x%X\n", cpu.P)
     if !cpu.getNegative() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
@@ -396,8 +408,6 @@ func (cpu *Cpu) Bmi() {
 }
 
 func (cpu *Cpu) Bvc() {
-    fmt.Printf("P (BVC): 0x%X\n", cpu.P)
-
     if !cpu.getOverflow() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
@@ -434,7 +444,6 @@ func (cpu *Cpu) Bcs() {
 }
 
 func (cpu *Cpu) Bne() {
-    fmt.Printf("P (BNE): 0x%X\n", cpu.P)
     if !cpu.getZero() {
         val, _ := Ram.Read(programCounter)
         cpu.Branch(val)
@@ -453,41 +462,38 @@ func (cpu *Cpu) Beq() {
 }
 
 func (cpu *Cpu) Txs() {
-    cpu.StackPointer--
-    Ram.Write(cpu.StackPointer, cpu.X)
+    cpu.StackPointer = cpu.X
 }
 
 func (cpu *Cpu) Tsx() {
-    val, _ := Ram.Read(cpu.StackPointer)
-    cpu.X = val
-    cpu.StackPointer++
+    cpu.X = cpu.StackPointer
+
+    cpu.testAndSetZero(cpu.X)
+    cpu.testAndSetNegative(cpu.X)
 }
 
 func (cpu *Cpu) Pha() {
-    cpu.StackPointer--
-    Ram.Write(cpu.StackPointer, cpu.A)
+    cpu.pushToStack(cpu.A)
 }
 
 func (cpu *Cpu) Pla() {
-    val, _ := Ram.Read(cpu.StackPointer)
+    val := cpu.pullFromStack()
+
     cpu.A = val
-    cpu.StackPointer++
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
 }
 
 func (cpu *Cpu) Php() {
-    cpu.StackPointer--
-    Ram.Write(cpu.StackPointer, Word(cpu.P))
+    cpu.pushToStack(cpu.P)
 }
 
 func (cpu *Cpu) Plp() {
-    val, _ := Ram.Read(cpu.StackPointer)
+    val := cpu.pullFromStack()
 
     // Unset bit 5 since it's unused in the NES
     cpu.P = (val | 0x30) - 0x10
-    cpu.StackPointer++
 }
 
 func (cpu *Cpu) Compare(register Word, value Word) {
@@ -500,9 +506,7 @@ func (cpu *Cpu) Compare(register Word, value Word) {
 
 func (cpu *Cpu) Cmp(location int) {
     val, _ := Ram.Read(location)
-    fmt.Printf("Comparing: 0x%X and 0x%X\n", cpu.A, val)
     cpu.Compare(cpu.A, val)
-    fmt.Printf("P (CMP): 0x%X\n", cpu.P)
 }
 
 func (cpu *Cpu) Cpx(location int) {
@@ -519,16 +523,14 @@ func (cpu *Cpu) Sbc(location int) {
     val, _ := Ram.Read(location)
 
     cache := cpu.A
-    cpu.A = cpu.A - val
+    cpu.A = cache - val
 
-    if cpu.getCarry() {
-        cpu.A--
-    }
+    cpu.A = cpu.A - (1 - cpu.P & 0x01)
 
     cpu.testAndSetNegative(cpu.A)
     cpu.testAndSetZero(cpu.A)
     cpu.testAndSetOverflowSubtraction(cache, val)
-    cpu.testAndSetCarrySubtraction(int(cache) - int(val) - int(cpu.P & 0x01))
+    cpu.testAndSetCarrySubtraction(int(cache) - int(val) - (1 - int(cpu.P & 0x01)))
 
     cpu.A = cpu.A & 0xff
 }
@@ -610,11 +612,8 @@ func (cpu *Cpu) Jsr(location int) {
     high := (programCounter - 1) >> 8
     low := (programCounter - 1) & 0xFF
 
-    cpu.StackPointer--
-    Ram.Write(cpu.StackPointer, Word(high))
-
-    cpu.StackPointer--
-    Ram.Write(cpu.StackPointer, Word(low))
+    cpu.pushToStack(Word(high))
+    cpu.pushToStack(Word(low))
 
     programCounter = location
 }
@@ -622,18 +621,14 @@ func (cpu *Cpu) Jsr(location int) {
 func (cpu *Cpu) Rti() {
     cpu.Plp()
 
-    val, _ := Ram.Read(cpu.StackPointer)
+    val := cpu.pullFromStack()
 
     programCounter = int(val)
-    cpu.StackPointer++
 }
 
 func (cpu *Cpu) Rts() {
-    high, _ := Ram.Read(cpu.StackPointer + 1)
-    low, _ := Ram.Read(cpu.StackPointer)
-
-    cpu.StackPointer++
-    cpu.StackPointer++
+    low := cpu.pullFromStack()
+    high := cpu.pullFromStack()
 
     programCounter = ((int(high) << 8) + int(low)) + 1
 }

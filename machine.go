@@ -8,7 +8,8 @@ import (
 )
 
 var (
-    cycle = "559ns"
+    //cycle = "559ns"
+    cycle = "0ns"
     programCounter = 0xC000
     clockspeed, _ = time.ParseDuration(cycle)
     running = true
@@ -18,8 +19,8 @@ var (
     rom Rom
     video Video
 
-    breakpoint = 0xC7DC
-    terminate  = 0xC7F3
+    breakpoint = 0xCE15
+    terminate  = 0xCE33
 )
 
 func setResetVector() {
@@ -62,15 +63,17 @@ loop:
             v <- cpu
 
             switch {
-            case programCounter >= terminate:
+            case programCounter == terminate:
                 break loop;
-            case programCounter >= breakpoint:
+            case programCounter == breakpoint:
                 clockspeed, _ = time.ParseDuration("3000ms")
             }
 
             time.Sleep(clockspeed)
         }
     }
+
+    fmt.Printf("Status was: 0x%X\n", cpu.P)
 
     return
 }

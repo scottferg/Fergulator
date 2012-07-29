@@ -235,6 +235,7 @@ C93E  D0 05     BNE $C945                       A:6B X:00 Y:00 P:2F SP:FB CYC:31
 C940  70 03     BVS $C945                       A:6B X:00 Y:00 P:2F SP:FB CYC:325 SL:245
 C942  4C 49 C9  JMP $C949                       A:6B X:00 Y:00 P:2F SP:FB CYC:331 SL:245
 C949  EA        NOP                             A:6B X:00 Y:00 P:2F SP:FB CYC:340 SL:245
+
 C94A  D8        CLD                             A:6B X:00 Y:00 P:2F SP:FB CYC:  5 SL:246
 C94B  38        SEC                             A:6B X:00 Y:00 P:27 SP:FB CYC: 11 SL:246
 C94C  B8        CLV                             A:6B X:00 Y:00 P:27 SP:FB CYC: 17 SL:246
@@ -247,6 +248,7 @@ C957  D0 05     BNE $C95E                       A:FF X:00 Y:00 P:67 SP:FB CYC: 5
 C959  50 03     BVC $C95E                       A:FF X:00 Y:00 P:67 SP:FB CYC: 59 SL:246
 C95B  4C 62 C9  JMP $C962                       A:FF X:00 Y:00 P:67 SP:FB CYC: 65 SL:246
 C962  EA        NOP                             A:FF X:00 Y:00 P:67 SP:FB CYC: 74 SL:246
+
 C963  18        CLC                             A:FF X:00 Y:00 P:67 SP:FB CYC: 80 SL:246
 C964  24 01     BIT $01 = FF                    A:FF X:00 Y:00 P:66 SP:FB CYC: 86 SL:246
 C966  A9 7F     LDA #$7F                        A:FF X:00 Y:00 P:E4 SP:FB CYC: 95 SL:246
@@ -842,6 +844,7 @@ CDFA  85 01     STA $01 = FF                    A:FF X:FB Y:01 P:A5 SP:FB CYC:34
 CDFC  BA        TSX                             A:FF X:FB Y:01 P:A5 SP:FB CYC:  8 SL:258
 CDFD  8E FF 07  STX $07FF = FB                  A:FF X:FB Y:01 P:A5 SP:FB CYC: 14 SL:258
 CE00  EA        NOP                             A:FF X:FB Y:01 P:A5 SP:FB CYC: 26 SL:258
+
 CE01  A2 80     LDX #$80                        A:FF X:FB Y:01 P:A5 SP:FB CYC: 32 SL:258
 CE03  9A        TXS                             A:FF X:80 Y:01 P:A5 SP:FB CYC: 38 SL:258
 CE04  A9 33     LDA #$33                        A:FF X:80 Y:01 P:A5 SP:80 CYC: 44 SL:258
@@ -868,6 +871,7 @@ CE28  C9 69     CMP #$69                        A:69 X:80 Y:01 P:25 SP:80 CYC:19
 CE2A  D0 03     BNE $CE2F                       A:69 X:80 Y:01 P:27 SP:80 CYC:200 SL:258
 CE2C  4C 33 CE  JMP $CE33                       A:69 X:80 Y:01 P:27 SP:80 CYC:206 SL:258
 CE33  EA        NOP                             A:69 X:80 Y:01 P:27 SP:80 CYC:215 SL:258
+
 CE34  A2 80     LDX #$80                        A:69 X:80 Y:01 P:27 SP:80 CYC:221 SL:258
 CE36  9A        TXS                             A:69 X:80 Y:01 P:A5 SP:80 CYC:227 SL:258
 CE37  20 3D CE  JSR $CE3D                       A:69 X:80 Y:01 P:A5 SP:80 CYC:233 SL:258
