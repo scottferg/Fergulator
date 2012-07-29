@@ -19,7 +19,7 @@ var (
     rom Rom
     video Video
 
-    breakpoint = 0xCE15
+    breakpoint = 0xCE01
     terminate  = 0xCE33
 )
 

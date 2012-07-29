@@ -844,7 +844,6 @@ CDFA  85 01     STA $01 = FF                    A:FF X:FB Y:01 P:A5 SP:FB CYC:34
 CDFC  BA        TSX                             A:FF X:FB Y:01 P:A5 SP:FB CYC:  8 SL:258
 CDFD  8E FF 07  STX $07FF = FB                  A:FF X:FB Y:01 P:A5 SP:FB CYC: 14 SL:258
 CE00  EA        NOP                             A:FF X:FB Y:01 P:A5 SP:FB CYC: 26 SL:258
-
 CE01  A2 80     LDX #$80                        A:FF X:FB Y:01 P:A5 SP:FB CYC: 32 SL:258
 CE03  9A        TXS                             A:FF X:80 Y:01 P:A5 SP:FB CYC: 38 SL:258
 CE04  A9 33     LDA #$33                        A:FF X:80 Y:01 P:A5 SP:80 CYC: 44 SL:258
@@ -871,7 +870,6 @@ CE28  C9 69     CMP #$69                        A:69 X:80 Y:01 P:25 SP:80 CYC:19
 CE2A  D0 03     BNE $CE2F                       A:69 X:80 Y:01 P:27 SP:80 CYC:200 SL:258
 CE2C  4C 33 CE  JMP $CE33                       A:69 X:80 Y:01 P:27 SP:80 CYC:206 SL:258
 CE33  EA        NOP                             A:69 X:80 Y:01 P:27 SP:80 CYC:215 SL:258
-
 CE34  A2 80     LDX #$80                        A:69 X:80 Y:01 P:27 SP:80 CYC:221 SL:258
 CE36  9A        TXS                             A:69 X:80 Y:01 P:A5 SP:80 CYC:227 SL:258
 CE37  20 3D CE  JSR $CE3D                       A:69 X:80 Y:01 P:A5 SP:80 CYC:233 SL:258
@@ -1017,6 +1015,7 @@ CF40  C9 AA     CMP #$AA                        A:AA X:55 Y:69 P:A4 SP:FB CYC:25
 CF42  D0 03     BNE $CF47                       A:AA X:55 Y:69 P:27 SP:FB CYC:260 SL:-1
 CF44  4C 4B CF  JMP $CF4B                       A:AA X:55 Y:69 P:27 SP:FB CYC:266 SL:-1
 CF4B  EA        NOP                             A:AA X:55 Y:69 P:27 SP:FB CYC:275 SL:-1
+
 CF4C  24 01     BIT $01 = FF                    A:AA X:55 Y:69 P:27 SP:FB CYC:281 SL:-1
 CF4E  38        SEC                             A:AA X:55 Y:69 P:E5 SP:FB CYC:290 SL:-1
 CF4F  A9 01     LDA #$01                        A:AA X:55 Y:69 P:E5 SP:FB CYC:296 SL:-1
