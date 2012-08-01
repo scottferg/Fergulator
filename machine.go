@@ -10,7 +10,7 @@ import (
 var (
 	//cycle = "559ns"
 	cycle          = "0ns"
-	programCounter = 0xC000
+	programCounter = 0x8000
 	clockspeed, _  = time.ParseDuration(cycle)
 	running        = true
 
@@ -36,7 +36,7 @@ func main() {
 	ppu.Init()
 	cpu.Reset()
 
-	cpu.P = 0x24
+	cpu.P = 0x34
 
 	v := make(chan Cpu)
 	video.Init(v)
@@ -51,7 +51,7 @@ func main() {
 			return
 		}
 
-		//setResetVector()
+		setResetVector()
 
 		go video.Render()
 
