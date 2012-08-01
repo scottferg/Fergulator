@@ -1,9 +1,5 @@
 package main
 
-import (
-	"fmt"
-)
-
 type Cpu struct {
 	X            Word
 	Y            Word
@@ -162,8 +158,6 @@ func (cpu *Cpu) testAndSetOverflowAddition(a Word, b Word) {
 }
 
 func (cpu *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
-	fmt.Printf("A: 0x%X B: 0x%X\n", a, b)
-
 	val := a - b - (1 - cpu.P&0x01)
 	if ((a^val)&0x80) != 0 && ((a^b)&0x80) != 0 {
 		cpu.setOverflow()
@@ -198,7 +192,18 @@ func (cpu *Cpu) indirectAbsoluteAddress() (result int) {
 	high, _ := Ram.Read(programCounter + 1)
 	low, _ := Ram.Read(programCounter)
 
-	result = (int(high) << 8) + int(low)
+	// Indirect jump is bugged on the 6502, it doesn't add 1 to 
+	// the full 16-bit value when it reads the second byte, it 
+	// adds 1 to the low byte only. So JMP (03FF) reads from 3FF 
+	// and 300, not 3FF and 400.
+	laddr := (int(high) << 8) + int(low)
+	haddr := (int(high) << 8) + ((int(low) + 1) & 0xFF)
+
+	ih, _ := Ram.Read(haddr)
+	il, _ := Ram.Read(laddr)
+
+	result = (int(ih) << 8) + int(il)
+
 	programCounter++
 	return
 }
@@ -209,8 +214,14 @@ func (cpu *Cpu) absoluteIndexedAddress(index Word) (result int) {
 	high, _ := Ram.Read(programCounter + 1)
 	low, _ := Ram.Read(programCounter)
 
-	programCounter++
-	return (int(high) << 8) + int(low) + int(index)
+	address := (int(high) << 8) + int(low) + int(index)
+
+	if address > 0xFFFF {
+		address = address & 0xFFFF
+	}
+
+	programCounter += 2
+	return address
 }
 
 func (cpu *Cpu) zeroPageIndexedAddress(index Word) int {
@@ -241,8 +252,14 @@ func (cpu *Cpu) indirectIndexedAddress() int {
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
 
+	address := (int(high) << 8) + int(low) + int(cpu.Y)
+
+	if address > 0xFFFF {
+		address = address & 0xFFFF
+	}
+
 	programCounter++
-	return (int(high) << 8) + int(low) + int(cpu.Y)
+	return address
 }
 
 func (cpu *Cpu) relativeAddress() int {
@@ -274,8 +291,6 @@ func (cpu *Cpu) Lda(location int) {
 	val, _ := Ram.Read(location)
 	cpu.A = val
 
-	fmt.Printf("Loaded 0x%X into A from 0x%X\n", val, location)
-
 	cpu.testAndSetNegative(cpu.A)
 	cpu.testAndSetZero(cpu.A)
 }
@@ -284,8 +299,6 @@ func (cpu *Cpu) Ldx(location int) {
 	val, _ := Ram.Read(location)
 	cpu.X = val
 
-	fmt.Printf("Loaded 0x%X into X\n", val)
-
 	cpu.testAndSetNegative(cpu.X)
 	cpu.testAndSetZero(cpu.X)
 }
@@ -293,8 +306,6 @@ func (cpu *Cpu) Ldx(location int) {
 func (cpu *Cpu) Ldy(location int) {
 	val, _ := Ram.Read(location)
 	cpu.Y = val
-
-	fmt.Printf("Loaded 0x%X into Y\n", val)
 
 	cpu.testAndSetNegative(cpu.Y)
 	cpu.testAndSetZero(cpu.Y)
@@ -486,7 +497,9 @@ func (cpu *Cpu) Pla() {
 }
 
 func (cpu *Cpu) Php() {
-	cpu.pushToStack(cpu.P)
+	// BRK and PHP push P OR #$10, so that the IRQ handler can tell 
+	// whether the entry was from a BRK or from an /IRQ.
+	cpu.pushToStack(cpu.P | 0x10)
 }
 
 func (cpu *Cpu) Plp() {
@@ -589,7 +602,9 @@ func (cpu *Cpu) Eor(location int) {
 
 func (cpu *Cpu) Dec(location int) {
 	val, _ := Ram.Read(location)
-	Ram.Write(location, val-1)
+	val = val - 1
+
+	Ram.Write(location, val)
 
 	cpu.testAndSetNegative(val)
 	cpu.testAndSetZero(val)
@@ -597,13 +612,19 @@ func (cpu *Cpu) Dec(location int) {
 
 func (cpu *Cpu) Inc(location int) {
 	val, _ := Ram.Read(location)
-	Ram.Write(location, val+1)
+	val = val + 1
+
+	Ram.Write(location, val)
 
 	cpu.testAndSetNegative(val)
 	cpu.testAndSetZero(val)
 }
 
 func (cpu *Cpu) Brk() {
+	// TODO: Push cpu.P | 0x10
+
+	// BRK and PHP push P OR #$10, so that the IRQ handler can tell 
+	// whether the entry was from a BRK or from an /IRQ.
 	cpu.setBrkCommand()
 	programCounter++
 }
@@ -621,9 +642,10 @@ func (cpu *Cpu) Jsr(location int) {
 func (cpu *Cpu) Rti() {
 	cpu.Plp()
 
-	val := cpu.pullFromStack()
+	low := cpu.pullFromStack()
+	high := cpu.pullFromStack()
 
-	programCounter = int(val)
+	programCounter = ((int(high) << 8) + int(low))
 }
 
 func (cpu *Cpu) Rts() {

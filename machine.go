@@ -19,15 +19,13 @@ var (
 	rom   Rom
 	video Video
 
-	breakpoint = 0xCE01
-	terminate  = 0xCE33
+	breakpoint = 0xDF58
+	terminate  = 0xDF69
 )
 
 func setResetVector() {
 	high, _ := Ram.Read(0xFFFD)
 	low, _ := Ram.Read(0xFFFC)
-
-	fmt.Printf("Reset: 0x%X%X\n", high, low)
 
 	programCounter = (int(high) << 8) + int(low)
 }
