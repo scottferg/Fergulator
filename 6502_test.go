@@ -1,208 +1,98 @@
 package main
 
 import (
-    "io/ioutil"
-    "testing"
-    "fmt"
+	"encoding/hex"
+	"io/ioutil"
+	"strings"
+	"testing"
 )
 
+type CpuState struct {
+	A  int
+	X  int
+	Y  int
+	P  int
+	S  int
+	Op int
+}
+
 func TestGoldLog(test *testing.T) {
-    programCounter = 0xC000
+	programCounter = 0xC000
 
-    Ram.Init()
-    cpu.Reset()
+	Ram.Init()
+	cpu.Reset()
 
-    cpu.P = 0x24
+	cpu.P = 0x24
 
-    if contents, err := ioutil.ReadFile("test_roms/nestest.nes"); err == nil {
-        if err = rom.Init(contents); err != nil {
-            fmt.Println(err.Error())
-            return
-        }
+	if contents, err := ioutil.ReadFile("test_roms/nestest.nes"); err == nil {
+		if err = rom.Init(contents); err != nil {
+			test.Error(err.Error())
+			return
+		}
+	}
 
-        sentinel := 1016
-        for i := 0; i < sentinel; i++ {
-            cpu.Step()
-            verifyCpuState(programCounter, &cpu, test)
-        }
-    }
+	logfile, err := ioutil.ReadFile("test_roms/nestest.log")
+	if err != nil {
+		test.Error(err.Error())
+		return
+	}
+
+	log := strings.Split(string(logfile), "\n")
+
+	//sentinel := 1016
+	sentinel := 100
+	for i := 0; i < sentinel; i++ {
+		op, _ := hex.DecodeString(log[i][:4])
+
+		high := op[0]
+		low := op[1]
+
+		r := log[i][48:]
+
+		registers := strings.Split(r, " ")
+
+		a, _ := hex.DecodeString(strings.Split(registers[0], ":")[1])
+		x, _ := hex.DecodeString(strings.Split(registers[1], ":")[1])
+		y, _ := hex.DecodeString(strings.Split(registers[2], ":")[1])
+		p, _ := hex.DecodeString(strings.Split(registers[3], ":")[1])
+		sp, _ := hex.DecodeString(strings.Split(registers[4], ":")[1])
+
+		expectedState := CpuState{
+			A:  int(a[0]),
+			X:  int(x[0]),
+			Y:  int(y[0]),
+			P:  int(p[0]),
+			S:  int(sp[0]),
+			Op: (int(high) << 8) + int(low),
+		}
+
+		verifyCpuState(programCounter, &cpu, expectedState, test)
+		cpu.Step()
+	}
 }
 
-func verifyCpuState(pc int, c *Cpu, test *testing.T) {
-    switch pc {
-    case 0xC72D:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x26, 0xFB, test)
-    case 0xC735:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x27, 0xFB, test)
-    case 0xC740:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x26, 0xFB, test)
-    case 0xC74B:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x27, 0xFB, test)
-    case 0xC753:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x26, 0xFB, test)
-    case 0xC75C:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x26, 0xFB, test)
-    case 0xC768:
-        checkRegisters(pc, c, 0x40, 0x00, 0x00, 0x24, 0xFB, test)
-    case 0xC771:
-        checkRegisters(pc, c, 0x40, 0x00, 0x00, 0x24, 0xFB, test)
-    case 0xC77D:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x26, 0xFB, test)
-    case 0xC78A:
-        checkRegisters(pc, c, 0xFF, 0x00, 0x00, 0xE4, 0xFB, test)
-    case 0xC796:
-        checkRegisters(pc, c, 0xFF, 0x00, 0x00, 0xE4, 0xFB, test)
-    case 0xC7A3:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x26, 0xFB, test)
-    case 0xC7AF:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x26, 0xFB, test)
-    case 0xC7B8:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x26, 0xFB, test)
-    case 0xC7D9:
-        checkRegisters(pc, c, 0x80, 0x00, 0x00, 0xA4, 0xFB, test)
-    case 0xC7DB:
-        checkRegisters(pc, c, 0x80, 0x00, 0x00, 0xA4, 0xFB, test)
-    case 0xC7F3:
-        checkRegisters(pc, c, 0x6F, 0x00, 0x00, 0x6F, 0xFB, test)
-    case 0xC80A:
-        checkRegisters(pc, c, 0x64, 0x00, 0x00, 0x67, 0xFB, test)
-    case 0xC821:
-        checkRegisters(pc, c, 0x2F, 0x00, 0x00, 0x2F, 0xFB, test)
-    case 0xC835:
-        checkRegisters(pc, c, 0xFF, 0x00, 0x00, 0xEF, 0xFB, test)
-    case 0xC849:
-        checkRegisters(pc, c, 0x04, 0x00, 0x00, 0x24, 0xFB, test)
-    case 0xC867:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x6E, 0xFB, test)
-    case 0xC885:
-        checkRegisters(pc, c, 0xFF, 0x00, 0x00, 0xAD, 0xFB, test)
-    case 0xC8A2:
-        checkRegisters(pc, c, 0xFF, 0x00, 0x00, 0x6F, 0xFB, test)
-    case 0xC8B8:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x2F, 0xFB, test)
-    case 0xC8CF:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x6E, 0xFB, test)
-    case 0xC8E7:
-        checkRegisters(pc, c, 0xE8, 0x00, 0x00, 0x2F, 0xFB, test)
-    case 0xC900:
-        checkRegisters(pc, c, 0xF5, 0x00, 0x00, 0x6F, 0xFB, test)
-    case 0xC916:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x2F, 0xFB, test)
-    case 0xC92F:
-        checkRegisters(pc, c, 0x69, 0x00, 0x00, 0x2F, 0xFB, test)
-    case 0xC949:
-        checkRegisters(pc, c, 0x6B, 0x00, 0x00, 0x2F, 0xFB, test)
-    case 0xC962:
-        checkRegisters(pc, c, 0xFF, 0x00, 0x00, 0x67, 0xFB, test)
-    case 0xC97B:
-        checkRegisters(pc, c, 0xFF, 0x00, 0x00, 0x27, 0xFB, test)
-    case 0xC991:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x27, 0xFB, test)
-    case 0xC9A5:
-        checkRegisters(pc, c, 0x9F, 0x00, 0x00, 0xA5, 0xFB, test)
-    case 0xC9BA:
-        checkRegisters(pc, c, 0x00, 0x00, 0x00, 0x66, 0xFB, test)
-    case 0xC9D0:
-        checkRegisters(pc, c, 0x40, 0x00, 0x00, 0x67, 0xFB, test)
-    case 0xC9E3:
-        checkRegisters(pc, c, 0x40, 0x00, 0x00, 0x25, 0xFB, test)
-    case 0xC9F3:
-        checkRegisters(pc, c, 0x40, 0x00, 0x00, 0xA4, 0xFB, test)
-    case 0xCA05:
-        checkRegisters(pc, c, 0x80, 0x00, 0x00, 0xA5, 0xFB, test)
-    case 0xCA15:
-        checkRegisters(pc, c, 0x80, 0x00, 0x00, 0x27, 0xFB, test)
-    case 0xCA25:
-        checkRegisters(pc, c, 0x80, 0x00, 0x00, 0xA4, 0xFB, test)
-    case 0xCA35:
-        checkRegisters(pc, c, 0x80, 0x00, 0x00, 0x25, 0xFB, test)
-    case 0xCA4B:
-        checkRegisters(pc, c, 0x80, 0x00, 0x40, 0x67, 0xFB, test)
-    case 0xCA5E:
-        checkRegisters(pc, c, 0x80, 0x00, 0x40, 0x25, 0xFB, test)
-    case 0xCA6E:
-        checkRegisters(pc, c, 0x80, 0x00, 0x40, 0xA4, 0xFB, test)
-    case 0xCA80:
-        checkRegisters(pc, c, 0x80, 0x00, 0x80, 0xA5, 0xFB, test)
-    case 0xCA90:
-        checkRegisters(pc, c, 0x80, 0x00, 0x80, 0x27, 0xFB, test)
-    case 0xCAA0:
-        checkRegisters(pc, c, 0x80, 0x00, 0x80, 0xA4, 0xFB, test)
-    case 0xCAB0:
-        checkRegisters(pc, c, 0x80, 0x00, 0x80, 0x25, 0xFB, test)
-    case 0xCAC6:
-        checkRegisters(pc, c, 0x80, 0x40, 0x80, 0x67, 0xFB, test)
-    case 0xCAD9:
-        checkRegisters(pc, c, 0x80, 0x40, 0x80, 0x25, 0xFB, test)
-    case 0xCAE9:
-        checkRegisters(pc, c, 0x80, 0x40, 0x80, 0xA4, 0xFB, test)
-    case 0xCAFB:
-        checkRegisters(pc, c, 0x80, 0x80, 0x80, 0xA5, 0xFB, test)
-    case 0xCB0B:
-        checkRegisters(pc, c, 0x80, 0x80, 0x80, 0x27, 0xFB, test)
-    case 0xCB1B:
-        checkRegisters(pc, c, 0x80, 0x80, 0x80, 0xA4, 0xFB, test)
-    case 0xCB2B:
-        checkRegisters(pc, c, 0x80, 0x80, 0x80, 0x25, 0xFB, test)
-    case 0xCB3F:
-        checkRegisters(pc, c, 0x80, 0x9F, 0x80, 0xA5, 0xFB, test)
-    case 0xCB54:
-        checkRegisters(pc, c, 0x80, 0x00, 0x80, 0x66, 0xFB, test)
-    case 0xCB68:
-        checkRegisters(pc, c, 0x80, 0x00, 0x9F, 0xA5, 0xFB, test)
-    case 0xCB7D:
-        checkRegisters(pc, c, 0x80, 0x00, 0x00, 0x66, 0xFB, test)
-    case 0xCBDE:
-        checkRegisters(pc, c, 0x02, 0xAA, 0x75, 0x67, 0xFB, test)
-    case 0xCC14:
-        checkRegisters(pc, c, 0x44, 0x57, 0x64, 0x67, 0xFB, test)
-    case 0xCC62:
-        checkRegisters(pc, c, 0x96, 0x69, 0xFE, 0x27, 0xFB, test)
-    case 0xCCB0:
-        checkRegisters(pc, c, 0x96, 0xFE, 0x69, 0x27, 0xFB, test)
-    case 0xCCEF:
-        checkRegisters(pc, c, 0x00, 0x34, 0x00, 0x27, 0xFB, test)
-    case 0xCD2E:
-        checkRegisters(pc, c, 0x00, 0x00, 0x99, 0x27, 0xFB, test)
-    case 0xCD6D:
-        checkRegisters(pc, c, 0x00, 0x34, 0x00, 0x27, 0xFB, test)
-    case 0xCDAC:
-        checkRegisters(pc, c, 0x00, 0x00, 0x99, 0x27, 0xFB, test)
-    case 0xCE00:
-        checkRegisters(pc, c, 0xFF, 0xFB, 0x01, 0xA5, 0xFB, test)
-    case 0xCE33:
-        checkRegisters(pc, c, 0x69, 0x80, 0x01, 0x27, 0x80, test)
-    case 0xCE5F:
-        checkRegisters(pc, c, 0xCE, 0x80, 0x01, 0x27, 0x80, test)
-    case 0xCE9D:
-        checkRegisters(pc, c, 0x00, 0x77, 0x69, 0x27, 0x80, test)
-    case 0xCEF6:
-        checkRegisters(pc, c, 0xFF, 0x55, 0x69, 0xA5, 0xFB, test)
-    case 0xCF20:
-        checkRegisters(pc, c, 0x55, 0x55, 0x69, 0x27, 0xFB, test)
-    case 0xCF4B:
-        checkRegisters(pc, c, 0xAA, 0x55, 0x69, 0x27, 0xFB, test)
-    }
-}
+func verifyCpuState(pc int, c *Cpu, e CpuState, test *testing.T) {
+	if pc != e.Op {
+		test.Errorf("PC was 0x%X, expected 0x%X\n", pc, e.Op)
+	}
 
-func checkRegisters(pc int, c *Cpu, a Word, x Word, y Word, s Word, sp Word, test *testing.T) {
-    if c.A != a {
-        test.Errorf("PC: 0x%X Register A was 0x%X, was expecting 0x%X\n", pc, c.A, a)
-    }
+	if c.A != Word(e.A) {
+		test.Errorf("PC: 0x%X Register A was 0x%X, was expecting 0x%X\n", pc, c.A, e.A)
+	}
 
-    if c.X != x {
-        test.Errorf("PC: 0x%X Register X was 0x%X, was expecting 0x%X\n", pc, c.X, x)
-    }
+	if c.X != Word(e.X) {
+		test.Errorf("PC: 0x%X Register X was 0x%X, was expecting 0x%X\n", pc, c.X, e.X)
+	}
 
-    if c.Y != y {
-        test.Errorf("PC: 0x%X Register Y was 0x%X, was expecting 0x%X\n", pc, c.Y, y)
-    }
+	if c.Y != Word(e.Y) {
+		test.Errorf("PC: 0x%X Register Y was 0x%X, was expecting 0x%X\n", pc, c.Y, e.Y)
+	}
 
-    if c.P != s {
-        test.Errorf("PC: 0x%X P register was 0x%X, was expecting 0x%X\n", pc, c.P, s)
-    }
+	if c.P != Word(e.P) {
+		test.Errorf("PC: 0x%X P register was 0x%X, was expecting 0x%X\n", pc, c.P, e.P)
+	}
 
-    if c.StackPointer != sp {
-        test.Errorf("PC: 0x%X Stack pointer was 0x%X, was expecting 0x%X\n", pc, c.StackPointer, sp)
-    }
+	if c.StackPointer != Word(e.S) {
+		test.Errorf("PC: 0x%X Stack pointer was 0x%X, was expecting 0x%X\n", pc, c.StackPointer, e.S)
+	}
 }

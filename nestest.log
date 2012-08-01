@@ -1038,6 +1038,7 @@ CF6B  C9 2A     CMP #$2A                        A:2A X:55 Y:69 P:25 SP:FB CYC: 5
 CF6D  D0 03     BNE $CF72                       A:2A X:55 Y:69 P:27 SP:FB CYC: 57 SL:0
 CF6F  4C 76 CF  JMP $CF76                       A:2A X:55 Y:69 P:27 SP:FB CYC: 63 SL:0
 CF76  EA        NOP                             A:2A X:55 Y:69 P:27 SP:FB CYC: 72 SL:0
+
 CF77  24 01     BIT $01 = FF                    A:2A X:55 Y:69 P:27 SP:FB CYC: 78 SL:0
 CF79  38        SEC                             A:2A X:55 Y:69 P:E5 SP:FB CYC: 87 SL:0
 CF7A  A9 80     LDA #$80                        A:2A X:55 Y:69 P:E5 SP:FB CYC: 93 SL:0
@@ -2843,8 +2844,7 @@ D806  20 90 F9  JSR $F990                       A:DD X:DD Y:DD P:A5 SP:FB CYC:15
 F990  A2 55     LDX #$55                        A:DD X:DD Y:DD P:A5 SP:F9 CYC:173 SL:50
 F992  A9 FF     LDA #$FF                        A:DD X:55 Y:DD P:25 SP:F9 CYC:179 SL:50
 F994  85 01     STA $01 = FF                    A:FF X:55 Y:DD P:A5 SP:F9 CYC:185 SL:50
-F996  EA        NOP                             A:FF X:55 Y:DD P:A5 SP:F9 CYC:194 SL:50
-F997  24 01     BIT $01 = FF                    A:FF X:55 Y:DD P:A5 SP:F9 CYC:200 SL:50
+F996  EA        NOP                             A:FF X:55 Y:DD P:A5 SP:F9 CYC:194 SL:50 
 F999  38        SEC                             A:FF X:55 Y:DD P:E5 SP:F9 CYC:209 SL:50
 F99A  A9 01     LDA #$01                        A:FF X:55 Y:DD P:E5 SP:F9 CYC:215 SL:50
 F99C  60        RTS                             A:01 X:55 Y:DD P:65 SP:F9 CYC:221 SL:50
@@ -4084,7 +4084,7 @@ DDD2  20 90 F9  JSR $F990                       A:99 X:78 Y:25 P:25 SP:FB CYC: 6
 F990  A2 55     LDX #$55                        A:99 X:78 Y:25 P:25 SP:F9 CYC: 85 SL:82
 F992  A9 FF     LDA #$FF                        A:99 X:55 Y:25 P:25 SP:F9 CYC: 91 SL:82
 F994  85 01     STA $01 = FF                    A:FF X:55 Y:25 P:A5 SP:F9 CYC: 97 SL:82
-F996  EA        NOP                             A:FF X:55 Y:25 P:A5 SP:F9 CYC:106 SL:82
+F996  EA        NOP                             A:FF X:55 Y:25 P:A5 SP:F9 CYC:106 SL:82 
 F997  24 01     BIT $01 = FF                    A:FF X:55 Y:25 P:A5 SP:F9 CYC:112 SL:82
 F999  38        SEC                             A:FF X:55 Y:25 P:E5 SP:F9 CYC:121 SL:82
 F99A  A9 01     LDA #$01                        A:FF X:55 Y:25 P:E5 SP:F9 CYC:127 SL:82
@@ -4779,6 +4779,7 @@ F990  A2 55     LDX #$55                        A:99 X:6D Y:6D P:25 SP:F9 CYC:29
 F992  A9 FF     LDA #$FF                        A:99 X:55 Y:6D P:25 SP:F9 CYC:301 SL:100
 F994  85 01     STA $01 = FF                    A:FF X:55 Y:6D P:A5 SP:F9 CYC:307 SL:100
 F996  EA        NOP                             A:FF X:55 Y:6D P:A5 SP:F9 CYC:316 SL:100
+
 F997  24 01     BIT $01 = FF                    A:FF X:55 Y:6D P:A5 SP:F9 CYC:322 SL:100
 F999  38        SEC                             A:FF X:55 Y:6D P:E5 SP:F9 CYC:331 SL:100
 F99A  A9 01     LDA #$01                        A:FF X:55 Y:6D P:E5 SP:F9 CYC:337 SL:100

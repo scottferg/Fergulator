@@ -1,79 +1,79 @@
 package main
 
 import (
-    "io/ioutil"
-    "time"
-    "fmt"
-    "os"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"time"
 )
 
 var (
-    //cycle = "559ns"
-    cycle = "0ns"
-    programCounter = 0xC000
-    clockspeed, _ = time.ParseDuration(cycle)
-    running = true
+	//cycle = "559ns"
+	cycle          = "0ns"
+	programCounter = 0xC000
+	clockspeed, _  = time.ParseDuration(cycle)
+	running        = true
 
-    cpu Cpu
-    ppu Ppu
-    rom Rom
-    video Video
+	cpu   Cpu
+	ppu   Ppu
+	rom   Rom
+	video Video
 
-    breakpoint = 0xCE01
-    terminate  = 0xCE33
+	breakpoint = 0xCE01
+	terminate  = 0xCE33
 )
 
 func setResetVector() {
-    high, _ := Ram.Read(0xFFFD)
-    low, _ := Ram.Read(0xFFFC)
+	high, _ := Ram.Read(0xFFFD)
+	low, _ := Ram.Read(0xFFFC)
 
-    fmt.Printf("Reset: 0x%X%X\n", high, low)
+	fmt.Printf("Reset: 0x%X%X\n", high, low)
 
-    programCounter = (int(high) << 8) + int(low)
+	programCounter = (int(high) << 8) + int(low)
 }
 
 func main() {
-    Ram.Init()
+	Ram.Init()
 
-    ppu.Init()
-    cpu.Reset()
+	ppu.Init()
+	cpu.Reset()
 
-    cpu.P = 0x24
+	cpu.P = 0x24
 
-    v := make(chan Cpu)
-    video.Init(v)
+	v := make(chan Cpu)
+	video.Init(v)
 
-    cpu.Verbose = true
+	cpu.Verbose = true
 
-    defer video.Close()
+	defer video.Close()
 
-    if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
-        if err = rom.Init(contents); err != nil {
-            fmt.Println(err.Error())
-            return
-        }
+	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
+		if err = rom.Init(contents); err != nil {
+			fmt.Println(err.Error())
+			return
+		}
 
-        //setResetVector()
+		//setResetVector()
 
-        go video.Render()
+		go video.Render()
 
-loop:
-        for running {
-            cpu.Step()
-            v <- cpu
+	loop:
+		for running {
+			cpu.Step()
+			v <- cpu
 
-            switch {
-            case programCounter == terminate:
-                break loop;
-            case programCounter == breakpoint:
-                clockspeed, _ = time.ParseDuration("3000ms")
-            }
+			switch {
+			case programCounter == terminate:
+				break loop
+			case programCounter == breakpoint:
+				clockspeed, _ = time.ParseDuration("3000ms")
+			}
 
-            time.Sleep(clockspeed)
-        }
-    }
+			time.Sleep(clockspeed)
+		}
+	}
 
-    fmt.Printf("Status was: 0x%X\n", cpu.P)
+	fmt.Printf("Status was: 0x%X\n", cpu.P)
 
-    return
+	return
 }
