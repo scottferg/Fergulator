@@ -46,46 +46,10 @@ func (v *Video) Init(t <-chan Cpu) {
 }
 
 func (v *Video) Render() {
-	white := sdl.Color{255, 255, 255, 0}
-
 	for {
 		select {
 		case val := <-v.tick:
-			registers := ttf.RenderText_Solid(v.font, val.DumpRegisterState(), white)
-			opcode := ttf.RenderText_Solid(v.font, fmt.Sprintf("Opcode: 0x%X", val.Opcode), white)
-			pc := ttf.RenderText_Solid(v.font, fmt.Sprintf("PC: 0x%X", programCounter), white)
-			status := ttf.RenderText_Solid(v.font, fmt.Sprintf("P: 0x%X", val.P), white)
-			negative := ttf.RenderText_Solid(v.font, fmt.Sprintf("Neg Flag: %t", val.getNegative()), white)
-			test := ttf.RenderText_Solid(v.font, fmt.Sprintf("Test Output: %s", *Ram[0x6004]), white)
-
-			ppuctl := make([]*sdl.Surface, 8)
-
-			ppuctl[0] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUCTL: 0x%X", *Ram[0x2000]), white)
-			ppuctl[1] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUMASK: 0x%X", *Ram[0x2001]), white)
-			ppuctl[2] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUSTATUS: 0x%X", *Ram[0x2002]), white)
-			ppuctl[3] = ttf.RenderText_Solid(v.font, fmt.Sprintf("OAMADDR: 0x%X", *Ram[0x2003]), white)
-			ppuctl[4] = ttf.RenderText_Solid(v.font, fmt.Sprintf("OAMDATA: 0x%X", *Ram[0x2004]), white)
-			ppuctl[5] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUSCROLL: 0x%X", *Ram[0x2005]), white)
-			ppuctl[6] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUADDR: 0x%X", *Ram[0x2006]), white)
-			ppuctl[7] = ttf.RenderText_Solid(v.font, fmt.Sprintf("PPUDATA: 0x%X", *Ram[0x2007]), white)
-
-			v.screen.FillRect(nil, 0x000000)
-
-			ppuY := int16(320)
-			for _, val := range ppuctl {
-				v.screen.Blit(&sdl.Rect{460, ppuY, 0, 0}, val, nil)
-				ppuY = ppuY + 20
-			}
-
-			v.screen.Blit(&sdl.Rect{2, 360, 0, 0}, test, nil)
-			v.screen.Blit(&sdl.Rect{2, 380, 0, 0}, negative, nil)
-			v.screen.Blit(&sdl.Rect{2, 400, 0, 0}, status, nil)
-			v.screen.Blit(&sdl.Rect{2, 420, 0, 0}, opcode, nil)
-			v.screen.Blit(&sdl.Rect{2, 440, 0, 0}, pc, nil)
-			v.screen.Blit(&sdl.Rect{2, 460, 0, 0}, registers, nil)
-
-			v.screen.Flip()
-
+            fmt.Sprintf("P: 0x%X\n", val.P)
 		case ev := <-sdl.Events:
 			switch e := ev.(type) {
 			case sdl.KeyboardEvent:

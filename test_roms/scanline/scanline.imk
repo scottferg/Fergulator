@@ -1,6 +1,0 @@
-MAKEINES
-scanline.nes
-MAPR 0
-VMIR 1
-PROG scanline.obj
-CHAR scanline.chr

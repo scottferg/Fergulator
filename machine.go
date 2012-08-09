@@ -8,19 +8,17 @@ import (
 )
 
 var (
+	cycle = "0ns"
 	//cycle = "559ns"
-	cycle          = "0ns"
-	programCounter = 0x8000
+	//cycle = "50ms"
+	programCounter = 0xC000
 	clockspeed, _  = time.ParseDuration(cycle)
 	running        = true
 
 	cpu   Cpu
 	ppu   Ppu
-	rom   Rom
+	rom   Mapper
 	video Video
-
-	breakpoint = 0xDF58
-	terminate  = 0xDF69
 )
 
 func setResetVector() {
@@ -28,6 +26,9 @@ func setResetVector() {
 	low, _ := Ram.Read(0xFFFC)
 
 	programCounter = (int(high) << 8) + int(low)
+
+    fmt.Printf("Setting reset: 0x%X\n", programCounter)
+    fmt.Printf("0xEB6D: 0x%X\n", *Ram[0xEB6D])
 }
 
 func main() {
@@ -41,33 +42,27 @@ func main() {
 	v := make(chan Cpu)
 	video.Init(v)
 
-	cpu.Verbose = true
+	//cpu.Verbose = true
 
 	defer video.Close()
 
 	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
-		if err = rom.Init(contents); err != nil {
+		if rom, err = LoadRom(contents); err != nil {
 			fmt.Println(err.Error())
 			return
 		}
+
+        rom.Init(contents)
 
 		setResetVector()
 
 		go video.Render()
 
-	loop:
 		for running {
 			cpu.Step()
 			v <- cpu
 
-			switch {
-			case programCounter == terminate:
-				break loop
-			case programCounter == breakpoint:
-				clockspeed, _ = time.ParseDuration("3000ms")
-			}
-
-			time.Sleep(clockspeed)
+			// time.Sleep(clockspeed)
 		}
 	}
 

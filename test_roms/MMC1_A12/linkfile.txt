@@ -1,9 +1,0 @@
-[objects]
-mmc1_a12.o
-
-[libraries]
-BANK 7 SLOT 3 mmc1.lib
-BANK 7 SLOT 3 joypad.lib
-
-[header]
-snrom.bin

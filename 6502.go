@@ -188,9 +188,9 @@ func (cpu *Cpu) zeroPageAddress() int {
 	return int(res)
 }
 
-func (cpu *Cpu) indirectAbsoluteAddress() (result int) {
-	high, _ := Ram.Read(programCounter + 1)
-	low, _ := Ram.Read(programCounter)
+func (cpu *Cpu) indirectAbsoluteAddress(addr int) (result int) {
+	high, _ := Ram.Read(addr + 1)
+	low, _ := Ram.Read(addr)
 
 	// Indirect jump is bugged on the 6502, it doesn't add 1 to 
 	// the full 16-bit value when it reads the second byte, it 
@@ -203,8 +203,6 @@ func (cpu *Cpu) indirectAbsoluteAddress() (result int) {
 	il, _ := Ram.Read(laddr)
 
 	result = (int(ih) << 8) + int(il)
-
-	programCounter++
 	return
 }
 
@@ -262,8 +260,19 @@ func (cpu *Cpu) indirectIndexedAddress() int {
 	return address
 }
 
-func (cpu *Cpu) relativeAddress() int {
-	return 0
+func (cpu *Cpu) relativeAddress() (a int) {
+    val, _ := Ram.Read(programCounter)
+
+    a = int(val)
+    if (a < 0x80) {
+        a = a + programCounter
+    } else {
+        a = a + (programCounter - 0x100)
+    }
+
+    a++
+
+    return
 }
 
 func (cpu *Cpu) accumulatorAddress() int {
@@ -391,19 +400,9 @@ func (cpu *Cpu) Iny() {
 	cpu.testAndSetZero(cpu.Y)
 }
 
-func (cpu *Cpu) Branch(offset Word) {
-	switch {
-	case offset < 0x80:
-		programCounter += int(offset) + 1
-	case offset > 0x7f:
-		programCounter -= int(((offset ^ 0xff) + 1))
-	}
-}
-
 func (cpu *Cpu) Bpl() {
 	if !cpu.getNegative() {
-		val, _ := Ram.Read(programCounter)
-		cpu.Branch(val)
+        programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -411,8 +410,7 @@ func (cpu *Cpu) Bpl() {
 
 func (cpu *Cpu) Bmi() {
 	if cpu.getNegative() {
-		val, _ := Ram.Read(programCounter)
-		cpu.Branch(val)
+        programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -420,8 +418,7 @@ func (cpu *Cpu) Bmi() {
 
 func (cpu *Cpu) Bvc() {
 	if !cpu.getOverflow() {
-		val, _ := Ram.Read(programCounter)
-		cpu.Branch(val)
+        programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -429,8 +426,7 @@ func (cpu *Cpu) Bvc() {
 
 func (cpu *Cpu) Bvs() {
 	if cpu.getOverflow() {
-		val, _ := Ram.Read(programCounter)
-		cpu.Branch(val)
+        programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -438,8 +434,7 @@ func (cpu *Cpu) Bvs() {
 
 func (cpu *Cpu) Bcc() {
 	if !cpu.getCarry() {
-		val, _ := Ram.Read(programCounter)
-		cpu.Branch(val)
+        programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -447,8 +442,7 @@ func (cpu *Cpu) Bcc() {
 
 func (cpu *Cpu) Bcs() {
 	if cpu.getCarry() {
-		val, _ := Ram.Read(programCounter)
-		cpu.Branch(val)
+        programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -456,8 +450,7 @@ func (cpu *Cpu) Bcs() {
 
 func (cpu *Cpu) Bne() {
 	if !cpu.getZero() {
-		val, _ := Ram.Read(programCounter)
-		cpu.Branch(val)
+        programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -465,8 +458,7 @@ func (cpu *Cpu) Bne() {
 
 func (cpu *Cpu) Beq() {
 	if cpu.getZero() {
-		val, _ := Ram.Read(programCounter)
-		cpu.Branch(val)
+        programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -621,12 +613,27 @@ func (cpu *Cpu) Inc(location int) {
 }
 
 func (cpu *Cpu) Brk() {
-	// TODO: Push cpu.P | 0x10
+	// perfect example of the confusion the "B flag exists in status register" 
+	// causes (pdq, nothing specific to you; this confusion is present in 
+	// almost every 6502 book and web page). 
+	//
+	// As pdq said, BRK does the following: 
+	// 
+	// 1. Push address of BRK instruction + 2 
+	// 2. PHP 
+	// 3. SEI 
+	// 4. JMP ($FFFE)
+	programCounter = programCounter + 1
 
-	// BRK and PHP push P OR #$10, so that the IRQ handler can tell 
-	// whether the entry was from a BRK or from an /IRQ.
-	cpu.setBrkCommand()
-	programCounter++
+	cpu.pushToStack(Word(programCounter >> 8))
+	cpu.pushToStack(Word(programCounter & 0xFF))
+
+	cpu.Php()
+	cpu.Sei()
+
+    cpu.setIrqDisable()
+
+	cpu.Jmp(cpu.indirectAbsoluteAddress(0xFFFE))
 }
 
 func (cpu *Cpu) Jsr(location int) {
@@ -982,7 +989,7 @@ func (cpu *Cpu) Step() {
 		cpu.Jmp(cpu.absoluteAddress())
 	case 0x6C:
 		cpu.CycleCount = 5
-		cpu.Jmp(cpu.indirectAbsoluteAddress())
+		cpu.Jmp(cpu.indirectAbsoluteAddress(programCounter))
 	// JSR
 	case 0x20:
 		cpu.CycleCount = 6

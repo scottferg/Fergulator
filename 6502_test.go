@@ -25,10 +25,12 @@ func TestGoldLog(test *testing.T) {
 	cpu.P = 0x24
 
 	if contents, err := ioutil.ReadFile("test_roms/nestest.nes"); err == nil {
-		if err = rom.Init(contents); err != nil {
+		if rom, err = LoadRom(contents); err != nil {
 			test.Error(err.Error())
 			return
 		}
+
+        rom.Init(contents)
 	}
 
 	logfile, err := ioutil.ReadFile("test_roms/nestest.log")
@@ -39,7 +41,8 @@ func TestGoldLog(test *testing.T) {
 
 	log := strings.Split(string(logfile), "\n")
 
-	sentinel := 5003
+    sentinel := 50
+	//sentinel := 5003
 	for i := 0; i < sentinel; i++ {
 		op, _ := hex.DecodeString(log[i][:4])
 
