@@ -59,9 +59,10 @@ func main() {
 		go video.Render()
 
 		for running {
-            if programCounter == 0xC7BE {
-                /*s, _ := time.ParseDuration("99999s")*/
-                /*time.Sleep(s)*/
+            if programCounter == 0xF50D {
+                fmt.Println("Breakpoint!")
+                s, _ := time.ParseDuration("99999s")
+                time.Sleep(s)
             }
 
 			cpu.Step()
