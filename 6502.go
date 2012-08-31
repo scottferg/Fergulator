@@ -1,5 +1,9 @@
 package main
 
+import (
+    "fmt"
+)
+
 type Cpu struct {
 	X            Word
 	Y            Word
@@ -333,6 +337,7 @@ func (cpu *Cpu) Sty(location int) {
 }
 
 func (cpu *Cpu) Jmp(location int) {
+    fmt.Printf("Location: 0x%X\n", location)
 	programCounter = location
 }
 

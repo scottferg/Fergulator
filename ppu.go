@@ -239,7 +239,7 @@ func (p *Ppu) WriteData(v Word) {
     p.Address = p.AddressCounter.Address()
 
     if p.Address > 0x2000 {
-        fmt.Println("Writing to mirrored VRAM")
+        // fmt.Println("Writing to mirrored VRAM")
     } else {
         // fmt.Printf("Writing to VRAM[0x%X]: 0x%X\n", p.Address, v)
         p.Vram[p.Address] = v
