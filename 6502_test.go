@@ -43,8 +43,7 @@ func TestGoldLog(test *testing.T) {
 
 	log := strings.Split(string(logfile), "\n")
 
-    sentinel := 50
-	//sentinel := 5003
+	sentinel := 5003
 	for i := 0; i < sentinel; i++ {
 		op, _ := hex.DecodeString(log[i][:4])
 
