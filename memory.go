@@ -2,7 +2,7 @@ package main
 
 type Word uint8
 
-type Memory [0x10000]*Word
+type Memory [0x10000]Word
 
 type MemoryError struct {
 	ErrorText string
@@ -31,22 +31,18 @@ func fitAddressSize(addr interface{}) (v int, e error) {
 
 func (m *Memory) Init() {
 	for index, _ := range m {
-		m[index] = new(Word)
+		m[index] = 0x00
 	}
 }
 
 func (m *Memory) Write(address interface{}, val Word) error {
 	if a, err := fitAddressSize(address); err == nil {
-		m[a] = &val
-		return nil
-	}
-
-	return MemoryError{ErrorText: "Invalid address used"}
-}
-
-func (m *Memory) WriteMirrorable(address interface{}, val *Word) error {
-	if a, err := fitAddressSize(address); err == nil {
 		m[a] = val
+
+        if a <= 0x2007 && a >= 0x2000 {
+            PpuRegWrite(val, a)
+        }
+
 		return nil
 	}
 
@@ -56,10 +52,9 @@ func (m *Memory) WriteMirrorable(address interface{}, val *Word) error {
 func (m *Memory) Read(address interface{}) (Word, error) {
 	a, _ := fitAddressSize(address)
 
-	return *m[a], nil
-}
+    if a <= 0x2007 && a >= 0x2000 {
+        PpuRegRead(a)
+    }
 
-func (m *Memory) ReadMirrorable(address interface{}) (*Word, error) {
-	a, _ := fitAddressSize(address)
 	return m[a], nil
 }

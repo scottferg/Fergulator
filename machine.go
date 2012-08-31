@@ -8,12 +8,13 @@ import (
 )
 
 var (
-	cycle = "0ns"
-	//cycle = "559ns"
+	cycle = "559ns"
 	//cycle = "50ms"
-	programCounter = 0xC000
+	programCounter = 0x8000
 	clockspeed, _  = time.ParseDuration(cycle)
 	running        = true
+
+    // Donkey Kong breakpoint: 0xC7BE
 
 	cpu   Cpu
 	ppu   Ppu
@@ -28,7 +29,6 @@ func setResetVector() {
 	programCounter = (int(high) << 8) + int(low)
 
     fmt.Printf("Setting reset: 0x%X\n", programCounter)
-    fmt.Printf("0xEB6D: 0x%X\n", *Ram[0xEB6D])
 }
 
 func main() {
@@ -42,7 +42,7 @@ func main() {
 	v := make(chan Cpu)
 	video.Init(v)
 
-	//cpu.Verbose = true
+	// cpu.Verbose = true
 
 	defer video.Close()
 
@@ -59,14 +59,17 @@ func main() {
 		go video.Render()
 
 		for running {
+            if programCounter == 0xC7BE {
+                /*s, _ := time.ParseDuration("99999s")*/
+                /*time.Sleep(s)*/
+            }
+
 			cpu.Step()
 			v <- cpu
 
-			// time.Sleep(clockspeed)
+			time.Sleep(clockspeed)
 		}
 	}
-
-	fmt.Printf("Status was: 0x%X\n", cpu.P)
 
 	return
 }

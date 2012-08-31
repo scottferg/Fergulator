@@ -20,6 +20,36 @@ type Rom struct {
 type Nrom Rom
 type Mmc1 Rom
 
+func PpuRegWrite(v Word, a int) {
+    switch a {
+    case 0x2000:
+        ppu.WriteControl(v)
+    case 0x2001:
+        ppu.WriteMask(v)
+    case 0x2003:
+        ppu.WriteOamAddress(v)
+    case 0x2004:
+        ppu.WriteOamData(v)
+    case 0x2005:
+        ppu.WriteScroll(v)
+    case 0x2006:
+        ppu.WriteAddress(v)
+    case 0x2007:
+        ppu.WriteData(v)
+    }
+}
+
+func PpuRegRead(a int) {
+    switch a {
+    case 0x2002:
+        ppu.ReadStatus()
+    case 0x2004:
+        ppu.ReadOamData()
+    case 0x2007:
+        ppu.ReadData()
+    }
+}
+
 func (r *Nrom) WriteRamBank(start int, length int, offset int) {
 	for i := 0; i < length; i++ {
 		Ram.Write(i+start, Word(r.Data[i+offset]))

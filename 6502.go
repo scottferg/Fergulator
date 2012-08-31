@@ -843,7 +843,7 @@ func (cpu *Cpu) Reset() {
 }
 
 func (cpu *Cpu) Step() {
-	if cpu.CycleCount > 1 && false {
+	if cpu.CycleCount > 1 {
 		cpu.CycleCount--
 		return
 	}
