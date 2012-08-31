@@ -7,8 +7,9 @@ type Cpu struct {
 	P            Word
 	CycleCount   int
 	StackPointer Word
-	Verbose      bool
 	Opcode       Word
+	Verbose      bool
+    Accurate     bool
 }
 
 func (cpu *Cpu) getCarry() bool {
@@ -840,10 +841,12 @@ func (cpu *Cpu) Reset() {
 	cpu.CycleCount = 0
 	cpu.P = 0x34
 	cpu.StackPointer = 0xFD
+
+    cpu.Accurate = true
 }
 
 func (cpu *Cpu) Step() {
-	if cpu.CycleCount > 1 {
+	if cpu.CycleCount > 1 && cpu.Accurate {
 		cpu.CycleCount--
 		return
 	}

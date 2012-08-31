@@ -24,6 +24,8 @@ func TestGoldLog(test *testing.T) {
 
 	cpu.P = 0x24
 
+    cpu.Accurate = false
+
 	if contents, err := ioutil.ReadFile("test_roms/nestest.nes"); err == nil {
 		if rom, err = LoadRom(contents); err != nil {
 			test.Error(err.Error())

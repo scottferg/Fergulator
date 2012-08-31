@@ -65,6 +65,8 @@ func main() {
                 time.Sleep(s)
             }
 
+            // Cycles > 920,000 == title screen
+
 			cpu.Step()
 			v <- cpu
 
