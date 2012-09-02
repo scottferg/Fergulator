@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"image"
 )
 
 type Flags struct {
@@ -69,6 +70,10 @@ type Ppu struct {
 	SpriteRam       [0x100]Word
 }
 
+type Tile struct {
+    Palette []Word
+}
+
 func (r *AddressRegisters) Address() int {
 	high := (r.FV & 0x07) << 4
 	high = high | ((r.V & 0x01) << 3)
@@ -82,16 +87,16 @@ func (r *AddressRegisters) Address() int {
 }
 
 func (r *AddressRegisters) InitFromAddress(a int) {
-    high := Word((a >> 8) & 0xFF)
-    low := Word(a & 0xFF)
+	high := Word((a >> 8) & 0xFF)
+	low := Word(a & 0xFF)
 
-    r.FV = (high >> 4) & 0x07
-    r.V = (high >> 3) & 0x01
-    r.H = (high >> 2) & 0x01
-    r.VT = (r.VT & 7) | ((high & 0x03) << 3)
+	r.FV = (high >> 4) & 0x07
+	r.V = (high >> 3) & 0x01
+	r.H = (high >> 2) & 0x01
+	r.VT = (r.VT & 7) | ((high & 0x03) << 3)
 
-    r.VT = (r.VT & 24) | ((low >> 0x05) & 7)
-    r.HT = low & 0x1F
+	r.VT = (r.VT & 24) | ((low >> 0x05) & 7)
+	r.HT = low & 0x1F
 }
 
 func (c *AddressCounters) Address() int {
@@ -107,16 +112,16 @@ func (c *AddressCounters) Address() int {
 }
 
 func (c *AddressCounters) InitFromAddress(a int) {
-    high := Word((a >> 8) & 0xFF)
-    low := Word(a & 0xFF)
+	high := Word((a >> 8) & 0xFF)
+	low := Word(a & 0xFF)
 
-    c.FV = (high >> 4) & 0x03
-    c.V = (high >> 3) & 0x01
-    c.H = (high >> 2) & 0x01
-    c.VT = (c.VT & 0x07) | ((high & 0x03) << 3)
-    
-    c.VT = (c.VT & 0x18) | ((low >> 5) & 0x07)
-    c.HT = low & 0x1F 
+	c.FV = (high >> 4) & 0x03
+	c.V = (high >> 3) & 0x01
+	c.H = (high >> 2) & 0x01
+	c.VT = (c.VT & 0x07) | ((high & 0x03) << 3)
+
+	c.VT = (c.VT & 0x18) | ((low >> 5) & 0x07)
+	c.HT = low & 0x1F
 }
 
 func (p *Ppu) WriteControl(v Word) {
@@ -168,7 +173,7 @@ func (p *Ppu) WriteMask(v Word) {
 }
 
 func (p *Ppu) ReadStatus() {
-    p.FirstWrite = true
+	p.FirstWrite = true
 }
 
 func (p *Ppu) WriteOamAddress(v Word) {
@@ -212,7 +217,6 @@ func (p *Ppu) WriteAddress(v Word) {
 	// ∫AT read (1,2,4)≥      B  A  543c   210b                        ∫
 	// ∫PT read (3)    ≥ 210                           C  BA987654     ∫
 	// »ÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕœÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕº
-
 	if p.FirstWrite {
 		p.AddressRegister.FV = (v >> 4) & 0x03
 		p.AddressRegister.V = (v >> 3) & 0x01
@@ -229,30 +233,30 @@ func (p *Ppu) WriteAddress(v Word) {
 		p.AddressCounter.VT = p.AddressRegister.VT
 		p.AddressCounter.HT = p.AddressRegister.HT
 
-        p.Address = p.AddressCounter.Address()
+		p.Address = p.AddressCounter.Address()
 	}
 
-    p.FirstWrite = !p.FirstWrite
+	p.FirstWrite = !p.FirstWrite
 }
 
 func (p *Ppu) WriteData(v Word) {
-    p.Address = p.AddressCounter.Address()
+	p.Address = p.AddressCounter.Address()
 
-    if p.Address > 0x3000 {
-        fmt.Println("Writing to mirrored VRAM")
-    } else {
-        // fmt.Printf("Writing to VRAM[0x%X]: 0x%X\n", p.Address, v)
-        p.Vram[p.Address] = v
-    }
+	if p.Address > 0x3000 {
+		fmt.Println("Writing to mirrored VRAM")
+	} else {
+		// fmt.Printf("Writing to VRAM[0x%X]: 0x%X\n", p.Address, v)
+		p.Vram[p.Address] = v
+	}
 
-    switch p.VramAddressInc {
-    case 0x01:
-        p.Address = p.Address + 0x20
-    default:
-        p.Address = p.Address + 0x01
-    }
+	switch p.VramAddressInc {
+	case 0x01:
+		p.Address = p.Address + 0x20
+	default:
+		p.Address = p.Address + 0x01
+	}
 
-    p.AddressCounter.InitFromAddress(p.Address)
+	p.AddressCounter.InitFromAddress(p.Address)
 }
 
 func (p *Ppu) ReadData() Word {
@@ -262,5 +266,64 @@ func (p *Ppu) ReadData() Word {
 
 func (p *Ppu) Init() {
 	Ram.Write(0x2002, 0x80)
-    p.FirstWrite = true
+	p.FirstWrite = true
+}
+
+func (p *Ppu) SprPatternTableAddress(i int) int {
+	return i * 0x10
+}
+
+func (p *Ppu) BgPatternTableAddress(i int) int {
+	return i*0x10 + 0x1000
+}
+
+func (p *Ppu) RenderNametable(table int) image.Image {
+	var a int
+	switch table {
+	case 0:
+		a = 0x2000
+	case 1:
+		a = 0x2400
+	case 2:
+		a = 0x2800
+	case 3:
+		a = 0x2C00
+	}
+
+    fmt.Printf("Setting nametable base address: 0x%X\n", a)
+	for i := a; i < a + 0x400; i++ {
+		t := p.Vram[i]
+		p.DecodePatternTile(t)
+	}
+
+    return nil
+}
+
+func (p *Ppu) DecodePatternTile(t Word) []*Tile {
+	tile := p.Vram[t : t+16]
+    
+    result := make([]*Tile, 16)
+    for i, pixel := range tile {
+        if i < 8 {
+            result[i] = new(Tile)
+            a := make([]Word, 8)
+            
+            var b Word
+            for b = 0; b < 8; b++ {
+                // Store the bit 0/1
+                v := (pixel >> b) & 0x01 
+                a[b] = v
+            }
+
+            result[i].Palette = a
+        } else {
+            var b Word
+            for b = 0; b < 8; b++ {
+                // Store the bit 0/1
+                result[i - 8].Palette[b] += ((pixel << b & 0x01) << 1)
+            }
+        }
+    }
+
+    return result
 }

@@ -61,6 +61,7 @@ func main() {
 		for running {
             if programCounter == 0xF50D {
                 fmt.Println("Breakpoint!")
+                ppu.RenderNametable(0)
                 s, _ := time.ParseDuration("99999s")
                 time.Sleep(s)
             }
