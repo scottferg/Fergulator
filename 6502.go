@@ -1,9 +1,5 @@
 package main
 
-import (
-    "fmt"
-)
-
 const (
     InterruptIrq = iota
     InterruptReset
@@ -315,10 +311,6 @@ func (cpu *Cpu) Lda(location int) {
 
 	cpu.testAndSetNegative(cpu.A)
 	cpu.testAndSetZero(cpu.A)
-
-    if location == 0x2002 && val > 0 {
-        fmt.Printf("Status: 0x%X\n", val)
-    }
 }
 
 func (cpu *Cpu) Ldx(location int) {
@@ -847,10 +839,8 @@ func (cpu *Cpu) Bit(location int) {
 }
 
 func (cpu *Cpu) PerformNmi() {
-    control, _ := Ram.Read(0x2000)
-
     // $2000.7 enables/disables NMIs
-    if control & 0x80 != 0 {
+    if ppu.NmiOnVblank != 0x0 {
         high := programCounter >> 8
         low := programCounter & 0xFF
 

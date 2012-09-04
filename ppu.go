@@ -1,14 +1,17 @@
 package main
 
-import (
-	"fmt"
-)
-
 const (
 	StatusSpriteOverflow = iota
 	StatusSprite0Hit
 	StatusVblankStarted
 )
+
+type Nametable struct {
+    Table0 []*Tile
+    Table1 []*Tile
+    Table2 []*Tile
+    Table3 []*Tile
+}
 
 type Flags struct {
 	BaseNametableAddress     Word
@@ -17,7 +20,7 @@ type Flags struct {
 	BackgroundPatternAddress Word
 	SpriteSize               Word
 	MasterSlaveSel           Word
-	GenerateNmi              Word
+	NmiOnVblank              Word
 }
 
 type Masks struct {
@@ -72,7 +75,7 @@ type Ppu struct {
 	Vram            [0xFFFF]Word
 	SpriteRam       [0x100]Word
 
-	Framebuffer chan []*Tile
+	Framebuffer chan Nametable
 	Cycle       int
 }
 
@@ -135,7 +138,7 @@ func (c *AddressCounters) InitFromAddress(a int) {
 	c.HT = low & 0x1F
 }
 
-func (p *Ppu) Init(s chan []*Tile) {
+func (p *Ppu) Init(s chan Nametable) {
 	p.FirstWrite = true
 	p.Framebuffer = s
 
@@ -146,16 +149,38 @@ func (p *Ppu) Init(s chan []*Tile) {
 	}
 }
 
+// Writes to mirrored regions of VRAM
+func (p *Ppu) writeMirroredVram(a int, v Word) {
+    if a >= 0x3F00 && a < 0x3F20 {
+        // Palette table entries
+        p.Vram[a] = v
+        p.Vram[a + 0x20] = v
+        p.Vram[a + 0x40] = v
+        p.Vram[a + 0x60] = v
+        p.Vram[a + 0x80] = v
+        p.Vram[a + 0xA0] = v
+        p.Vram[a + 0xC0] = v
+        p.Vram[a + 0xE0] = v
+    } else {
+        p.Vram[a - 0x1000] = v
+    }
+}
+
 func (p *Ppu) Step() {
 	switch p.Cycle {
-	case 82181:
-		fmt.Println("In vblank!")
+	case 81840:
 		// We're in VBlank
 		p.setStatus(StatusVblankStarted)
 		// Request NMI
 		cpu.RequestInterrupt(InterruptNmi)
 
-		p.RenderNametable(p.BaseNametableAddress)
+        n := Nametable{
+		    p.RenderNametable(0),
+		    p.RenderNametable(1),
+		    p.RenderNametable(2),
+		    p.RenderNametable(3),
+        }
+        p.Framebuffer <- n
 		p.Cycle = 0
 	}
 
@@ -185,7 +210,7 @@ func (p *Ppu) WriteControl(v Word) {
 	p.SpritePatternAddress = (v >> 3) & 0x01
 	p.BackgroundPatternAddress = (v >> 4) & 0x01
 	p.SpriteSize = (v >> 5) & 0x01
-	p.GenerateNmi = (v >> 7) & 0x01
+	p.NmiOnVblank = (v >> 7) & 0x01
 }
 
 // $2001
@@ -323,9 +348,8 @@ func (p *Ppu) WriteData(v Word) {
 	p.Address = p.AddressCounter.Address()
 
 	if p.Address > 0x3000 {
-		fmt.Printf("Writing to mirrored VRAM address: 0x%X\n", p.Address)
+        p.writeMirroredVram(p.Address, v)
 	} else {
-		// fmt.Printf("Writing to VRAM[0x%X]: 0x%X\n", p.Address, v)
 		p.Vram[p.Address] = v
 	}
 
@@ -356,10 +380,10 @@ func (p *Ppu) BgPatternTableAddress(i Word) int {
 		a = 0x0
 	}
 
-	return int(i*0x10) + a
+	return int(i)*0x10 + a
 }
 
-func (p *Ppu) RenderNametable(table Word) {
+func (p *Ppu) RenderNametable(table Word) []*Tile {
 	var a int
 	switch table {
 	case 0:
@@ -390,7 +414,7 @@ func (p *Ppu) RenderNametable(table Word) {
 		}
 	}
 
-	p.Framebuffer <- tileset
+    return tileset
 }
 
 func (p *Ppu) DecodePatternTile(t int, x, y int) Tile {
@@ -406,7 +430,7 @@ func (p *Ppu) DecodePatternTile(t int, x, y int) Tile {
 			for b = 0; b < 8; b++ {
 				// Store the bit 0/1
 				v := (pixel >> b) & 0x01
-				a[b] = v
+				a[7-b] = v
 			}
 
 			rows[i].Pixels = a
@@ -414,7 +438,7 @@ func (p *Ppu) DecodePatternTile(t int, x, y int) Tile {
 			var b Word
 			for b = 0; b < 8; b++ {
 				// Store the bit 0/1
-				rows[i-8].Pixels[b] += ((pixel << b & 0x01) << 1)
+				rows[i-8].Pixels[7-b] += ((pixel << b & 0x01) << 1)
 			}
 		}
 	}

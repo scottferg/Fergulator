@@ -30,7 +30,7 @@ func setResetVector() {
 }
 
 func main() {
-	v := make(chan []*Tile)
+	v := make(chan Nametable, 1000)
 	video.Init(v)
 
 	Ram.Init()
@@ -57,7 +57,7 @@ func main() {
 		go video.Render()
 
 		for running {
-            if programCounter == 0xF503 && false {
+            if programCounter == 0xC2E2 && false {
                 fmt.Println("Breakpoint!")
                 breakpoint = true
             }
@@ -73,7 +73,7 @@ func main() {
                 ppu.Step()
             }
 
-			time.Sleep(clockspeed)
+			// time.Sleep(clockspeed)
 		}
 	}
 
