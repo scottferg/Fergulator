@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 )
 
 type Mapper interface {
@@ -20,36 +19,6 @@ type Rom struct {
 type Nrom Rom
 type Mmc1 Rom
 
-func PpuRegWrite(v Word, a int) {
-    switch a {
-    case 0x2000:
-        ppu.WriteControl(v)
-    case 0x2001:
-        ppu.WriteMask(v)
-    case 0x2003:
-        ppu.WriteOamAddress(v)
-    case 0x2004:
-        ppu.WriteOamData(v)
-    case 0x2005:
-        ppu.WriteScroll(v)
-    case 0x2006:
-        ppu.WriteAddress(v)
-    case 0x2007:
-        ppu.WriteData(v)
-    }
-}
-
-func PpuRegRead(a int) {
-    switch a {
-    case 0x2002:
-        ppu.ReadStatus()
-    case 0x2004:
-        ppu.ReadOamData()
-    case 0x2007:
-        ppu.ReadData()
-    }
-}
-
 func (r *Nrom) WriteRamBank(start int, length int, offset int) {
 	for i := 0; i < length; i++ {
 		Ram.Write(i+start, Word(r.Data[i+offset]))
@@ -66,19 +35,19 @@ func (r *Nrom) Init(rom []byte) error {
 	r.PrgFlag = Word(rom[4])
 	r.ChrFlag = Word(rom[5])
 
+	// ROM data starts at byte 16
 	r.Data = rom[16:]
 
-	// PRG ROM starts at byte 16
 	r.WriteRamBank(0x8000, 0x4000, 0x0)
 
 	switch r.PrgFlag {
 	case 0x01:
 		r.WriteRamBank(0xC000, 0x4000, 0x0)
+        r.WriteVramBank(0x0000, 0x2000, 0x4000)
 	case 0x02:
 		r.WriteRamBank(0xC000, 0x4000, 0x4000)
+        r.WriteVramBank(0x0000, 0x2000, 0x8000)
 	}
-
-	r.WriteVramBank(0x0000, 0x2000, 0x0)
 
 	return nil
 }
@@ -119,9 +88,6 @@ func LoadRom(rom []byte) (r Mapper, e error) {
 			return r, errors.New("Invalid ROM file")
 		}
 	}
-
-	fmt.Printf("PRG flag: 0x%X\n", rom[4])
-	fmt.Printf("Mapper type: 0x%X\n", (Word(rom[6])>>4 | (Word(rom[7]) & 0xF0)))
 
     mapper := (Word(rom[6])>>4 | (Word(rom[7]) & 0xF0))
     switch mapper {

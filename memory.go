@@ -16,6 +16,38 @@ var (
 	Ram Memory
 )
 
+func PpuRegWrite(v Word, a int) {
+    switch a {
+    case 0x2000:
+        ppu.WriteControl(v)
+    case 0x2001:
+        ppu.WriteMask(v)
+    case 0x2003:
+        ppu.WriteOamAddress(v)
+    case 0x2004:
+        ppu.WriteOamData(v)
+    case 0x2005:
+        ppu.WriteScroll(v)
+    case 0x2006:
+        ppu.WriteAddress(v)
+    case 0x2007:
+        ppu.WriteData(v)
+    }
+}
+
+func PpuRegRead(a int) (Word, error) {
+    switch a {
+    case 0x2002:
+        return ppu.ReadStatus()
+    case 0x2004:
+        return ppu.ReadOamData()
+    case 0x2007:
+        return ppu.ReadData()
+    }
+
+    return 0, nil
+}
+
 func fitAddressSize(addr interface{}) (v int, e error) {
 	switch a := addr.(type) {
 	case Word:
@@ -53,7 +85,7 @@ func (m *Memory) Read(address interface{}) (Word, error) {
 	a, _ := fitAddressSize(address)
 
     if a <= 0x2007 && a >= 0x2000 {
-        PpuRegRead(a)
+        return PpuRegRead(a)
     }
 
 	return m[a], nil

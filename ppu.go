@@ -2,7 +2,12 @@ package main
 
 import (
 	"fmt"
-	"image"
+)
+
+const (
+	StatusSpriteOverflow = iota
+	StatusSprite0Hit
+	StatusVblankStarted
 )
 
 type Flags struct {
@@ -64,14 +69,20 @@ type Ppu struct {
 	Masks
 	AddressRegister AddressRegisters
 	AddressCounter  AddressCounters
-	ScanCycleCount  int
-	OpCycleCount    int
 	Vram            [0xFFFF]Word
 	SpriteRam       [0x100]Word
+
+	Framebuffer chan []*Tile
+	Cycle       int
 }
 
 type Tile struct {
-    Palette []Word
+	X, Y int
+	Rows []*PixelRow
+}
+
+type PixelRow struct {
+	Pixels []Word
 }
 
 func (r *AddressRegisters) Address() int {
@@ -124,10 +135,38 @@ func (c *AddressCounters) InitFromAddress(a int) {
 	c.HT = low & 0x1F
 }
 
+func (p *Ppu) Init(s chan []*Tile) {
+	p.FirstWrite = true
+	p.Framebuffer = s
+
+	p.Cycle = 0
+
+	for i, _ := range p.Vram {
+		p.Vram[i] = 0x00
+	}
+}
+
+func (p *Ppu) Step() {
+	switch p.Cycle {
+	case 82181:
+		fmt.Println("In vblank!")
+		// We're in VBlank
+		p.setStatus(StatusVblankStarted)
+		// Request NMI
+		cpu.RequestInterrupt(InterruptNmi)
+
+		p.RenderNametable(p.BaseNametableAddress)
+		p.Cycle = 0
+	}
+
+	p.Cycle++
+}
+
+// $2000
 func (p *Ppu) WriteControl(v Word) {
 	p.Control = v
 
-	// Control flags
+	// Control flag
 	// 7654 3210
 	// |||| ||||
 	// |||| ||++- Base nametable address
@@ -149,6 +188,7 @@ func (p *Ppu) WriteControl(v Word) {
 	p.GenerateNmi = (v >> 7) & 0x01
 }
 
+// $2001
 func (p *Ppu) WriteMask(v Word) {
 	p.Mask = v
 
@@ -172,29 +212,68 @@ func (p *Ppu) WriteMask(v Word) {
 	p.IntensifyBlues = (((v >> 7) & 0x01) == 0x01)
 }
 
-func (p *Ppu) ReadStatus() {
-	p.FirstWrite = true
+func (p *Ppu) clearStatus(s Word) {
+	current := Ram[0x2002]
+
+	switch s {
+	case StatusSpriteOverflow:
+		current = current & 0xDF
+	case StatusSprite0Hit:
+		current = current & 0xBF
+	case StatusVblankStarted:
+		current = current & 0x7F
+	}
+
+	Ram[0x2002] = current
 }
 
+func (p *Ppu) setStatus(s Word) {
+	current := Ram[0x2002]
+
+	switch s {
+	case StatusSpriteOverflow:
+		current = current | 0x20
+	case StatusSprite0Hit:
+		current = current | 0x40
+	case StatusVblankStarted:
+		current = current | 0x80
+	}
+
+	Ram[0x2002] = current
+}
+
+// $2002
+func (p *Ppu) ReadStatus() (s Word, e error) {
+	p.FirstWrite = true
+	s = Ram[0x2002]
+
+	// Clear VBlank flag
+	p.clearStatus(StatusVblankStarted)
+
+	return
+}
+
+// $2003
 func (p *Ppu) WriteOamAddress(v Word) {
 	p.OamAddress = int(v)
-	fmt.Printf("OAM Address: 0x%X\n", v)
 }
 
+// $2004
 func (p *Ppu) WriteOamData(v Word) {
 	p.OamData = v
-	fmt.Printf("OAM Data: 0x%X\n", v)
 }
 
-func (p *Ppu) ReadOamData() Word {
-	fmt.Printf("Reading OAM")
-	return 0
+// $2004
+func (p *Ppu) ReadOamData() (Word, error) {
+	return Ram[0x2004], nil
 }
 
+// $2005
 func (p *Ppu) WriteScroll(v Word) {
 	p.Scroll = v
 }
 
+// $2006
 func (p *Ppu) WriteAddress(v Word) {
 	// http://nesdev.com/PPU%20addressing.txt
 	// 
@@ -239,11 +318,12 @@ func (p *Ppu) WriteAddress(v Word) {
 	p.FirstWrite = !p.FirstWrite
 }
 
+// $2007
 func (p *Ppu) WriteData(v Word) {
 	p.Address = p.AddressCounter.Address()
 
 	if p.Address > 0x3000 {
-		fmt.Println("Writing to mirrored VRAM")
+		fmt.Printf("Writing to mirrored VRAM address: 0x%X\n", p.Address)
 	} else {
 		// fmt.Printf("Writing to VRAM[0x%X]: 0x%X\n", p.Address, v)
 		p.Vram[p.Address] = v
@@ -259,25 +339,27 @@ func (p *Ppu) WriteData(v Word) {
 	p.AddressCounter.InitFromAddress(p.Address)
 }
 
-func (p *Ppu) ReadData() Word {
-	fmt.Printf("Reading Data")
-	return 0
+// $2007
+func (p *Ppu) ReadData() (Word, error) {
+	return Ram[0x2007], nil
 }
 
-func (p *Ppu) Init() {
-	Ram.Write(0x2002, 0x80)
-	p.FirstWrite = true
+func (p *Ppu) SprPatternTableAddress(i Word) int {
+	return int(i * 0x10)
 }
 
-func (p *Ppu) SprPatternTableAddress(i int) int {
-	return i * 0x10
+func (p *Ppu) BgPatternTableAddress(i Word) int {
+	var a int
+	if p.BackgroundPatternAddress == 0x01 {
+		a = 0x1000
+	} else {
+		a = 0x0
+	}
+
+	return int(i*0x10) + a
 }
 
-func (p *Ppu) BgPatternTableAddress(i int) int {
-	return i*0x10 + 0x1000
-}
-
-func (p *Ppu) RenderNametable(table int) image.Image {
+func (p *Ppu) RenderNametable(table Word) {
 	var a int
 	switch table {
 	case 0:
@@ -290,40 +372,56 @@ func (p *Ppu) RenderNametable(table int) image.Image {
 		a = 0x2C00
 	}
 
-    fmt.Printf("Setting nametable base address: 0x%X\n", a)
-	for i := a; i < a + 0x400; i++ {
-		t := p.Vram[i]
-		p.DecodePatternTile(t)
+	x := 0
+	y := 0
+
+	tileset := make([]*Tile, 960)
+	for i := a; i < a+0x3C0; i++ {
+		t := p.BgPatternTableAddress(p.Vram[i])
+		tile := p.DecodePatternTile(t, x, y)
+
+		tileset[y*32+x] = &tile
+
+		x++
+
+		if x > 31 {
+			x = 0
+			y++
+		}
 	}
 
-    return nil
+	p.Framebuffer <- tileset
 }
 
-func (p *Ppu) DecodePatternTile(t Word) []*Tile {
+func (p *Ppu) DecodePatternTile(t int, x, y int) Tile {
 	tile := p.Vram[t : t+16]
-    
-    result := make([]*Tile, 16)
-    for i, pixel := range tile {
-        if i < 8 {
-            result[i] = new(Tile)
-            a := make([]Word, 8)
-            
-            var b Word
-            for b = 0; b < 8; b++ {
-                // Store the bit 0/1
-                v := (pixel >> b) & 0x01 
-                a[b] = v
-            }
 
-            result[i].Palette = a
-        } else {
-            var b Word
-            for b = 0; b < 8; b++ {
-                // Store the bit 0/1
-                result[i - 8].Palette[b] += ((pixel << b & 0x01) << 1)
-            }
-        }
-    }
+	rows := make([]*PixelRow, 8)
+	for i, pixel := range tile {
+		if i < 8 {
+			rows[i] = new(PixelRow)
+			a := make([]Word, 8)
 
-    return result
+			var b Word
+			for b = 0; b < 8; b++ {
+				// Store the bit 0/1
+				v := (pixel >> b) & 0x01
+				a[b] = v
+			}
+
+			rows[i].Pixels = a
+		} else {
+			var b Word
+			for b = 0; b < 8; b++ {
+				// Store the bit 0/1
+				rows[i-8].Pixels[b] += ((pixel << b & 0x01) << 1)
+			}
+		}
+	}
+
+	return Tile{
+		X:    x * 8,
+		Y:    y * 8,
+		Rows: rows,
+	}
 }

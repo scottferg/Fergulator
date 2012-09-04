@@ -9,12 +9,10 @@ import (
 
 var (
 	cycle = "559ns"
-	//cycle = "50ms"
 	programCounter = 0x8000
 	clockspeed, _  = time.ParseDuration(cycle)
 	running        = true
-
-    // Donkey Kong breakpoint: 0xC7BE
+    breakpoint     = false
 
 	cpu   Cpu
 	ppu   Ppu
@@ -32,15 +30,15 @@ func setResetVector() {
 }
 
 func main() {
+	v := make(chan []*Tile)
+	video.Init(v)
+
 	Ram.Init()
 
-	ppu.Init()
-	cpu.Reset()
+	cpu.Init()
+	ppu.Init(v)
 
 	cpu.P = 0x34
-
-	v := make(chan Cpu)
-	video.Init(v)
 
 	// cpu.Verbose = true
 
@@ -49,27 +47,31 @@ func main() {
 	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
 		if rom, err = LoadRom(contents); err != nil {
 			fmt.Println(err.Error())
+            // ppu.RenderNametable(0)
 			return
 		}
 
         rom.Init(contents)
-
 		setResetVector()
 
 		go video.Render()
 
 		for running {
-            if programCounter == 0xF50D {
+            if programCounter == 0xF503 && false {
                 fmt.Println("Breakpoint!")
-                ppu.RenderNametable(0)
-                s, _ := time.ParseDuration("99999s")
-                time.Sleep(s)
+                breakpoint = true
             }
 
-            // Cycles > 920,000 == title screen
+            if breakpoint {
+                clockspeed, _  = time.ParseDuration("50ms")
+            }
 
 			cpu.Step()
-			v <- cpu
+
+            // 3 PPU cycles for each CPU cycle
+            for i := 0; i < 3; i++ {
+                ppu.Step()
+            }
 
 			time.Sleep(clockspeed)
 		}

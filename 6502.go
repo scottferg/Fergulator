@@ -1,5 +1,15 @@
 package main
 
+import (
+    "fmt"
+)
+
+const (
+    InterruptIrq = iota
+    InterruptReset
+    InterruptNmi
+)
+
 type Cpu struct {
 	X            Word
 	Y            Word
@@ -9,7 +19,9 @@ type Cpu struct {
 	StackPointer Word
 	Opcode       Word
 	Verbose      bool
-    Accurate     bool
+	Accurate     bool
+
+	InterruptRequested bool
 }
 
 func (cpu *Cpu) getCarry() bool {
@@ -262,18 +274,18 @@ func (cpu *Cpu) indirectIndexedAddress() int {
 }
 
 func (cpu *Cpu) relativeAddress() (a int) {
-    val, _ := Ram.Read(programCounter)
+	val, _ := Ram.Read(programCounter)
 
-    a = int(val)
-    if (a < 0x80) {
-        a = a + programCounter
-    } else {
-        a = a + (programCounter - 0x100)
-    }
+	a = int(val)
+	if a < 0x80 {
+		a = a + programCounter
+	} else {
+		a = a + (programCounter - 0x100)
+	}
 
-    a++
+	a++
 
-    return
+	return
 }
 
 func (cpu *Cpu) accumulatorAddress() int {
@@ -303,6 +315,10 @@ func (cpu *Cpu) Lda(location int) {
 
 	cpu.testAndSetNegative(cpu.A)
 	cpu.testAndSetZero(cpu.A)
+
+    if location == 0x2002 && val > 0 {
+        fmt.Printf("Status: 0x%X\n", val)
+    }
 }
 
 func (cpu *Cpu) Ldx(location int) {
@@ -403,7 +419,7 @@ func (cpu *Cpu) Iny() {
 
 func (cpu *Cpu) Bpl() {
 	if !cpu.getNegative() {
-        programCounter = cpu.relativeAddress()
+		programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -411,7 +427,7 @@ func (cpu *Cpu) Bpl() {
 
 func (cpu *Cpu) Bmi() {
 	if cpu.getNegative() {
-        programCounter = cpu.relativeAddress()
+		programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -419,7 +435,7 @@ func (cpu *Cpu) Bmi() {
 
 func (cpu *Cpu) Bvc() {
 	if !cpu.getOverflow() {
-        programCounter = cpu.relativeAddress()
+		programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -427,7 +443,7 @@ func (cpu *Cpu) Bvc() {
 
 func (cpu *Cpu) Bvs() {
 	if cpu.getOverflow() {
-        programCounter = cpu.relativeAddress()
+		programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -435,7 +451,7 @@ func (cpu *Cpu) Bvs() {
 
 func (cpu *Cpu) Bcc() {
 	if !cpu.getCarry() {
-        programCounter = cpu.relativeAddress()
+		programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -443,7 +459,7 @@ func (cpu *Cpu) Bcc() {
 
 func (cpu *Cpu) Bcs() {
 	if cpu.getCarry() {
-        programCounter = cpu.relativeAddress()
+		programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -451,7 +467,7 @@ func (cpu *Cpu) Bcs() {
 
 func (cpu *Cpu) Bne() {
 	if !cpu.getZero() {
-        programCounter = cpu.relativeAddress()
+		programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -459,7 +475,7 @@ func (cpu *Cpu) Bne() {
 
 func (cpu *Cpu) Beq() {
 	if cpu.getZero() {
-        programCounter = cpu.relativeAddress()
+		programCounter = cpu.relativeAddress()
 	} else {
 		programCounter++
 	}
@@ -632,7 +648,7 @@ func (cpu *Cpu) Brk() {
 	cpu.Php()
 	cpu.Sei()
 
-    cpu.setIrqDisable()
+	cpu.setIrqDisable()
 
 	cpu.Jmp(cpu.indirectAbsoluteAddress(0xFFFE))
 }
@@ -830,8 +846,33 @@ func (cpu *Cpu) Bit(location int) {
 	}
 }
 
+func (cpu *Cpu) PerformNmi() {
+    control, _ := Ram.Read(0x2000)
+
+    // $2000.7 enables/disables NMIs
+    if control & 0x80 != 0 {
+        high := programCounter >> 8
+        low := programCounter & 0xFF
+
+        cpu.pushToStack(Word(high))
+        cpu.pushToStack(Word(low))
+
+        cpu.pushToStack(cpu.P)
+
+        h, _ := Ram.Read(0xFFFB)
+        l, _ := Ram.Read(0xFFFA)
+
+        programCounter = int(h) << 8 + int(l)
+    }
+}
+
+func (cpu *Cpu) RequestInterrupt(i int) {
+    cpu.InterruptRequested = true
+}
+
 func (cpu *Cpu) Init() {
 	cpu.Reset()
+    cpu.InterruptRequested = false
 }
 
 func (cpu *Cpu) Reset() {
@@ -842,510 +883,517 @@ func (cpu *Cpu) Reset() {
 	cpu.P = 0x34
 	cpu.StackPointer = 0xFD
 
-    cpu.Accurate = true
+	cpu.Accurate = true
+    cpu.InterruptRequested = false
 }
 
 func (cpu *Cpu) Step() {
-	if cpu.CycleCount > 1 && cpu.Accurate {
-		cpu.CycleCount--
-		return
-	}
+    if cpu.CycleCount > 1 && cpu.Accurate {
+        cpu.CycleCount--
+        return
+    }
 
-	opcode, _ := Ram.Read(programCounter)
+    // Check if an interrupt was requested
+    if cpu.InterruptRequested {
+        cpu.PerformNmi()
+        cpu.InterruptRequested = false
+    }
 
-	cpu.Opcode = opcode
+    opcode, _ := Ram.Read(programCounter)
 
-	programCounter++
+    cpu.Opcode = opcode
 
-	if cpu.Verbose {
-		Disassemble(opcode, cpu, programCounter)
-	}
+    programCounter++
 
-	switch opcode {
-	// ADC
-	case 0x69:
-		cpu.CycleCount = 2
-		cpu.Adc(cpu.immediateAddress())
-	case 0x65:
-		cpu.CycleCount = 3
-		cpu.Adc(cpu.zeroPageAddress())
-	case 0x75:
-		cpu.CycleCount = 4
-		cpu.Adc(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x6D:
-		cpu.CycleCount = 4
-		cpu.Adc(cpu.absoluteAddress())
-	case 0x7D:
-		cpu.CycleCount = 4
-		cpu.Adc(cpu.absoluteIndexedAddress(cpu.X))
-	case 0x79:
-		cpu.CycleCount = 4
-		cpu.Adc(cpu.absoluteIndexedAddress(cpu.Y))
-	case 0x61:
-		cpu.CycleCount = 6
-		cpu.Adc(cpu.indexedIndirectAddress())
-	case 0x71:
-		cpu.CycleCount = 5
-		cpu.Adc(cpu.indirectIndexedAddress())
-	// LDA
-	case 0xA9:
-		cpu.CycleCount = 2
-		cpu.Lda(cpu.immediateAddress())
-	case 0xA5:
-		cpu.CycleCount = 3
-		cpu.Lda(cpu.zeroPageAddress())
-	case 0xB5:
-		cpu.CycleCount = 4
-		cpu.Lda(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0xAD:
-		cpu.CycleCount = 4
-		cpu.Lda(cpu.absoluteAddress())
-	case 0xBD:
-		cpu.CycleCount = 4
-		cpu.Lda(cpu.absoluteIndexedAddress(cpu.X))
-	case 0xB9:
-		cpu.CycleCount = 4
-		cpu.Lda(cpu.absoluteIndexedAddress(cpu.Y))
-	case 0xA1:
-		cpu.CycleCount = 6
-		cpu.Lda(cpu.indexedIndirectAddress())
-	case 0xB1:
-		cpu.CycleCount = 5
-		cpu.Lda(cpu.indirectIndexedAddress())
-	// LDX
-	case 0xA2:
-		cpu.CycleCount = 2
-		cpu.Ldx(cpu.immediateAddress())
-	case 0xA6:
-		cpu.CycleCount = 3
-		cpu.Ldx(cpu.zeroPageAddress())
-	case 0xB6:
-		cpu.CycleCount = 4
-		cpu.Ldx(cpu.zeroPageIndexedAddress(cpu.Y))
-	case 0xAE:
-		cpu.CycleCount = 4
-		cpu.Ldx(cpu.absoluteAddress())
-	case 0xBE:
-		cpu.CycleCount = 4
-		cpu.Ldx(cpu.absoluteIndexedAddress(cpu.Y))
-	// LDY
-	case 0xA0:
-		cpu.CycleCount = 2
-		cpu.Ldy(cpu.immediateAddress())
-	case 0xA4:
-		cpu.CycleCount = 3
-		cpu.Ldy(cpu.zeroPageAddress())
-	case 0xB4:
-		cpu.CycleCount = 4
-		cpu.Ldy(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0xAC:
-		cpu.CycleCount = 4
-		cpu.Ldy(cpu.absoluteAddress())
-	case 0xBC:
-		cpu.CycleCount = 4
-		cpu.Ldy(cpu.absoluteIndexedAddress(cpu.X))
-	// STA
-	case 0x85:
-		cpu.CycleCount = 3
-		cpu.Sta(cpu.zeroPageAddress())
-	case 0x95:
-		cpu.CycleCount = 4
-		cpu.Sta(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x8D:
-		cpu.CycleCount = 4
-		cpu.Sta(cpu.absoluteAddress())
-	case 0x9D:
-		cpu.CycleCount = 5
-		cpu.Sta(cpu.absoluteIndexedAddress(cpu.X))
-	case 0x99:
-		cpu.CycleCount = 5
-		cpu.Sta(cpu.absoluteIndexedAddress(cpu.Y))
-	case 0x81:
-		cpu.CycleCount = 6
-		cpu.Sta(cpu.indexedIndirectAddress())
-	case 0x91:
-		cpu.CycleCount = 6
-		cpu.Sta(cpu.indirectIndexedAddress())
-	// STX
-	case 0x86:
-		cpu.CycleCount = 3
-		cpu.Stx(cpu.zeroPageAddress())
-	case 0x96:
-		cpu.CycleCount = 4
-		cpu.Stx(cpu.zeroPageIndexedAddress(cpu.Y))
-	case 0x8E:
-		cpu.CycleCount = 4
-		cpu.Stx(cpu.absoluteAddress())
-	// STY
-	case 0x84:
-		cpu.CycleCount = 3
-		cpu.Sty(cpu.zeroPageAddress())
-	case 0x94:
-		cpu.CycleCount = 4
-		cpu.Sty(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x8C:
-		cpu.CycleCount = 4
-		cpu.Sty(cpu.absoluteAddress())
-	// JMP
-	case 0x4C:
-		cpu.CycleCount = 3
-		cpu.Jmp(cpu.absoluteAddress())
-	case 0x6C:
-		cpu.CycleCount = 5
-		cpu.Jmp(cpu.indirectAbsoluteAddress(programCounter))
-	// JSR
-	case 0x20:
-		cpu.CycleCount = 6
-		cpu.Jsr(cpu.absoluteAddress())
-	// Register Instructions
-	case 0xAA:
-		cpu.CycleCount = 2
-		cpu.Tax()
-	case 0x8A:
-		cpu.CycleCount = 2
-		cpu.Txa()
-	case 0xCA:
-		cpu.CycleCount = 2
-		cpu.Dex()
-	case 0xE8:
-		cpu.CycleCount = 2
-		cpu.Inx()
-	case 0xA8:
-		cpu.CycleCount = 2
-		cpu.Tay()
-	case 0x98:
-		cpu.CycleCount = 2
-		cpu.Tya()
-	case 0x88:
-		cpu.CycleCount = 2
-		cpu.Dey()
-	case 0xC8:
-		cpu.CycleCount = 2
-		cpu.Iny()
-	// Branch Instructions
-	case 0x10:
-		cpu.CycleCount = 2
-		cpu.Bpl()
-	case 0x30:
-		cpu.CycleCount = 2
-		cpu.Bmi()
-	case 0x50:
-		cpu.CycleCount = 2
-		cpu.Bvc()
-	case 0x70:
-		cpu.CycleCount = 2
-		cpu.Bvs()
-	case 0x90:
-		cpu.CycleCount = 2
-		cpu.Bcc()
-	case 0xB0:
-		cpu.CycleCount = 2
-		cpu.Bcs()
-	case 0xD0:
-		cpu.CycleCount = 2
-		cpu.Bne()
-	case 0xF0:
-		cpu.CycleCount = 2
-		cpu.Beq()
-	// CMP
-	case 0xC9:
-		cpu.CycleCount = 2
-		cpu.Cmp(cpu.immediateAddress())
-	case 0xC5:
-		cpu.CycleCount = 3
-		cpu.Cmp(cpu.zeroPageAddress())
-	case 0xD5:
-		cpu.CycleCount = 4
-		cpu.Cmp(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0xCD:
-		cpu.CycleCount = 4
-		cpu.Cmp(cpu.absoluteAddress())
-	case 0xDD:
-		cpu.CycleCount = 4
-		cpu.Cmp(cpu.absoluteIndexedAddress(cpu.X))
-	case 0xD9:
-		cpu.CycleCount = 4
-		cpu.Cmp(cpu.absoluteIndexedAddress(cpu.Y))
-	case 0xC1:
-		cpu.CycleCount = 6
-		cpu.Cmp(cpu.indexedIndirectAddress())
-	case 0xD1:
-		cpu.CycleCount = 5
-		cpu.Cmp(cpu.indirectIndexedAddress())
-	// CPX
-	case 0xE0:
-		cpu.CycleCount = 2
-		cpu.Cpx(cpu.immediateAddress())
-	case 0xE4:
-		cpu.CycleCount = 3
-		cpu.Cpx(cpu.zeroPageAddress())
-	case 0xEC:
-		cpu.CycleCount = 4
-		cpu.Cpx(cpu.absoluteAddress())
-	// CPY
-	case 0xC0:
-		cpu.CycleCount = 2
-		cpu.Cpy(cpu.immediateAddress())
-	case 0xC4:
-		cpu.CycleCount = 3
-		cpu.Cpy(cpu.zeroPageAddress())
-	case 0xCC:
-		cpu.CycleCount = 4
-		cpu.Cpy(cpu.absoluteAddress())
-	// SBC
-	case 0xE9:
-		cpu.CycleCount = 2
-		cpu.Sbc(cpu.immediateAddress())
-	case 0xE5:
-		cpu.CycleCount = 3
-		cpu.Sbc(cpu.zeroPageAddress())
-	case 0xF5:
-		cpu.CycleCount = 4
-		cpu.Sbc(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0xED:
-		cpu.CycleCount = 4
-		cpu.Sbc(cpu.absoluteAddress())
-	case 0xFD:
-		cpu.CycleCount = 4
-		cpu.Sbc(cpu.absoluteIndexedAddress(cpu.X))
-	case 0xF9:
-		cpu.CycleCount = 4
-		cpu.Sbc(cpu.absoluteIndexedAddress(cpu.Y))
-	case 0xE1:
-		cpu.CycleCount = 6
-		cpu.Sbc(cpu.indexedIndirectAddress())
-	case 0xF1:
-		cpu.CycleCount = 5
-		cpu.Sbc(cpu.indirectIndexedAddress())
-	// Flag Instructions
-	case 0x18:
-		cpu.CycleCount = 2
-		cpu.Clc()
-	case 0x38:
-		cpu.CycleCount = 2
-		cpu.Sec()
-	case 0x58:
-		cpu.CycleCount = 2
-		cpu.Cli()
-	case 0x78:
-		cpu.CycleCount = 2
-		cpu.Sei()
-	case 0xB8:
-		cpu.CycleCount = 2
-		cpu.Clv()
-	case 0xD8:
-		cpu.CycleCount = 2
-		cpu.Cld()
-	case 0xF8:
-		cpu.CycleCount = 2
-		cpu.Sed()
-	// Stack instructions
-	case 0x9A:
-		cpu.CycleCount = 2
-		cpu.Txs()
-	case 0xBA:
-		cpu.CycleCount = 2
-		cpu.Tsx()
-	case 0x48:
-		cpu.CycleCount = 3
-		cpu.Pha()
-	case 0x68:
-		cpu.CycleCount = 4
-		cpu.Pla()
-	case 0x08:
-		cpu.CycleCount = 3
-		cpu.Php()
-	case 0x28:
-		cpu.CycleCount = 4
-		cpu.Plp()
-	// AND
-	case 0x29:
-		cpu.CycleCount = 2
-		cpu.And(cpu.immediateAddress())
-	case 0x25:
-		cpu.CycleCount = 3
-		cpu.And(cpu.zeroPageAddress())
-	case 0x35:
-		cpu.CycleCount = 4
-		cpu.And(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x2d:
-		cpu.CycleCount = 4
-		cpu.And(cpu.absoluteAddress())
-	case 0x3d:
-		cpu.CycleCount = 4
-		cpu.And(cpu.absoluteIndexedAddress(cpu.X))
-	case 0x39:
-		cpu.CycleCount = 4
-		cpu.And(cpu.absoluteIndexedAddress(cpu.Y))
-	case 0x21:
-		cpu.CycleCount = 6
-		cpu.And(cpu.indexedIndirectAddress())
-	case 0x31:
-		cpu.CycleCount = 5
-		cpu.And(cpu.indirectIndexedAddress())
-	// ORA
-	case 0x09:
-		cpu.CycleCount = 2
-		cpu.Ora(cpu.immediateAddress())
-	case 0x05:
-		cpu.CycleCount = 3
-		cpu.Ora(cpu.zeroPageAddress())
-	case 0x15:
-		cpu.CycleCount = 4
-		cpu.Ora(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x0d:
-		cpu.CycleCount = 4
-		cpu.Ora(cpu.absoluteAddress())
-	case 0x1d:
-		cpu.CycleCount = 4
-		cpu.Ora(cpu.absoluteIndexedAddress(cpu.X))
-	case 0x19:
-		cpu.CycleCount = 4
-		cpu.Ora(cpu.absoluteIndexedAddress(cpu.Y))
-	case 0x01:
-		cpu.CycleCount = 6
-		cpu.Ora(cpu.indexedIndirectAddress())
-	case 0x11:
-		cpu.CycleCount = 5
-		cpu.Ora(cpu.indirectIndexedAddress())
-	// EOR
-	case 0x49:
-		cpu.CycleCount = 2
-		cpu.Eor(cpu.immediateAddress())
-	case 0x45:
-		cpu.CycleCount = 3
-		cpu.Eor(cpu.zeroPageAddress())
-	case 0x55:
-		cpu.CycleCount = 4
-		cpu.Eor(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x4d:
-		cpu.CycleCount = 4
-		cpu.Eor(cpu.absoluteAddress())
-	case 0x5d:
-		cpu.CycleCount = 4
-		cpu.Eor(cpu.absoluteIndexedAddress(cpu.X))
-	case 0x59:
-		cpu.CycleCount = 4
-		cpu.Eor(cpu.absoluteIndexedAddress(cpu.Y))
-	case 0x41:
-		cpu.CycleCount = 6
-		cpu.Eor(cpu.indexedIndirectAddress())
-	case 0x51:
-		cpu.CycleCount = 5
-		cpu.Eor(cpu.indirectIndexedAddress())
-	// DEC
-	case 0xc6:
-		cpu.CycleCount = 5
-		cpu.Dec(cpu.zeroPageAddress())
-	case 0xd6:
-		cpu.CycleCount = 6
-		cpu.Dec(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0xce:
-		cpu.CycleCount = 6
-		cpu.Dec(cpu.absoluteAddress())
-	case 0xde:
-		cpu.CycleCount = 7
-		cpu.Dec(cpu.absoluteIndexedAddress(cpu.X))
-	// INC
-	case 0xe6:
-		cpu.CycleCount = 5
-		cpu.Inc(cpu.zeroPageAddress())
-	case 0xf6:
-		cpu.CycleCount = 6
-		cpu.Inc(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0xee:
-		cpu.CycleCount = 6
-		cpu.Inc(cpu.absoluteAddress())
-	case 0xfe:
-		cpu.CycleCount = 7
-		cpu.Inc(cpu.absoluteIndexedAddress(cpu.X))
-	// BRK
-	case 0x00:
-		cpu.CycleCount = 7
-		cpu.Brk()
-	// RTI
-	case 0x40:
-		cpu.CycleCount = 6
-		cpu.Rti()
-	// RTS
-	case 0x60:
-		cpu.CycleCount = 6
-		cpu.Rts()
-	// NOP
-	case 0xea:
-		cpu.CycleCount = 2
-	// LSR
-	case 0x4a:
-		cpu.CycleCount = 2
-		cpu.LsrAcc()
-	case 0x46:
-		cpu.CycleCount = 5
-		cpu.Lsr(cpu.zeroPageAddress())
-	case 0x56:
-		cpu.CycleCount = 6
-		cpu.Lsr(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x4e:
-		cpu.CycleCount = 6
-		cpu.Lsr(cpu.absoluteAddress())
-	case 0x5e:
-		cpu.CycleCount = 7
-		cpu.Lsr(cpu.absoluteIndexedAddress(cpu.X))
-	// ASL
-	case 0x0a:
-		cpu.CycleCount = 2
-		cpu.AslAcc()
-	case 0x06:
-		cpu.CycleCount = 5
-		cpu.Asl(cpu.zeroPageAddress())
-	case 0x16:
-		cpu.CycleCount = 6
-		cpu.Asl(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x0e:
-		cpu.CycleCount = 6
-		cpu.Asl(cpu.absoluteAddress())
-	case 0x1e:
-		cpu.CycleCount = 7
-		cpu.Asl(cpu.absoluteIndexedAddress(cpu.X))
-	// ROL
-	case 0x2a:
-		cpu.CycleCount = 2
-		cpu.RolAcc()
-	case 0x26:
-		cpu.CycleCount = 5
-		cpu.Rol(cpu.zeroPageAddress())
-	case 0x36:
-		cpu.CycleCount = 6
-		cpu.Rol(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x2e:
-		cpu.CycleCount = 6
-		cpu.Rol(cpu.absoluteAddress())
-	case 0x3e:
-		cpu.CycleCount = 7
-		cpu.Rol(cpu.absoluteIndexedAddress(cpu.X))
-	// ROR
-	case 0x6a:
-		cpu.CycleCount = 2
-		cpu.RorAcc()
-	case 0x66:
-		cpu.CycleCount = 5
-		cpu.Ror(cpu.zeroPageAddress())
-	case 0x76:
-		cpu.CycleCount = 6
-		cpu.Ror(cpu.zeroPageIndexedAddress(cpu.X))
-	case 0x6e:
-		cpu.CycleCount = 6
-		cpu.Ror(cpu.absoluteAddress())
-	case 0x7e:
-		cpu.CycleCount = 7
-		cpu.Ror(cpu.absoluteIndexedAddress(cpu.X))
-	// BIT
-	case 0x24:
-		cpu.CycleCount = 3
-		cpu.Bit(cpu.zeroPageAddress())
-	case 0x2c:
-		cpu.CycleCount = 4
-		cpu.Bit(cpu.absoluteAddress())
-	default:
-		panic("Invalid opcode")
-	}
+    if cpu.Verbose {
+        Disassemble(opcode, cpu, programCounter)
+    }
+
+    switch opcode {
+    // ADC
+    case 0x69:
+        cpu.CycleCount = 2
+        cpu.Adc(cpu.immediateAddress())
+    case 0x65:
+        cpu.CycleCount = 3
+        cpu.Adc(cpu.zeroPageAddress())
+    case 0x75:
+        cpu.CycleCount = 4
+        cpu.Adc(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x6D:
+        cpu.CycleCount = 4
+        cpu.Adc(cpu.absoluteAddress())
+    case 0x7D:
+        cpu.CycleCount = 4
+        cpu.Adc(cpu.absoluteIndexedAddress(cpu.X))
+    case 0x79:
+        cpu.CycleCount = 4
+        cpu.Adc(cpu.absoluteIndexedAddress(cpu.Y))
+    case 0x61:
+        cpu.CycleCount = 6
+        cpu.Adc(cpu.indexedIndirectAddress())
+    case 0x71:
+        cpu.CycleCount = 5
+        cpu.Adc(cpu.indirectIndexedAddress())
+    // LDA
+    case 0xA9:
+        cpu.CycleCount = 2
+        cpu.Lda(cpu.immediateAddress())
+    case 0xA5:
+        cpu.CycleCount = 3
+        cpu.Lda(cpu.zeroPageAddress())
+    case 0xB5:
+        cpu.CycleCount = 4
+        cpu.Lda(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0xAD:
+        cpu.CycleCount = 4
+        cpu.Lda(cpu.absoluteAddress())
+    case 0xBD:
+        cpu.CycleCount = 4
+        cpu.Lda(cpu.absoluteIndexedAddress(cpu.X))
+    case 0xB9:
+        cpu.CycleCount = 4
+        cpu.Lda(cpu.absoluteIndexedAddress(cpu.Y))
+    case 0xA1:
+        cpu.CycleCount = 6
+        cpu.Lda(cpu.indexedIndirectAddress())
+    case 0xB1:
+        cpu.CycleCount = 5
+        cpu.Lda(cpu.indirectIndexedAddress())
+    // LDX
+    case 0xA2:
+        cpu.CycleCount = 2
+        cpu.Ldx(cpu.immediateAddress())
+    case 0xA6:
+        cpu.CycleCount = 3
+        cpu.Ldx(cpu.zeroPageAddress())
+    case 0xB6:
+        cpu.CycleCount = 4
+        cpu.Ldx(cpu.zeroPageIndexedAddress(cpu.Y))
+    case 0xAE:
+        cpu.CycleCount = 4
+        cpu.Ldx(cpu.absoluteAddress())
+    case 0xBE:
+        cpu.CycleCount = 4
+        cpu.Ldx(cpu.absoluteIndexedAddress(cpu.Y))
+    // LDY
+    case 0xA0:
+        cpu.CycleCount = 2
+        cpu.Ldy(cpu.immediateAddress())
+    case 0xA4:
+        cpu.CycleCount = 3
+        cpu.Ldy(cpu.zeroPageAddress())
+    case 0xB4:
+        cpu.CycleCount = 4
+        cpu.Ldy(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0xAC:
+        cpu.CycleCount = 4
+        cpu.Ldy(cpu.absoluteAddress())
+    case 0xBC:
+        cpu.CycleCount = 4
+        cpu.Ldy(cpu.absoluteIndexedAddress(cpu.X))
+    // STA
+    case 0x85:
+        cpu.CycleCount = 3
+        cpu.Sta(cpu.zeroPageAddress())
+    case 0x95:
+        cpu.CycleCount = 4
+        cpu.Sta(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x8D:
+        cpu.CycleCount = 4
+        cpu.Sta(cpu.absoluteAddress())
+    case 0x9D:
+        cpu.CycleCount = 5
+        cpu.Sta(cpu.absoluteIndexedAddress(cpu.X))
+    case 0x99:
+        cpu.CycleCount = 5
+        cpu.Sta(cpu.absoluteIndexedAddress(cpu.Y))
+    case 0x81:
+        cpu.CycleCount = 6
+        cpu.Sta(cpu.indexedIndirectAddress())
+    case 0x91:
+        cpu.CycleCount = 6
+        cpu.Sta(cpu.indirectIndexedAddress())
+    // STX
+    case 0x86:
+        cpu.CycleCount = 3
+        cpu.Stx(cpu.zeroPageAddress())
+    case 0x96:
+        cpu.CycleCount = 4
+        cpu.Stx(cpu.zeroPageIndexedAddress(cpu.Y))
+    case 0x8E:
+        cpu.CycleCount = 4
+        cpu.Stx(cpu.absoluteAddress())
+    // STY
+    case 0x84:
+        cpu.CycleCount = 3
+        cpu.Sty(cpu.zeroPageAddress())
+    case 0x94:
+        cpu.CycleCount = 4
+        cpu.Sty(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x8C:
+        cpu.CycleCount = 4
+        cpu.Sty(cpu.absoluteAddress())
+    // JMP
+    case 0x4C:
+        cpu.CycleCount = 3
+        cpu.Jmp(cpu.absoluteAddress())
+    case 0x6C:
+        cpu.CycleCount = 5
+        cpu.Jmp(cpu.indirectAbsoluteAddress(programCounter))
+    // JSR
+    case 0x20:
+        cpu.CycleCount = 6
+        cpu.Jsr(cpu.absoluteAddress())
+    // Register Instructions
+    case 0xAA:
+        cpu.CycleCount = 2
+        cpu.Tax()
+    case 0x8A:
+        cpu.CycleCount = 2
+        cpu.Txa()
+    case 0xCA:
+        cpu.CycleCount = 2
+        cpu.Dex()
+    case 0xE8:
+        cpu.CycleCount = 2
+        cpu.Inx()
+    case 0xA8:
+        cpu.CycleCount = 2
+        cpu.Tay()
+    case 0x98:
+        cpu.CycleCount = 2
+        cpu.Tya()
+    case 0x88:
+        cpu.CycleCount = 2
+        cpu.Dey()
+    case 0xC8:
+        cpu.CycleCount = 2
+        cpu.Iny()
+    // Branch Instructions
+    case 0x10:
+        cpu.CycleCount = 2
+        cpu.Bpl()
+    case 0x30:
+        cpu.CycleCount = 2
+        cpu.Bmi()
+    case 0x50:
+        cpu.CycleCount = 2
+        cpu.Bvc()
+    case 0x70:
+        cpu.CycleCount = 2
+        cpu.Bvs()
+    case 0x90:
+        cpu.CycleCount = 2
+        cpu.Bcc()
+    case 0xB0:
+        cpu.CycleCount = 2
+        cpu.Bcs()
+    case 0xD0:
+        cpu.CycleCount = 2
+        cpu.Bne()
+    case 0xF0:
+        cpu.CycleCount = 2
+        cpu.Beq()
+    // CMP
+    case 0xC9:
+        cpu.CycleCount = 2
+        cpu.Cmp(cpu.immediateAddress())
+    case 0xC5:
+        cpu.CycleCount = 3
+        cpu.Cmp(cpu.zeroPageAddress())
+    case 0xD5:
+        cpu.CycleCount = 4
+        cpu.Cmp(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0xCD:
+        cpu.CycleCount = 4
+        cpu.Cmp(cpu.absoluteAddress())
+    case 0xDD:
+        cpu.CycleCount = 4
+        cpu.Cmp(cpu.absoluteIndexedAddress(cpu.X))
+    case 0xD9:
+        cpu.CycleCount = 4
+        cpu.Cmp(cpu.absoluteIndexedAddress(cpu.Y))
+    case 0xC1:
+        cpu.CycleCount = 6
+        cpu.Cmp(cpu.indexedIndirectAddress())
+    case 0xD1:
+        cpu.CycleCount = 5
+        cpu.Cmp(cpu.indirectIndexedAddress())
+    // CPX
+    case 0xE0:
+        cpu.CycleCount = 2
+        cpu.Cpx(cpu.immediateAddress())
+    case 0xE4:
+        cpu.CycleCount = 3
+        cpu.Cpx(cpu.zeroPageAddress())
+    case 0xEC:
+        cpu.CycleCount = 4
+        cpu.Cpx(cpu.absoluteAddress())
+    // CPY
+    case 0xC0:
+        cpu.CycleCount = 2
+        cpu.Cpy(cpu.immediateAddress())
+    case 0xC4:
+        cpu.CycleCount = 3
+        cpu.Cpy(cpu.zeroPageAddress())
+    case 0xCC:
+        cpu.CycleCount = 4
+        cpu.Cpy(cpu.absoluteAddress())
+    // SBC
+    case 0xE9:
+        cpu.CycleCount = 2
+        cpu.Sbc(cpu.immediateAddress())
+    case 0xE5:
+        cpu.CycleCount = 3
+        cpu.Sbc(cpu.zeroPageAddress())
+    case 0xF5:
+        cpu.CycleCount = 4
+        cpu.Sbc(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0xED:
+        cpu.CycleCount = 4
+        cpu.Sbc(cpu.absoluteAddress())
+    case 0xFD:
+        cpu.CycleCount = 4
+        cpu.Sbc(cpu.absoluteIndexedAddress(cpu.X))
+    case 0xF9:
+        cpu.CycleCount = 4
+        cpu.Sbc(cpu.absoluteIndexedAddress(cpu.Y))
+    case 0xE1:
+        cpu.CycleCount = 6
+        cpu.Sbc(cpu.indexedIndirectAddress())
+    case 0xF1:
+        cpu.CycleCount = 5
+        cpu.Sbc(cpu.indirectIndexedAddress())
+    // Flag Instructions
+    case 0x18:
+        cpu.CycleCount = 2
+        cpu.Clc()
+    case 0x38:
+        cpu.CycleCount = 2
+        cpu.Sec()
+    case 0x58:
+        cpu.CycleCount = 2
+        cpu.Cli()
+    case 0x78:
+        cpu.CycleCount = 2
+        cpu.Sei()
+    case 0xB8:
+        cpu.CycleCount = 2
+        cpu.Clv()
+    case 0xD8:
+        cpu.CycleCount = 2
+        cpu.Cld()
+    case 0xF8:
+        cpu.CycleCount = 2
+        cpu.Sed()
+    // Stack instructions
+    case 0x9A:
+        cpu.CycleCount = 2
+        cpu.Txs()
+    case 0xBA:
+        cpu.CycleCount = 2
+        cpu.Tsx()
+    case 0x48:
+        cpu.CycleCount = 3
+        cpu.Pha()
+    case 0x68:
+        cpu.CycleCount = 4
+        cpu.Pla()
+    case 0x08:
+        cpu.CycleCount = 3
+        cpu.Php()
+    case 0x28:
+        cpu.CycleCount = 4
+        cpu.Plp()
+    // AND
+    case 0x29:
+        cpu.CycleCount = 2
+        cpu.And(cpu.immediateAddress())
+    case 0x25:
+        cpu.CycleCount = 3
+        cpu.And(cpu.zeroPageAddress())
+    case 0x35:
+        cpu.CycleCount = 4
+        cpu.And(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x2d:
+        cpu.CycleCount = 4
+        cpu.And(cpu.absoluteAddress())
+    case 0x3d:
+        cpu.CycleCount = 4
+        cpu.And(cpu.absoluteIndexedAddress(cpu.X))
+    case 0x39:
+        cpu.CycleCount = 4
+        cpu.And(cpu.absoluteIndexedAddress(cpu.Y))
+    case 0x21:
+        cpu.CycleCount = 6
+        cpu.And(cpu.indexedIndirectAddress())
+    case 0x31:
+        cpu.CycleCount = 5
+        cpu.And(cpu.indirectIndexedAddress())
+    // ORA
+    case 0x09:
+        cpu.CycleCount = 2
+        cpu.Ora(cpu.immediateAddress())
+    case 0x05:
+        cpu.CycleCount = 3
+        cpu.Ora(cpu.zeroPageAddress())
+    case 0x15:
+        cpu.CycleCount = 4
+        cpu.Ora(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x0d:
+        cpu.CycleCount = 4
+        cpu.Ora(cpu.absoluteAddress())
+    case 0x1d:
+        cpu.CycleCount = 4
+        cpu.Ora(cpu.absoluteIndexedAddress(cpu.X))
+    case 0x19:
+        cpu.CycleCount = 4
+        cpu.Ora(cpu.absoluteIndexedAddress(cpu.Y))
+    case 0x01:
+        cpu.CycleCount = 6
+        cpu.Ora(cpu.indexedIndirectAddress())
+    case 0x11:
+        cpu.CycleCount = 5
+        cpu.Ora(cpu.indirectIndexedAddress())
+    // EOR
+    case 0x49:
+        cpu.CycleCount = 2
+        cpu.Eor(cpu.immediateAddress())
+    case 0x45:
+        cpu.CycleCount = 3
+        cpu.Eor(cpu.zeroPageAddress())
+    case 0x55:
+        cpu.CycleCount = 4
+        cpu.Eor(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x4d:
+        cpu.CycleCount = 4
+        cpu.Eor(cpu.absoluteAddress())
+    case 0x5d:
+        cpu.CycleCount = 4
+        cpu.Eor(cpu.absoluteIndexedAddress(cpu.X))
+    case 0x59:
+        cpu.CycleCount = 4
+        cpu.Eor(cpu.absoluteIndexedAddress(cpu.Y))
+    case 0x41:
+        cpu.CycleCount = 6
+        cpu.Eor(cpu.indexedIndirectAddress())
+    case 0x51:
+        cpu.CycleCount = 5
+        cpu.Eor(cpu.indirectIndexedAddress())
+    // DEC
+    case 0xc6:
+        cpu.CycleCount = 5
+        cpu.Dec(cpu.zeroPageAddress())
+    case 0xd6:
+        cpu.CycleCount = 6
+        cpu.Dec(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0xce:
+        cpu.CycleCount = 6
+        cpu.Dec(cpu.absoluteAddress())
+    case 0xde:
+        cpu.CycleCount = 7
+        cpu.Dec(cpu.absoluteIndexedAddress(cpu.X))
+    // INC
+    case 0xe6:
+        cpu.CycleCount = 5
+        cpu.Inc(cpu.zeroPageAddress())
+    case 0xf6:
+        cpu.CycleCount = 6
+        cpu.Inc(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0xee:
+        cpu.CycleCount = 6
+        cpu.Inc(cpu.absoluteAddress())
+    case 0xfe:
+        cpu.CycleCount = 7
+        cpu.Inc(cpu.absoluteIndexedAddress(cpu.X))
+    // BRK
+    case 0x00:
+        cpu.CycleCount = 7
+        cpu.Brk()
+    // RTI
+    case 0x40:
+        cpu.CycleCount = 6
+        cpu.Rti()
+    // RTS
+    case 0x60:
+        cpu.CycleCount = 6
+        cpu.Rts()
+    // NOP
+    case 0xea:
+        cpu.CycleCount = 2
+    // LSR
+    case 0x4a:
+        cpu.CycleCount = 2
+        cpu.LsrAcc()
+    case 0x46:
+        cpu.CycleCount = 5
+        cpu.Lsr(cpu.zeroPageAddress())
+    case 0x56:
+        cpu.CycleCount = 6
+        cpu.Lsr(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x4e:
+        cpu.CycleCount = 6
+        cpu.Lsr(cpu.absoluteAddress())
+    case 0x5e:
+        cpu.CycleCount = 7
+        cpu.Lsr(cpu.absoluteIndexedAddress(cpu.X))
+    // ASL
+    case 0x0a:
+        cpu.CycleCount = 2
+        cpu.AslAcc()
+    case 0x06:
+        cpu.CycleCount = 5
+        cpu.Asl(cpu.zeroPageAddress())
+    case 0x16:
+        cpu.CycleCount = 6
+        cpu.Asl(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x0e:
+        cpu.CycleCount = 6
+        cpu.Asl(cpu.absoluteAddress())
+    case 0x1e:
+        cpu.CycleCount = 7
+        cpu.Asl(cpu.absoluteIndexedAddress(cpu.X))
+    // ROL
+    case 0x2a:
+        cpu.CycleCount = 2
+        cpu.RolAcc()
+    case 0x26:
+        cpu.CycleCount = 5
+        cpu.Rol(cpu.zeroPageAddress())
+    case 0x36:
+        cpu.CycleCount = 6
+        cpu.Rol(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x2e:
+        cpu.CycleCount = 6
+        cpu.Rol(cpu.absoluteAddress())
+    case 0x3e:
+        cpu.CycleCount = 7
+        cpu.Rol(cpu.absoluteIndexedAddress(cpu.X))
+    // ROR
+    case 0x6a:
+        cpu.CycleCount = 2
+        cpu.RorAcc()
+    case 0x66:
+        cpu.CycleCount = 5
+        cpu.Ror(cpu.zeroPageAddress())
+    case 0x76:
+        cpu.CycleCount = 6
+        cpu.Ror(cpu.zeroPageIndexedAddress(cpu.X))
+    case 0x6e:
+        cpu.CycleCount = 6
+        cpu.Ror(cpu.absoluteAddress())
+    case 0x7e:
+        cpu.CycleCount = 7
+        cpu.Ror(cpu.absoluteIndexedAddress(cpu.X))
+    // BIT
+    case 0x24:
+        cpu.CycleCount = 3
+        cpu.Bit(cpu.zeroPageAddress())
+    case 0x2c:
+        cpu.CycleCount = 4
+        cpu.Bit(cpu.absoluteAddress())
+    default:
+        panic("Invalid opcode")
+    }
 }
