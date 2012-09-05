@@ -1,16 +1,25 @@
 package main
 
+import (
+	"fmt"
+)
+
 const (
 	StatusSpriteOverflow = iota
 	StatusSprite0Hit
 	StatusVblankStarted
+
+	MirroringVertical
+	MirroringHorizontal
+	MirroringSingleLower
+	MirroringSingleUpper
 )
 
 type Nametable struct {
-    Table0 []*Tile
-    Table1 []*Tile
-    Table2 []*Tile
-    Table3 []*Tile
+	Table0 []*Tile
+	Table1 []*Tile
+	Table2 []*Tile
+	Table3 []*Tile
 }
 
 type Flags struct {
@@ -74,14 +83,16 @@ type Ppu struct {
 	AddressCounter  AddressCounters
 	Vram            [0xFFFF]Word
 	SpriteRam       [0x100]Word
+	Mirroring       int
 
 	Framebuffer chan Nametable
 	Cycle       int
 }
 
 type Tile struct {
-	X, Y int
-	Rows []*PixelRow
+	X, Y    int
+	Rows    []*PixelRow
+	Palette []Word
 }
 
 type PixelRow struct {
@@ -149,21 +160,42 @@ func (p *Ppu) Init(s chan Nametable) {
 	}
 }
 
+func (p *Ppu) writeNametableData(a int, v Word) {
+	switch p.Mirroring {
+	case MirroringVertical:
+		if a >= 0x2000 && a < 0x2800 {
+			p.Vram[a] = v
+			p.Vram[0x2400+(a-0x2000)] = v
+		} else if a >= 0x2800 && a < 0x3000 {
+			p.Vram[a] = v
+			p.Vram[0x2C00+(a-0x2800)] = v
+		}
+	case MirroringHorizontal:
+		if a >= 0x2000 && a < 0x2400 {
+			p.Vram[a] = v
+			p.Vram[0x2800+(a-0x2000)] = v
+		} else if a >= 0x2400 && a < 0x2800 {
+			p.Vram[a] = v
+			p.Vram[0x2C00+(a-0x2400)] = v
+		}
+	}
+}
+
 // Writes to mirrored regions of VRAM
 func (p *Ppu) writeMirroredVram(a int, v Word) {
-    if a >= 0x3F00 && a < 0x3F20 {
-        // Palette table entries
-        p.Vram[a] = v
-        p.Vram[a + 0x20] = v
-        p.Vram[a + 0x40] = v
-        p.Vram[a + 0x60] = v
-        p.Vram[a + 0x80] = v
-        p.Vram[a + 0xA0] = v
-        p.Vram[a + 0xC0] = v
-        p.Vram[a + 0xE0] = v
-    } else {
-        p.Vram[a - 0x1000] = v
-    }
+	if a >= 0x3F00 && a < 0x3F20 {
+		// Palette table entries
+		p.Vram[a] = v
+		p.Vram[a+0x20] = v
+		p.Vram[a+0x40] = v
+		p.Vram[a+0x60] = v
+		p.Vram[a+0x80] = v
+		p.Vram[a+0xA0] = v
+		p.Vram[a+0xC0] = v
+		p.Vram[a+0xE0] = v
+	} else {
+		p.Vram[a-0x1000] = v
+	}
 }
 
 func (p *Ppu) Step() {
@@ -174,13 +206,13 @@ func (p *Ppu) Step() {
 		// Request NMI
 		cpu.RequestInterrupt(InterruptNmi)
 
-        n := Nametable{
-		    p.RenderNametable(0),
-		    p.RenderNametable(1),
-		    p.RenderNametable(2),
-		    p.RenderNametable(3),
-        }
-        p.Framebuffer <- n
+		n := Nametable{
+			p.RenderNametable(0),
+			p.RenderNametable(1),
+			p.RenderNametable(2),
+			p.RenderNametable(3),
+		}
+		p.Framebuffer <- n
 		p.Cycle = 0
 	}
 
@@ -348,7 +380,10 @@ func (p *Ppu) WriteData(v Word) {
 	p.Address = p.AddressCounter.Address()
 
 	if p.Address > 0x3000 {
-        p.writeMirroredVram(p.Address, v)
+		p.writeMirroredVram(p.Address, v)
+	} else if p.Address >= 0x2000 && p.Address < 0x3000 {
+		// Nametable mirroring
+		p.writeNametableData(p.Address, v)
 	} else {
 		p.Vram[p.Address] = v
 	}
@@ -399,22 +434,83 @@ func (p *Ppu) RenderNametable(table Word) []*Tile {
 	x := 0
 	y := 0
 
+	leftTile := true
+	topTile := true
 	tileset := make([]*Tile, 960)
+	// Generates each tile and applies the palette
 	for i := a; i < a+0x3C0; i++ {
 		t := p.BgPatternTableAddress(p.Vram[i])
 		tile := p.DecodePatternTile(t, x, y)
 
+		attrBase := (i & ^0x3FF) + 0x3C0
+		attr := uint(p.Vram[attrBase+((i&0x1F)>>2)+((i&0x3E0)>>7)*8])
+
+		var attrValue uint
+		switch {
+		case leftTile && topTile:
+			// Top left
+			attrValue = attr & 0x03
+		case !leftTile && topTile:
+			// Top right
+			attrValue = (attr >> 2) & 0x03
+		case leftTile && !topTile:
+			// Bottom left
+			attrValue = (attr >> 4) & 0x03
+		case !leftTile && !topTile:
+			// Bottom right
+			attrValue = (attr >> 6) & 0x03
+		}
+
+		var palette []Word
+		switch attrValue {
+		case 0x0:
+			palette = []Word{
+				p.Vram[0x3F00],
+				p.Vram[0x3F01],
+				p.Vram[0x3F02],
+				p.Vram[0x3F03],
+			}
+		case 0x1:
+			palette = []Word{
+				p.Vram[0x3F00],
+				p.Vram[0x3F05],
+				p.Vram[0x3F06],
+				p.Vram[0x3F07],
+			}
+		case 0x2:
+			palette = []Word{
+				p.Vram[0x3F00],
+				p.Vram[0x3F09],
+				p.Vram[0x3F0A],
+				p.Vram[0x3F0B],
+			}
+		case 0x3:
+			palette = []Word{
+				p.Vram[0x3F00],
+				p.Vram[0x3F0D],
+				p.Vram[0x3F0E],
+				p.Vram[0x3F0F],
+			}
+		default:
+			fmt.Println("No palette!")
+		}
+
+		tile.Palette = palette
 		tileset[y*32+x] = &tile
 
+		leftTile = !leftTile
 		x++
 
 		if x > 31 {
 			x = 0
 			y++
+
+			topTile = !topTile
+			leftTile = true
 		}
 	}
 
-    return tileset
+	return tileset
 }
 
 func (p *Ppu) DecodePatternTile(t int, x, y int) Tile {
@@ -438,7 +534,7 @@ func (p *Ppu) DecodePatternTile(t int, x, y int) Tile {
 			var b Word
 			for b = 0; b < 8; b++ {
 				// Store the bit 0/1
-				rows[i-8].Pixels[7-b] += ((pixel << b & 0x01) << 1)
+				rows[i-8].Pixels[7-b] += ((pixel >> b & 0x01) << 1)
 			}
 		}
 	}

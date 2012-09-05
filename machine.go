@@ -30,7 +30,7 @@ func setResetVector() {
 }
 
 func main() {
-	v := make(chan Nametable, 1000)
+	v := make(chan Nametable, 100)
 	video.Init(v)
 
 	Ram.Init()
