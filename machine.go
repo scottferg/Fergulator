@@ -8,16 +8,18 @@ import (
 )
 
 var (
-	cycle = "559ns"
+	cycle          = "559ns"
 	programCounter = 0x8000
 	clockspeed, _  = time.ParseDuration(cycle)
 	running        = true
-    breakpoint     = false
+	breakpoint     = false
 
 	cpu   Cpu
 	ppu   Ppu
 	rom   Mapper
 	video Video
+
+	sizeFactor uint16
 )
 
 func setResetVector() {
@@ -26,56 +28,63 @@ func setResetVector() {
 
 	programCounter = (int(high) << 8) + int(low)
 
-    fmt.Printf("Setting reset: 0x%X\n", programCounter)
+	fmt.Printf("Setting reset: 0x%X\n", programCounter)
 }
 
 func main() {
-	v := make(chan Nametable, 100)
-	video.Init(v)
+	if len(os.Args) < 2 {
+		fmt.Println("Please specify a ROM file")
+		return
+	}
 
-	Ram.Init()
-
-	cpu.Init()
-	ppu.Init(v)
-
-	cpu.P = 0x34
-
-	// cpu.Verbose = true
-
-	defer video.Close()
+    sizeFactor = 1
 
 	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
 		if rom, err = LoadRom(contents); err != nil {
 			fmt.Println(err.Error())
-            // ppu.RenderNametable(0)
 			return
 		}
 
-        rom.Init(contents)
+		v := make(chan Frame, 100)
+		video.Init(v)
+
+		Ram.Init()
+
+		cpu.Init()
+		ppu.Init(v)
+
+		cpu.P = 0x34
+
+		// cpu.Verbose = true
+
+		rom.Init(contents)
 		setResetVector()
 
+        go Listen()
 		go video.Render()
 
 		for running {
-            if programCounter == 0xC2E2 && false {
-                fmt.Println("Breakpoint!")
-                breakpoint = true
-            }
+			if programCounter == 0xC2E2 && false {
+				fmt.Println("Breakpoint!")
+				breakpoint = true
+			}
 
-            if breakpoint {
-                clockspeed, _  = time.ParseDuration("50ms")
-            }
+			if breakpoint {
+				clockspeed, _ = time.ParseDuration("50ms")
+			}
 
 			cpu.Step()
 
-            // 3 PPU cycles for each CPU cycle
-            for i := 0; i < 3; i++ {
-                ppu.Step()
-            }
-
-			// time.Sleep(clockspeed)
+			// 3 PPU cycles for each CPU cycle
+			for i := 0; i < 3; i++ {
+				ppu.Step()
+			}
 		}
+	} else {
+		fmt.Println(err.Error())
 	}
+
+    video.Close()
 
 	return
 }

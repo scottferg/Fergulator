@@ -32,6 +32,8 @@ func PpuRegWrite(v Word, a int) {
         ppu.WriteAddress(v)
     case 0x2007:
         ppu.WriteData(v)
+    case 0x4014:
+        ppu.WriteDma(v)
     }
 }
 
@@ -72,6 +74,8 @@ func (m *Memory) Write(address interface{}, val Word) error {
 		m[a] = val
 
         if a <= 0x2007 && a >= 0x2000 {
+            PpuRegWrite(val, a)
+        } else if a == 0x4014 {
             PpuRegWrite(val, a)
         }
 

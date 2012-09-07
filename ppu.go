@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"math"
 )
 
 const (
@@ -15,11 +15,16 @@ const (
 	MirroringSingleUpper
 )
 
-type Nametable struct {
-	Table0 []*Tile
-	Table1 []*Tile
-	Table2 []*Tile
-	Table3 []*Tile
+type Frame struct {
+	Background []*Tile
+	Sprites    []*Tile
+}
+
+type SpriteData struct {
+	Tiles        [256]Word
+	YCoordinates [256]Word
+	Attributes   [256]Word
+	XCoordinates [256]Word
 }
 
 type Flags struct {
@@ -79,13 +84,14 @@ type Ppu struct {
 	Registers
 	Flags
 	Masks
+	SpriteData
 	AddressRegister AddressRegisters
 	AddressCounter  AddressCounters
 	Vram            [0xFFFF]Word
 	SpriteRam       [0x100]Word
 	Mirroring       int
 
-	Framebuffer chan Nametable
+	Framebuffer chan Frame
 	Cycle       int
 }
 
@@ -97,6 +103,30 @@ type Tile struct {
 
 type PixelRow struct {
 	Pixels []Word
+}
+
+func (t *Tile) FlipHorizontally() {
+    rl := len(t.Rows)
+    for r := 0; r < rl; r++ {
+
+        l := len(t.Rows[r].Pixels)
+        x := make([]Word, l)
+        for i := 0; i < l; i++ {
+            x[(l - 1) - i] = t.Rows[r].Pixels[i]
+        }
+
+        t.Rows[r].Pixels = x
+    }
+}
+
+func (t *Tile) FlipVertically() {
+    l := len(t.Rows)
+    x := make([]*PixelRow, l) 
+    for i := 0; i < l; i++ {
+        x[(l - 1) - i] = t.Rows[i]
+    }
+
+    t.Rows = x
 }
 
 func (r *AddressRegisters) Address() int {
@@ -149,7 +179,7 @@ func (c *AddressCounters) InitFromAddress(a int) {
 	c.HT = low & 0x1F
 }
 
-func (p *Ppu) Init(s chan Nametable) {
+func (p *Ppu) Init(s chan Frame) {
 	p.FirstWrite = true
 	p.Framebuffer = s
 
@@ -158,25 +188,41 @@ func (p *Ppu) Init(s chan Nametable) {
 	for i, _ := range p.Vram {
 		p.Vram[i] = 0x00
 	}
+
+	for i, _ := range p.SpriteRam {
+		p.SpriteRam[i] = 0x00
+	}
 }
 
 func (p *Ppu) writeNametableData(a int, v Word) {
 	switch p.Mirroring {
 	case MirroringVertical:
-		if a >= 0x2000 && a < 0x2800 {
+		if a >= 0x2000 && a < 0x2400 {
 			p.Vram[a] = v
-			p.Vram[0x2400+(a-0x2000)] = v
-		} else if a >= 0x2800 && a < 0x3000 {
+			p.Vram[0x2800+(a-0x2000)] = v
+		} else if a >= 0x2800 && a < 0x2C00 {
 			p.Vram[a] = v
-			p.Vram[0x2C00+(a-0x2800)] = v
+			p.Vram[0x2000+(a-0x2800)] = v
+		} else if a >= 0x2400 && a < 0x2800 {
+			p.Vram[a] = v
+			p.Vram[0x2C00+(a-0x2400)] = v
+		} else if a >= 0x2C00 && a < 0x3000 {
+			p.Vram[a] = v
+			p.Vram[0x2400+(a-0x2C00)] = v
 		}
 	case MirroringHorizontal:
 		if a >= 0x2000 && a < 0x2400 {
 			p.Vram[a] = v
-			p.Vram[0x2800+(a-0x2000)] = v
+			p.Vram[0x2400+(a-0x2000)] = v
 		} else if a >= 0x2400 && a < 0x2800 {
 			p.Vram[a] = v
-			p.Vram[0x2C00+(a-0x2400)] = v
+			p.Vram[0x2000+(a-0x2400)] = v
+		} else if a >= 0x2800 && a < 0x2C00 {
+			p.Vram[a] = v
+			p.Vram[0x2C00+(a-0x2800)] = v
+		} else if a >= 0x2C00 && a < 0x3000 {
+			p.Vram[a] = v
+			p.Vram[0x2800+(a-0x2C00)] = v
 		}
 	}
 }
@@ -206,11 +252,9 @@ func (p *Ppu) Step() {
 		// Request NMI
 		cpu.RequestInterrupt(InterruptNmi)
 
-		n := Nametable{
+		n := Frame{
 			p.RenderNametable(0),
-			p.RenderNametable(1),
-			p.RenderNametable(2),
-			p.RenderNametable(3),
+			p.RenderSprites(),
 		}
 		p.Framebuffer <- n
 		p.Cycle = 0
@@ -320,6 +364,35 @@ func (p *Ppu) WriteOamData(v Word) {
 	p.OamData = v
 }
 
+// $4014
+func (p *Ppu) WriteDma(v Word) {
+	// Halt the CPU for 512 cycles
+	cpu.CyclesToWait = 512
+
+	addr := int(v) * 0x100
+	for i := 0; i < 256; i++ {
+		d, _ := Ram.Read(addr + i)
+		p.SpriteRam[i] = d
+		p.updateBufferedSpriteMem(i, d)
+	}
+}
+
+func (p *Ppu) updateBufferedSpriteMem(a int, v Word) {
+	i := int(math.Floor(float64(a / 4)))
+
+	switch a % 4 {
+	case 0x0:
+		p.YCoordinates[i] = v
+	case 0x1:
+		p.Tiles[i] = v
+	case 0x2:
+		// Attribute
+		p.Attributes[i] = v
+	case 0x3:
+		p.XCoordinates[i] = v
+	}
+}
+
 // $2004
 func (p *Ppu) ReadOamData() (Word, error) {
 	return Ram[0x2004], nil
@@ -404,7 +477,14 @@ func (p *Ppu) ReadData() (Word, error) {
 }
 
 func (p *Ppu) SprPatternTableAddress(i Word) int {
-	return int(i * 0x10)
+	var a int
+	if p.SpritePatternAddress == 0x01 {
+		a = 0x1000
+	} else {
+		a = 0x0
+	}
+
+	return int(i)*0x10 + a
 }
 
 func (p *Ppu) BgPatternTableAddress(i Word) int {
@@ -420,15 +500,29 @@ func (p *Ppu) BgPatternTableAddress(i Word) int {
 
 func (p *Ppu) RenderNametable(table Word) []*Tile {
 	var a int
-	switch table {
-	case 0:
-		a = 0x2000
-	case 1:
-		a = 0x2400
-	case 2:
-		a = 0x2800
-	case 3:
-		a = 0x2C00
+
+	if p.Mirroring == MirroringVertical {
+		switch table {
+		case 0:
+			a = 0x2000
+		case 1:
+			a = 0x2800
+		case 2:
+			a = 0x2400
+		case 3:
+			a = 0x2C00
+		}
+	} else if p.Mirroring == MirroringHorizontal {
+		switch table {
+		case 0:
+			a = 0x2000
+		case 1:
+			a = 0x2400
+		case 2:
+			a = 0x2800
+		case 3:
+			a = 0x2C00
+		}
 	}
 
 	x := 0
@@ -491,8 +585,6 @@ func (p *Ppu) RenderNametable(table Word) []*Tile {
 				p.Vram[0x3F0E],
 				p.Vram[0x3F0F],
 			}
-		default:
-			fmt.Println("No palette!")
 		}
 
 		tile.Palette = palette
@@ -544,4 +636,64 @@ func (p *Ppu) DecodePatternTile(t int, x, y int) Tile {
 		Y:    y * 8,
 		Rows: rows,
 	}
+}
+
+func (p *Ppu) RenderSprites() (r []*Tile) {
+	for i, t := range p.SpriteData.Tiles {
+		if t == 0x0 {
+			break
+		}
+
+		tile := p.DecodePatternTile(p.SprPatternTableAddress(t),
+			int(p.XCoordinates[i]) / 8 + 1,
+			int(p.YCoordinates[i]) / 8 + 1)
+
+        attrValue := p.Attributes[i] & 0x3
+
+		var palette []Word
+		switch attrValue {
+		case 0x0:
+			palette = []Word{
+				p.Vram[0x3F10],
+				p.Vram[0x3F11],
+				p.Vram[0x3F12],
+				p.Vram[0x3F13],
+			}
+		case 0x1:
+			palette = []Word{
+				p.Vram[0x3F10],
+				p.Vram[0x3F15],
+				p.Vram[0x3F16],
+				p.Vram[0x3F17],
+			}
+		case 0x2:
+			palette = []Word{
+				p.Vram[0x3F10],
+				p.Vram[0x3F19],
+				p.Vram[0x3F1A],
+				p.Vram[0x3F1B],
+			}
+		case 0x3:
+			palette = []Word{
+				p.Vram[0x3F10],
+				p.Vram[0x3F1D],
+				p.Vram[0x3F1E],
+				p.Vram[0x3F1F],
+			}
+		}
+
+        tile.Palette = palette
+
+        if (p.Attributes[i] >> 5) & 0x01 == 0x01 {
+            tile.FlipHorizontally()
+        }
+
+        if (p.Attributes[i] >> 6) & 0x01 == 0x01 {
+            tile.FlipVertically()
+        }
+
+		r = append(r, &tile)
+	}
+
+	return
 }
