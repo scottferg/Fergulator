@@ -78,7 +78,7 @@ func (m *Memory) Write(address interface{}, val Word) error {
         } else if a == 0x4014 {
             PpuRegWrite(val, a)
         } else if a == 0x4016 {
-            joy.Write(val)
+            controller.Write(val)
         }
 
 		return nil
@@ -93,8 +93,7 @@ func (m *Memory) Read(address interface{}) (Word, error) {
     if a <= 0x2007 && a >= 0x2000 {
         return PpuRegRead(a)
     } else if a == 0x4016 {
-        v := joy.Read()
-        return v, nil
+        return controller.Read(), nil
     }
 
 	return m[a], nil

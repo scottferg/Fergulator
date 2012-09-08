@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 	"io/ioutil"
 	"os"
 	"time"
@@ -14,13 +13,11 @@ var (
 	running       = true
 	breakpoint    = false
 
-	cpu   Cpu
-	ppu   Ppu
-	rom   Mapper
-	video Video
-	joy   Controller
-
-	io chan sdl.KeyboardEvent
+	cpu        Cpu
+	ppu        Ppu
+	rom        Mapper
+	video      Video
+	controller Controller
 )
 
 func setResetVector() {
@@ -38,8 +35,8 @@ func main() {
 
 	Ram.Init()
 	cpu.Init()
-    v := ppu.Init()
-	joy.Init()
+	v := ppu.Init()
+	controller.Init()
 
 	video.Init(v)
 	defer video.Close()
@@ -58,7 +55,7 @@ func main() {
 	}
 
 	go JoypadListen()
-    go video.Render()
+	go video.Render()
 
 	for running {
 		cpu.Step()
@@ -67,8 +64,6 @@ func main() {
 		for i := 0; i < 3; i++ {
 			ppu.Step()
 		}
-
-		// time.Sleep(clockspeed)
 	}
 
 	return

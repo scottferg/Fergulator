@@ -24,7 +24,7 @@ func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word) {
 		c.ButtonState[2] = v
 	case sdl.K_RETURN: // Start
         fmt.Println("Start")
-		c.ButtonState[4] = v
+		c.ButtonState[3] = v
 	case sdl.K_UP: // Up
         fmt.Println("Up")
 		c.ButtonState[4] = v
@@ -59,6 +59,11 @@ func (c *Controller) Write(v Word) {
 func (c *Controller) Read() (r Word) {
 	if c.StrobeState < 8 {
 		r = c.ButtonState[c.StrobeState]
+
+        if r != 0x40 {
+            fmt.Printf("Button: %d\n", c.StrobeState)
+            fmt.Printf("State: 0x%X\n", c.ButtonState[c.StrobeState])
+        }
     } else if c.StrobeState == 19 {
         r = 0x1
 	} else {
@@ -94,9 +99,9 @@ func JoypadListen() {
 
                 switch e.Type {
                 case sdl.KEYDOWN:
-                    joy.KeyDown(e)
+                    controller.KeyDown(e)
                 case sdl.KEYUP:
-                    joy.KeyUp(e)
+                    controller.KeyUp(e)
                 }
 			}
 		}
