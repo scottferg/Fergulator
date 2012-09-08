@@ -5,10 +5,6 @@ import (
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 )
 
-var (
-	Sync chan sdl.KeyboardEvent
-)
-
 type Controller struct {
 	ButtonState [8]Word
 	StrobeState int
@@ -18,20 +14,28 @@ type Controller struct {
 func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word) {
 	switch k.Keysym.Sym {
 	case sdl.K_z: // A
+        fmt.Println("A")
 		c.ButtonState[0] = v
 	case sdl.K_x: // B
+        fmt.Println("B")
 		c.ButtonState[1] = v
 	case sdl.K_RSHIFT: // Select
+        fmt.Println("Select")
 		c.ButtonState[2] = v
 	case sdl.K_RETURN: // Start
+        fmt.Println("Start")
 		c.ButtonState[4] = v
 	case sdl.K_UP: // Up
+        fmt.Println("Up")
 		c.ButtonState[4] = v
 	case sdl.K_DOWN: // Down
+        fmt.Println("Down")
 		c.ButtonState[5] = v
 	case sdl.K_LEFT: // Left
+        fmt.Println("Left")
 		c.ButtonState[6] = v
 	case sdl.K_RIGHT: // Right
+        fmt.Println("Right")
 		c.ButtonState[7] = v
 	}
 }
@@ -55,6 +59,8 @@ func (c *Controller) Write(v Word) {
 func (c *Controller) Read() (r Word) {
 	if c.StrobeState < 8 {
 		r = c.ButtonState[c.StrobeState]
+    } else if c.StrobeState == 19 {
+        r = 0x1
 	} else {
 		r = 0x0
 	}
@@ -68,14 +74,10 @@ func (c *Controller) Read() (r Word) {
 	return r
 }
 
-func (c *Controller) Init() chan sdl.KeyboardEvent {
-	Sync = make(chan sdl.KeyboardEvent)
-
+func (c *Controller) Init() {
 	for i := 0; i < len(c.ButtonState); i++ {
 		c.ButtonState[i] = 0x40
 	}
-
-	return Sync
 }
 
 func JoypadListen() {
@@ -83,9 +85,19 @@ func JoypadListen() {
 		select {
 		case ev := <-sdl.Events:
 			switch e := ev.(type) {
+            case sdl.QuitEvent:
+				running = false
 			case sdl.KeyboardEvent:
-                fmt.Println("Key!")
-				Sync <- e
+                if e.Keysym.Sym == sdl.K_ESCAPE {
+                    running = false
+                }
+
+                switch e.Type {
+                case sdl.KEYDOWN:
+                    joy.KeyDown(e)
+                case sdl.KEYUP:
+                    joy.KeyUp(e)
+                }
 			}
 		}
 	}

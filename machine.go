@@ -39,7 +39,7 @@ func main() {
 	Ram.Init()
 	cpu.Init()
     v := ppu.Init()
-	io = joy.Init()
+	joy.Init()
 
 	video.Init(v)
 	defer video.Close()
@@ -58,13 +58,8 @@ func main() {
 	}
 
 	go JoypadListen()
-	go RunCycles()
-    video.Render()
+    go video.Render()
 
-	return
-}
-
-func RunCycles() {
 	for running {
 		cpu.Step()
 
@@ -75,4 +70,6 @@ func RunCycles() {
 
 		// time.Sleep(clockspeed)
 	}
+
+	return
 }
