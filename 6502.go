@@ -6,6 +6,10 @@ const (
 	InterruptNmi
 )
 
+var (
+	ProgramCounter = 0x8000
+)
+
 type Cpu struct {
 	X            Word
 	Y            Word
@@ -177,23 +181,23 @@ func (cpu *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
 }
 
 func (cpu *Cpu) immediateAddress() int {
-	programCounter++
-	return programCounter - 1
+	ProgramCounter++
+	return ProgramCounter - 1
 }
 
 func (cpu *Cpu) absoluteAddress() (result int) {
 	// Switch to an int (or more appropriately uint16) since we 
 	// will overflow when shifting the high byte
-	high, _ := Ram.Read(programCounter + 1)
-	low, _ := Ram.Read(programCounter)
+	high, _ := Ram.Read(ProgramCounter + 1)
+	low, _ := Ram.Read(ProgramCounter)
 
-	programCounter += 2
+	ProgramCounter += 2
 	return (int(high) << 8) + int(low)
 }
 
 func (cpu *Cpu) zeroPageAddress() int {
-	programCounter++
-	res, _ := Ram.Read(programCounter - 1)
+	ProgramCounter++
+	res, _ := Ram.Read(ProgramCounter - 1)
 
 	return int(res)
 }
@@ -219,8 +223,8 @@ func (cpu *Cpu) indirectAbsoluteAddress(addr int) (result int) {
 func (cpu *Cpu) absoluteIndexedAddress(index Word) (result int) {
 	// Switch to an int (or more appropriately uint16) since we 
 	// will overflow when shifting the high byte
-	high, _ := Ram.Read(programCounter + 1)
-	low, _ := Ram.Read(programCounter)
+	high, _ := Ram.Read(ProgramCounter + 1)
+	low, _ := Ram.Read(ProgramCounter)
 
 	address := (int(high) << 8) + int(low) + int(index)
 
@@ -228,21 +232,21 @@ func (cpu *Cpu) absoluteIndexedAddress(index Word) (result int) {
 		address = address & 0xFFFF
 	}
 
-	programCounter += 2
+	ProgramCounter += 2
 	return address
 }
 
 func (cpu *Cpu) zeroPageIndexedAddress(index Word) int {
-	location, _ := Ram.Read(programCounter)
-	programCounter++
+	location, _ := Ram.Read(ProgramCounter)
+	ProgramCounter++
 	return int(location + index)
 }
 
 func (cpu *Cpu) indexedIndirectAddress() int {
-	location, _ := Ram.Read(programCounter)
+	location, _ := Ram.Read(ProgramCounter)
 	location = location + cpu.X
 
-	programCounter++
+	ProgramCounter++
 
 	// Switch to an int (or more appropriately uint16) since we 
 	// will overflow when shifting the high byte
@@ -253,7 +257,7 @@ func (cpu *Cpu) indexedIndirectAddress() int {
 }
 
 func (cpu *Cpu) indirectIndexedAddress() int {
-	location, _ := Ram.Read(programCounter)
+	location, _ := Ram.Read(ProgramCounter)
 
 	// Switch to an int (or more appropriately uint16) since we 
 	// will overflow when shifting the high byte
@@ -266,18 +270,18 @@ func (cpu *Cpu) indirectIndexedAddress() int {
 		address = address & 0xFFFF
 	}
 
-	programCounter++
+	ProgramCounter++
 	return address
 }
 
 func (cpu *Cpu) relativeAddress() (a int) {
-	val, _ := Ram.Read(programCounter)
+	val, _ := Ram.Read(ProgramCounter)
 
 	a = int(val)
 	if a < 0x80 {
-		a = a + programCounter
+		a = a + ProgramCounter
 	} else {
-		a = a + (programCounter - 0x100)
+		a = a + (ProgramCounter - 0x100)
 	}
 
 	a++
@@ -343,7 +347,7 @@ func (cpu *Cpu) Sty(location int) {
 }
 
 func (cpu *Cpu) Jmp(location int) {
-	programCounter = location
+	ProgramCounter = location
 }
 
 func (cpu *Cpu) Tax() {
@@ -412,65 +416,65 @@ func (cpu *Cpu) Iny() {
 
 func (cpu *Cpu) Bpl() {
 	if !cpu.getNegative() {
-		programCounter = cpu.relativeAddress()
+		ProgramCounter = cpu.relativeAddress()
 	} else {
-		programCounter++
+		ProgramCounter++
 	}
 }
 
 func (cpu *Cpu) Bmi() {
 	if cpu.getNegative() {
-		programCounter = cpu.relativeAddress()
+		ProgramCounter = cpu.relativeAddress()
 	} else {
-		programCounter++
+		ProgramCounter++
 	}
 }
 
 func (cpu *Cpu) Bvc() {
 	if !cpu.getOverflow() {
-		programCounter = cpu.relativeAddress()
+		ProgramCounter = cpu.relativeAddress()
 	} else {
-		programCounter++
+		ProgramCounter++
 	}
 }
 
 func (cpu *Cpu) Bvs() {
 	if cpu.getOverflow() {
-		programCounter = cpu.relativeAddress()
+		ProgramCounter = cpu.relativeAddress()
 	} else {
-		programCounter++
+		ProgramCounter++
 	}
 }
 
 func (cpu *Cpu) Bcc() {
 	if !cpu.getCarry() {
-		programCounter = cpu.relativeAddress()
+		ProgramCounter = cpu.relativeAddress()
 	} else {
-		programCounter++
+		ProgramCounter++
 	}
 }
 
 func (cpu *Cpu) Bcs() {
 	if cpu.getCarry() {
-		programCounter = cpu.relativeAddress()
+		ProgramCounter = cpu.relativeAddress()
 	} else {
-		programCounter++
+		ProgramCounter++
 	}
 }
 
 func (cpu *Cpu) Bne() {
 	if !cpu.getZero() {
-		programCounter = cpu.relativeAddress()
+		ProgramCounter = cpu.relativeAddress()
 	} else {
-		programCounter++
+		ProgramCounter++
 	}
 }
 
 func (cpu *Cpu) Beq() {
 	if cpu.getZero() {
-		programCounter = cpu.relativeAddress()
+		ProgramCounter = cpu.relativeAddress()
 	} else {
-		programCounter++
+		ProgramCounter++
 	}
 }
 
@@ -633,10 +637,10 @@ func (cpu *Cpu) Brk() {
 	// 2. PHP 
 	// 3. SEI 
 	// 4. JMP ($FFFE)
-	programCounter = programCounter + 1
+	ProgramCounter = ProgramCounter + 1
 
-	cpu.pushToStack(Word(programCounter >> 8))
-	cpu.pushToStack(Word(programCounter & 0xFF))
+	cpu.pushToStack(Word(ProgramCounter >> 8))
+	cpu.pushToStack(Word(ProgramCounter & 0xFF))
 
 	cpu.Php()
 	cpu.Sei()
@@ -647,13 +651,13 @@ func (cpu *Cpu) Brk() {
 }
 
 func (cpu *Cpu) Jsr(location int) {
-	high := (programCounter - 1) >> 8
-	low := (programCounter - 1) & 0xFF
+	high := (ProgramCounter - 1) >> 8
+	low := (ProgramCounter - 1) & 0xFF
 
 	cpu.pushToStack(Word(high))
 	cpu.pushToStack(Word(low))
 
-	programCounter = location
+	ProgramCounter = location
 }
 
 func (cpu *Cpu) Rti() {
@@ -662,14 +666,14 @@ func (cpu *Cpu) Rti() {
 	low := cpu.pullFromStack()
 	high := cpu.pullFromStack()
 
-	programCounter = ((int(high) << 8) + int(low))
+	ProgramCounter = ((int(high) << 8) + int(low))
 }
 
 func (cpu *Cpu) Rts() {
 	low := cpu.pullFromStack()
 	high := cpu.pullFromStack()
 
-	programCounter = ((int(high) << 8) + int(low)) + 1
+	ProgramCounter = ((int(high) << 8) + int(low)) + 1
 }
 
 func (cpu *Cpu) Lsr(location int) {
@@ -842,8 +846,8 @@ func (cpu *Cpu) Bit(location int) {
 func (cpu *Cpu) PerformNmi() {
 	// $2000.7 enables/disables NMIs
 	if ppu.NmiOnVblank != 0x0 {
-		high := programCounter >> 8
-		low := programCounter & 0xFF
+		high := ProgramCounter >> 8
+		low := ProgramCounter & 0xFF
 
 		cpu.pushToStack(Word(high))
 		cpu.pushToStack(Word(low))
@@ -853,7 +857,7 @@ func (cpu *Cpu) PerformNmi() {
 		h, _ := Ram.Read(0xFFFB)
 		l, _ := Ram.Read(0xFFFA)
 
-		programCounter = int(h)<<8 + int(l)
+		ProgramCounter = int(h)<<8 + int(l)
 	}
 }
 
@@ -879,7 +883,7 @@ func (cpu *Cpu) Reset() {
 }
 
 func (cpu *Cpu) Step() {
-	if cpu.CycleCount > 1 && cpu.Accurate && false {
+	if cpu.CycleCount > 1 && cpu.Accurate {
 		cpu.CycleCount--
 		return
 	}
@@ -896,14 +900,14 @@ func (cpu *Cpu) Step() {
 		cpu.InterruptRequested = false
 	}
 
-	opcode, _ := Ram.Read(programCounter)
+	opcode, _ := Ram.Read(ProgramCounter)
 
 	cpu.Opcode = opcode
 
-	programCounter++
+	ProgramCounter++
 
 	if cpu.Verbose {
-		Disassemble(opcode, cpu, programCounter)
+		Disassemble(opcode, cpu, ProgramCounter)
 	}
 
 	switch opcode {
@@ -1037,7 +1041,7 @@ func (cpu *Cpu) Step() {
 		cpu.Jmp(cpu.absoluteAddress())
 	case 0x6C:
 		cpu.CycleCount = 5
-		cpu.Jmp(cpu.indirectAbsoluteAddress(programCounter))
+		cpu.Jmp(cpu.indirectAbsoluteAddress(ProgramCounter))
 	// JSR
 	case 0x20:
 		cpu.CycleCount = 6

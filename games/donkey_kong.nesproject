@@ -1,0 +1,98 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<nesicideproject title="Donkey Kong" version="0.3" target="nes">
+ <properties outputname="donkey_kong" linkeradditionaldependencies="" linkeroutputbasepath="." linkerconfigfile="" chrromoutputbasepath="." headerfilename="project_data.h" chrromoutputname="Donkey Kong.chr" debuginfoname="Donkey Kong.dbg" compilerincludepaths="" chrrom="1" outputbasepath="." assemblerincludepaths="" sourcefilename="project_data.s" linkeroutputname="Donkey Kong.prg" compileradditionaloptions="" assemblerdefinedsymbols="" assembleradditionaloptions="" cartridgesavestatename="Donkey Kong.sav" sourcesearchpaths="" compilerdefinedsymbols="" cartridgeoutputname="Donkey Kong.nes" linkeradditionaloptions="">
+  <tileproperties/>
+  <palette>
+   <entry g="102" index="0" r="102" b="102"/>
+   <entry g="42" index="1" r="0" b="136"/>
+   <entry g="18" index="2" r="20" b="167"/>
+   <entry g="0" index="3" r="59" b="164"/>
+   <entry g="0" index="4" r="92" b="126"/>
+   <entry g="0" index="5" r="110" b="64"/>
+   <entry g="6" index="6" r="108" b="0"/>
+   <entry g="29" index="7" r="86" b="0"/>
+   <entry g="53" index="8" r="51" b="0"/>
+   <entry g="72" index="9" r="11" b="0"/>
+   <entry g="82" index="10" r="0" b="0"/>
+   <entry g="79" index="11" r="0" b="8"/>
+   <entry g="64" index="12" r="0" b="77"/>
+   <entry g="0" index="13" r="0" b="0"/>
+   <entry g="0" index="14" r="0" b="0"/>
+   <entry g="0" index="15" r="0" b="0"/>
+   <entry g="173" index="16" r="173" b="173"/>
+   <entry g="95" index="17" r="21" b="217"/>
+   <entry g="64" index="18" r="66" b="255"/>
+   <entry g="39" index="19" r="117" b="254"/>
+   <entry g="26" index="20" r="160" b="204"/>
+   <entry g="30" index="21" r="183" b="123"/>
+   <entry g="49" index="22" r="181" b="32"/>
+   <entry g="78" index="23" r="153" b="0"/>
+   <entry g="109" index="24" r="107" b="0"/>
+   <entry g="135" index="25" r="56" b="0"/>
+   <entry g="147" index="26" r="12" b="0"/>
+   <entry g="143" index="27" r="0" b="50"/>
+   <entry g="124" index="28" r="0" b="141"/>
+   <entry g="0" index="29" r="0" b="0"/>
+   <entry g="0" index="30" r="0" b="0"/>
+   <entry g="0" index="31" r="0" b="0"/>
+   <entry g="254" index="32" r="255" b="255"/>
+   <entry g="176" index="33" r="100" b="255"/>
+   <entry g="144" index="34" r="146" b="255"/>
+   <entry g="118" index="35" r="198" b="255"/>
+   <entry g="106" index="36" r="243" b="255"/>
+   <entry g="110" index="37" r="254" b="204"/>
+   <entry g="129" index="38" r="254" b="112"/>
+   <entry g="158" index="39" r="234" b="34"/>
+   <entry g="190" index="40" r="188" b="0"/>
+   <entry g="216" index="41" r="136" b="0"/>
+   <entry g="228" index="42" r="92" b="48"/>
+   <entry g="224" index="43" r="69" b="130"/>
+   <entry g="205" index="44" r="72" b="222"/>
+   <entry g="79" index="45" r="79" b="79"/>
+   <entry g="0" index="46" r="0" b="0"/>
+   <entry g="0" index="47" r="0" b="0"/>
+   <entry g="254" index="48" r="255" b="255"/>
+   <entry g="223" index="49" r="192" b="255"/>
+   <entry g="210" index="50" r="211" b="255"/>
+   <entry g="200" index="51" r="232" b="255"/>
+   <entry g="194" index="52" r="251" b="255"/>
+   <entry g="196" index="53" r="254" b="234"/>
+   <entry g="204" index="54" r="254" b="197"/>
+   <entry g="216" index="55" r="247" b="165"/>
+   <entry g="229" index="56" r="228" b="148"/>
+   <entry g="239" index="57" r="207" b="150"/>
+   <entry g="244" index="58" r="189" b="171"/>
+   <entry g="243" index="59" r="179" b="204"/>
+   <entry g="235" index="60" r="181" b="242"/>
+   <entry g="184" index="61" r="184" b="184"/>
+   <entry g="0" index="62" r="0" b="0"/>
+   <entry g="0" index="63" r="0" b="0"/>
+  </palette>
+ </properties>
+ <inspectors>
+  <symbolinspector/>
+  <breakpoints>
+   <breakpoint target="0" itemtype="0" condition="0" item1absolute="2023" enabled="1" event="0" datatype="0" type="0" data="0" item1="51175" item2="51175" conditiontype="0"/>
+  </breakpoints>
+  <markers>
+   <marker startaddr="0" endabsaddr="0" index="0" state="0" startabsaddr="0" endaddr="0"/>
+   <marker startaddr="0" endabsaddr="0" index="1" state="0" startabsaddr="0" endaddr="0"/>
+   <marker startaddr="0" endabsaddr="0" index="2" state="0" startabsaddr="0" endaddr="0"/>
+   <marker startaddr="0" endabsaddr="0" index="3" state="0" startabsaddr="0" endaddr="0"/>
+   <marker startaddr="0" endabsaddr="0" index="4" state="0" startabsaddr="0" endaddr="0"/>
+   <marker startaddr="0" endabsaddr="0" index="5" state="0" startabsaddr="0" endaddr="0"/>
+   <marker startaddr="0" endabsaddr="0" index="6" state="0" startabsaddr="0" endaddr="0"/>
+   <marker startaddr="0" endabsaddr="0" index="7" state="0" startabsaddr="0" endaddr="0"/>
+  </markers>
+ </inspectors>
+ <cartridge mirrorMode="0" mapperNumber="0" hasBatteryBackedRam="0"/>
+ <project>
+  <primitives>
+   <attributetables/>
+   <tiles/>
+  </primitives>
+  <sources/>
+  <binaryfiles/>
+  <graphicsbanks/>
+ </project>
+</nesicideproject>

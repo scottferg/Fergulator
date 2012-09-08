@@ -15,11 +15,6 @@ const (
 	MirroringSingleUpper
 )
 
-type Frame struct {
-	Background []*Tile
-	Sprites    []*Tile
-}
-
 type SpriteData struct {
 	Tiles        [256]Word
 	YCoordinates [256]Word
@@ -89,44 +84,13 @@ type Ppu struct {
 	AddressCounter  AddressCounters
 	Vram            [0xFFFF]Word
 	SpriteRam       [0x100]Word
+	PaletteRam      [0x20]Word
 	Mirroring       int
 
-	Framebuffer chan Frame
-	Cycle       int
-}
+	Framebuffer []int
 
-type Tile struct {
-	X, Y    int
-	Rows    []*PixelRow
-	Palette []Word
-}
-
-type PixelRow struct {
-	Pixels []Word
-}
-
-func (t *Tile) FlipHorizontally() {
-    rl := len(t.Rows)
-    for r := 0; r < rl; r++ {
-
-        l := len(t.Rows[r].Pixels)
-        x := make([]Word, l)
-        for i := 0; i < l; i++ {
-            x[(l - 1) - i] = t.Rows[r].Pixels[i]
-        }
-
-        t.Rows[r].Pixels = x
-    }
-}
-
-func (t *Tile) FlipVertically() {
-    l := len(t.Rows)
-    x := make([]*PixelRow, l) 
-    for i := 0; i < l; i++ {
-        x[(l - 1) - i] = t.Rows[i]
-    }
-
-    t.Rows = x
+	Output chan []int
+	Cycle  int
 }
 
 func (r *AddressRegisters) Address() int {
@@ -179,9 +143,9 @@ func (c *AddressCounters) InitFromAddress(a int) {
 	c.HT = low & 0x1F
 }
 
-func (p *Ppu) Init(s chan Frame) {
+func (p *Ppu) Init() chan []int {
 	p.FirstWrite = true
-	p.Framebuffer = s
+	p.Output = make(chan []int)
 
 	p.Cycle = 0
 
@@ -192,6 +156,10 @@ func (p *Ppu) Init(s chan Frame) {
 	for i, _ := range p.SpriteRam {
 		p.SpriteRam[i] = 0x00
 	}
+
+	p.Framebuffer = make([]int, 0xF000)
+
+	return p.Output
 }
 
 func (p *Ppu) writeNametableData(a int, v Word) {
@@ -231,14 +199,16 @@ func (p *Ppu) writeNametableData(a int, v Word) {
 func (p *Ppu) writeMirroredVram(a int, v Word) {
 	if a >= 0x3F00 && a < 0x3F20 {
 		// Palette table entries
-		p.Vram[a] = v
-		p.Vram[a+0x20] = v
-		p.Vram[a+0x40] = v
-		p.Vram[a+0x60] = v
-		p.Vram[a+0x80] = v
-		p.Vram[a+0xA0] = v
-		p.Vram[a+0xC0] = v
-		p.Vram[a+0xE0] = v
+		p.PaletteRam[a-0x3F00] = v
+	} else if a >= 0x3F20 && a < 0x3F40 {
+		// Palette table entries
+		p.PaletteRam[a-0x3F20] = v
+	} else if a >= 0x3F40 && a < 0x3F80 {
+		// Palette table entries
+		p.PaletteRam[a-0x3F40] = v
+	} else if a >= 0x3F80 && a < 0x3FC0 {
+		// Palette table entries
+		p.PaletteRam[a-0x3F80] = v
 	} else {
 		p.Vram[a-0x1000] = v
 	}
@@ -246,17 +216,16 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 
 func (p *Ppu) Step() {
 	switch p.Cycle {
-	case 81840:
+	case 89001:
 		// We're in VBlank
 		p.setStatus(StatusVblankStarted)
 		// Request NMI
 		cpu.RequestInterrupt(InterruptNmi)
 
-		n := Frame{
-			p.RenderNametable(0),
-			p.RenderSprites(),
-		}
-		p.Framebuffer <- n
+		p.RenderNametable(0)
+		p.RenderSprites()
+
+		p.Output <- p.Framebuffer
 		p.Cycle = 0
 	}
 
@@ -498,7 +467,7 @@ func (p *Ppu) BgPatternTableAddress(i Word) int {
 	return int(i)*0x10 + a
 }
 
-func (p *Ppu) RenderNametable(table Word) []*Tile {
+func (p *Ppu) RenderNametable(table Word) {
 	var a int
 
 	if p.Mirroring == MirroringVertical {
@@ -530,12 +499,8 @@ func (p *Ppu) RenderNametable(table Word) []*Tile {
 
 	leftTile := true
 	topTile := true
-	tileset := make([]*Tile, 960)
 	// Generates each tile and applies the palette
 	for i := a; i < a+0x3C0; i++ {
-		t := p.BgPatternTableAddress(p.Vram[i])
-		tile := p.DecodePatternTile(t, x, y)
-
 		attrBase := (i & ^0x3FF) + 0x3C0
 		attr := uint(p.Vram[attrBase+((i&0x1F)>>2)+((i&0x3E0)>>7)*8])
 
@@ -555,144 +520,144 @@ func (p *Ppu) RenderNametable(table Word) []*Tile {
 			attrValue = (attr >> 6) & 0x03
 		}
 
-		var palette []Word
-		switch attrValue {
-		case 0x0:
-			palette = []Word{
-				p.Vram[0x3F00],
-				p.Vram[0x3F01],
-				p.Vram[0x3F02],
-				p.Vram[0x3F03],
-			}
-		case 0x1:
-			palette = []Word{
-				p.Vram[0x3F00],
-				p.Vram[0x3F05],
-				p.Vram[0x3F06],
-				p.Vram[0x3F07],
-			}
-		case 0x2:
-			palette = []Word{
-				p.Vram[0x3F00],
-				p.Vram[0x3F09],
-				p.Vram[0x3F0A],
-				p.Vram[0x3F0B],
-			}
-		case 0x3:
-			palette = []Word{
-				p.Vram[0x3F00],
-				p.Vram[0x3F0D],
-				p.Vram[0x3F0E],
-				p.Vram[0x3F0F],
-			}
-		}
-
-		tile.Palette = palette
-		tileset[y*32+x] = &tile
+		t := p.BgPatternTableAddress(p.Vram[i])
+		p.DecodePatternTile(t, x, y, p.BgPaletteEntry(attrValue), false, false)
 
 		leftTile = !leftTile
-		x++
 
-		if x > 31 {
+		x += 8
+
+		if x > 255 {
 			x = 0
-			y++
+			y += 8
 
 			topTile = !topTile
 			leftTile = true
 		}
 	}
-
-	return tileset
 }
 
-func (p *Ppu) DecodePatternTile(t int, x, y int) Tile {
+func (p *Ppu) DecodePatternTile(t, x, y int, pal []Word, hrev, yrev bool) {
 	tile := p.Vram[t : t+16]
 
-	rows := make([]*PixelRow, 8)
-	for i, pixel := range tile {
-		if i < 8 {
-			rows[i] = new(PixelRow)
-			a := make([]Word, 8)
+	l := len(tile)
+	for i := 0; i < l/2; i++ {
+		var b uint
+		for b = 0; b < 8; b++ {
+			ycoord := y + i
 
-			var b Word
-			for b = 0; b < 8; b++ {
-				// Store the bit 0/1
-				v := (pixel >> b) & 0x01
-				a[7-b] = v
-			}
+            var xcoord int
 
-			rows[i].Pixels = a
-		} else {
-			var b Word
-			for b = 0; b < 8; b++ {
-				// Store the bit 0/1
-				rows[i-8].Pixels[7-b] += ((pixel >> b & 0x01) << 1)
-			}
+            if hrev {
+                xcoord = x + int(b)
+            } else {
+                xcoord = x + int(7-b)
+            }
+
+			fbRow := ycoord*256 + xcoord
+
+			// Store the bit 0/1
+			pixel := (tile[i] >> b) & 0x01
+			pixel += ((tile[i+8] >> b & 0x01) << 1)
+
+			// Set the color of the pixel in the buffer
+            p.Framebuffer[fbRow] = PaletteRgb[int(pal[pixel])]
 		}
-	}
-
-	return Tile{
-		X:    x * 8,
-		Y:    y * 8,
-		Rows: rows,
 	}
 }
 
-func (p *Ppu) RenderSprites() (r []*Tile) {
+func (p *Ppu) RenderSprites() {
 	for i, t := range p.SpriteData.Tiles {
 		if t == 0x0 {
 			break
 		}
 
-		tile := p.DecodePatternTile(p.SprPatternTableAddress(t),
-			int(p.XCoordinates[i]) / 8 + 1,
-			int(p.YCoordinates[i]) / 8 + 1)
+		priority := (p.Attributes[i] >> 5) & 0x1
 
-        attrValue := p.Attributes[i] & 0x3
-
-		var palette []Word
-		switch attrValue {
-		case 0x0:
-			palette = []Word{
-				p.Vram[0x3F10],
-				p.Vram[0x3F11],
-				p.Vram[0x3F12],
-				p.Vram[0x3F13],
-			}
-		case 0x1:
-			palette = []Word{
-				p.Vram[0x3F10],
-				p.Vram[0x3F15],
-				p.Vram[0x3F16],
-				p.Vram[0x3F17],
-			}
-		case 0x2:
-			palette = []Word{
-				p.Vram[0x3F10],
-				p.Vram[0x3F19],
-				p.Vram[0x3F1A],
-				p.Vram[0x3F1B],
-			}
-		case 0x3:
-			palette = []Word{
-				p.Vram[0x3F10],
-				p.Vram[0x3F1D],
-				p.Vram[0x3F1E],
-				p.Vram[0x3F1F],
-			}
+		if priority != 0x0 {
+			continue
 		}
 
-        tile.Palette = palette
-
-        if (p.Attributes[i] >> 5) & 0x01 == 0x01 {
-            tile.FlipHorizontally()
+        if p.XCoordinates[i] >= 0xF0 || p.YCoordinates[i] >= 0xF0 {
+            continue
         }
 
-        if (p.Attributes[i] >> 6) & 0x01 == 0x01 {
-            tile.FlipVertically()
-        }
+		attrValue := p.Attributes[i] & 0x3
 
-		r = append(r, &tile)
+		p.DecodePatternTile(p.SprPatternTableAddress(t),
+			int(p.XCoordinates[i]),
+			int(p.YCoordinates[i]) + 1,
+			p.SprPaletteEntry(uint(attrValue)),
+            (p.Attributes[i] >> 6) & 0x1 != 0,
+            (p.Attributes[i] >> 7) & 0x1 != 0)
+	}
+}
+
+func (p *Ppu) BgPaletteEntry(a uint) (pal []Word) {
+	switch a {
+	case 0x0:
+		pal = []Word{
+			p.PaletteRam[0x00],
+			p.PaletteRam[0x01],
+			p.PaletteRam[0x02],
+			p.PaletteRam[0x03],
+		}
+	case 0x1:
+		pal = []Word{
+			p.PaletteRam[0x00],
+			p.PaletteRam[0x05],
+			p.PaletteRam[0x06],
+			p.PaletteRam[0x07],
+		}
+	case 0x2:
+		pal = []Word{
+			p.PaletteRam[0x00],
+			p.PaletteRam[0x09],
+			p.PaletteRam[0x0A],
+			p.PaletteRam[0x0B],
+		}
+	case 0x3:
+		pal = []Word{
+			p.PaletteRam[0x00],
+			p.PaletteRam[0x0D],
+			p.PaletteRam[0x0E],
+			p.PaletteRam[0x0F],
+		}
+	}
+
+	return
+}
+
+func (p *Ppu) SprPaletteEntry(a uint) (pal []Word) {
+	switch a {
+	case 0x0:
+		pal = []Word{
+			p.PaletteRam[0x10],
+			p.PaletteRam[0x11],
+			p.PaletteRam[0x12],
+			p.PaletteRam[0x13],
+		}
+	case 0x1:
+		pal = []Word{
+			p.PaletteRam[0x10],
+			p.PaletteRam[0x15],
+			p.PaletteRam[0x16],
+			p.PaletteRam[0x17],
+		}
+	case 0x2:
+		pal = []Word{
+			p.PaletteRam[0x10],
+			p.PaletteRam[0x19],
+			p.PaletteRam[0x1A],
+			p.PaletteRam[0x1B],
+		}
+	case 0x3:
+		pal = []Word{
+			p.PaletteRam[0x10],
+			p.PaletteRam[0x1D],
+			p.PaletteRam[0x1E],
+			p.PaletteRam[0x1F],
+		}
 	}
 
 	return

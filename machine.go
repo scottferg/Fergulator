@@ -2,33 +2,32 @@ package main
 
 import (
 	"fmt"
+	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 	"io/ioutil"
 	"os"
 	"time"
 )
 
 var (
-	cycle          = "559ns"
-	programCounter = 0x8000
-	clockspeed, _  = time.ParseDuration(cycle)
-	running        = true
-	breakpoint     = false
+	cycle         = "559ns"
+	clockspeed, _ = time.ParseDuration(cycle)
+	running       = true
+	breakpoint    = false
 
 	cpu   Cpu
 	ppu   Ppu
 	rom   Mapper
 	video Video
+	joy   Controller
 
-	sizeFactor uint16
+	io chan sdl.KeyboardEvent
 )
 
 func setResetVector() {
 	high, _ := Ram.Read(0xFFFD)
 	low, _ := Ram.Read(0xFFFC)
 
-	programCounter = (int(high) << 8) + int(low)
-
-	fmt.Printf("Setting reset: 0x%X\n", programCounter)
+	ProgramCounter = (int(high) << 8) + int(low)
 }
 
 func main() {
@@ -37,7 +36,13 @@ func main() {
 		return
 	}
 
-    sizeFactor = 1
+	Ram.Init()
+	cpu.Init()
+    v := ppu.Init()
+	io = joy.Init()
+
+	video.Init(v)
+	defer video.Close()
 
 	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
 		if rom, err = LoadRom(contents); err != nil {
@@ -45,46 +50,29 @@ func main() {
 			return
 		}
 
-		v := make(chan Frame, 100)
-		video.Init(v)
-
-		Ram.Init()
-
-		cpu.Init()
-		ppu.Init(v)
-
-		cpu.P = 0x34
-
-		// cpu.Verbose = true
-
 		rom.Init(contents)
 		setResetVector()
-
-        go Listen()
-		go video.Render()
-
-		for running {
-			if programCounter == 0xC2E2 && false {
-				fmt.Println("Breakpoint!")
-				breakpoint = true
-			}
-
-			if breakpoint {
-				clockspeed, _ = time.ParseDuration("50ms")
-			}
-
-			cpu.Step()
-
-			// 3 PPU cycles for each CPU cycle
-			for i := 0; i < 3; i++ {
-				ppu.Step()
-			}
-		}
 	} else {
 		fmt.Println(err.Error())
+		return
 	}
 
-    video.Close()
+	go JoypadListen()
+	go RunCycles()
+    video.Render()
 
 	return
+}
+
+func RunCycles() {
+	for running {
+		cpu.Step()
+
+		// 3 PPU cycles for each CPU cycle
+		for i := 0; i < 3; i++ {
+			ppu.Step()
+		}
+
+		// time.Sleep(clockspeed)
+	}
 }
