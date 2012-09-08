@@ -102,6 +102,10 @@ func LoadRom(rom []byte) (r Mapper, e error) {
 	mapper := (Word(rom[6])>>4 | (Word(rom[7]) & 0xF0))
 	switch mapper {
 	case 0x00:
+        fallthrough
+    case 0x40:
+        fallthrough
+    case 0x41:
 		// NROM
 		r = new(Nrom)
 	case 0x01:

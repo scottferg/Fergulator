@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 )
 
@@ -14,28 +13,20 @@ type Controller struct {
 func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word) {
 	switch k.Keysym.Sym {
 	case sdl.K_z: // A
-        fmt.Println("A")
 		c.ButtonState[0] = v
 	case sdl.K_x: // B
-        fmt.Println("B")
 		c.ButtonState[1] = v
 	case sdl.K_RSHIFT: // Select
-        fmt.Println("Select")
 		c.ButtonState[2] = v
 	case sdl.K_RETURN: // Start
-        fmt.Println("Start")
 		c.ButtonState[3] = v
 	case sdl.K_UP: // Up
-        fmt.Println("Up")
 		c.ButtonState[4] = v
 	case sdl.K_DOWN: // Down
-        fmt.Println("Down")
 		c.ButtonState[5] = v
 	case sdl.K_LEFT: // Left
-        fmt.Println("Left")
 		c.ButtonState[6] = v
 	case sdl.K_RIGHT: // Right
-        fmt.Println("Right")
 		c.ButtonState[7] = v
 	}
 }
@@ -59,11 +50,6 @@ func (c *Controller) Write(v Word) {
 func (c *Controller) Read() (r Word) {
 	if c.StrobeState < 8 {
 		r = c.ButtonState[c.StrobeState]
-
-        if r != 0x40 {
-            fmt.Printf("Button: %d\n", c.StrobeState)
-            fmt.Printf("State: 0x%X\n", c.ButtonState[c.StrobeState])
-        }
     } else if c.StrobeState == 19 {
         r = 0x1
 	} else {

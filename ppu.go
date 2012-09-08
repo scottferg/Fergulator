@@ -222,8 +222,8 @@ func (p *Ppu) Step() {
 		// Request NMI
 		cpu.RequestInterrupt(InterruptNmi)
 
-		p.RenderNametable(0)
-		p.RenderSprites()
+		p.renderNametable(p.BaseNametableAddress)
+		p.renderSprites()
 
 		p.Output <- p.Framebuffer
 		p.Cycle = 0
@@ -445,18 +445,31 @@ func (p *Ppu) ReadData() (Word, error) {
 	return Ram[0x2007], nil
 }
 
-func (p *Ppu) SprPatternTableAddress(i Word) int {
-	var a int
-	if p.SpritePatternAddress == 0x01 {
-		a = 0x1000
-	} else {
-		a = 0x0
-	}
+func (p *Ppu) sprPatternTableAddress(i int) int {
+    if p.SpriteSize & 0x01 != 0x0 {
+        // 8x16 Sprites
+        var bank int
+        if i & 0x01 != 0 {
+            bank = 0x1000
+        } else {
+            bank = 0x0000
+        }
 
-	return int(i)*0x10 + a
+        return bank + ((int(i) >> 1) * 0x20)
+    }
+
+    // 8x8 Sprites
+    var a int
+    if p.SpritePatternAddress == 0x01 {
+        a = 0x1000
+    } else {
+        a = 0x0
+    }
+
+    return int(i)*0x10 + a
 }
 
-func (p *Ppu) BgPatternTableAddress(i Word) int {
+func (p *Ppu) bgPatternTableAddress(i Word) int {
 	var a int
 	if p.BackgroundPatternAddress == 0x01 {
 		a = 0x1000
@@ -467,7 +480,7 @@ func (p *Ppu) BgPatternTableAddress(i Word) int {
 	return int(i)*0x10 + a
 }
 
-func (p *Ppu) RenderNametable(table Word) {
+func (p *Ppu) renderNametable(table Word) {
 	var a int
 
 	if p.Mirroring == MirroringVertical {
@@ -520,8 +533,8 @@ func (p *Ppu) RenderNametable(table Word) {
 			attrValue = (attr >> 6) & 0x03
 		}
 
-		t := p.BgPatternTableAddress(p.Vram[i])
-		p.DecodePatternTile(t, x, y, p.BgPaletteEntry(attrValue), false, false)
+		t := p.bgPatternTableAddress(p.Vram[i])
+		p.decodePatternTile(t, x, y, p.bgPaletteEntry(attrValue), nil)
 
 		leftTile = !leftTile
 
@@ -537,21 +550,25 @@ func (p *Ppu) RenderNametable(table Word) {
 	}
 }
 
-func (p *Ppu) DecodePatternTile(t, x, y int, pal []Word, hrev, yrev bool) {
+func (p *Ppu) decodePatternTile(t, x, y int, pal []Word, attr *Word) {
 	tile := p.Vram[t : t+16]
 
 	l := len(tile)
 	for i := 0; i < l/2; i++ {
 		var b uint
 		for b = 0; b < 8; b++ {
-			ycoord := y + i
-
             var xcoord int
-
-            if hrev {
+            if attr != nil && (*attr >> 6) & 0x1 != 0 {
                 xcoord = x + int(b)
             } else {
                 xcoord = x + int(7-b)
+            }
+
+            var ycoord int
+            if attr != nil && (*attr >> 7) & 0x1 != 0 {
+                ycoord = y + int(7-b)
+            } else {
+                ycoord = y + i
             }
 
 			fbRow := ycoord*256 + xcoord
@@ -560,40 +577,41 @@ func (p *Ppu) DecodePatternTile(t, x, y int, pal []Word, hrev, yrev bool) {
 			pixel := (tile[i] >> b) & 0x01
 			pixel += ((tile[i+8] >> b & 0x01) << 1)
 
+            trans := false
+            if attr != nil && pixel == 0 {
+                trans = true
+            }
+
 			// Set the color of the pixel in the buffer
-            p.Framebuffer[fbRow] = PaletteRgb[int(pal[pixel])]
+            if fbRow < 0xF000 && !trans {
+                p.Framebuffer[fbRow] = PaletteRgb[int(pal[pixel])]
+            }
 		}
 	}
 }
 
-func (p *Ppu) RenderSprites() {
+func (p *Ppu) renderSprites() {
 	for i, t := range p.SpriteData.Tiles {
-		if t == 0x0 {
-			break
-		}
-
-		priority := (p.Attributes[i] >> 5) & 0x1
-
-		if priority != 0x0 {
-			continue
-		}
-
-        if p.XCoordinates[i] >= 0xF0 || p.YCoordinates[i] >= 0xF0 {
-            continue
-        }
-
 		attrValue := p.Attributes[i] & 0x3
 
-		p.DecodePatternTile(p.SprPatternTableAddress(t),
-			int(p.XCoordinates[i]),
-			int(p.YCoordinates[i]) + 1,
-			p.SprPaletteEntry(uint(attrValue)),
-            (p.Attributes[i] >> 6) & 0x1 != 0,
-            (p.Attributes[i] >> 7) & 0x1 != 0)
+        if p.SpriteSize & 0x01 != 0x0 {
+            // 8x16 Sprite
+            p.decodePatternTile(p.sprPatternTableAddress(int(t)),
+                int(p.XCoordinates[i]),
+                int(p.YCoordinates[i]) + 1,
+                p.sprPaletteEntry(uint(attrValue)),
+                &p.Attributes[i])
+        } else {
+            p.decodePatternTile(p.sprPatternTableAddress(int(t)),
+                int(p.XCoordinates[i]),
+                int(p.YCoordinates[i]) + 1,
+                p.sprPaletteEntry(uint(attrValue)),
+                &p.Attributes[i])
+        }
 	}
 }
 
-func (p *Ppu) BgPaletteEntry(a uint) (pal []Word) {
+func (p *Ppu) bgPaletteEntry(a uint) (pal []Word) {
 	switch a {
 	case 0x0:
 		pal = []Word{
@@ -628,7 +646,7 @@ func (p *Ppu) BgPaletteEntry(a uint) (pal []Word) {
 	return
 }
 
-func (p *Ppu) SprPaletteEntry(a uint) (pal []Word) {
+func (p *Ppu) sprPaletteEntry(a uint) (pal []Word) {
 	switch a {
 	case 0x0:
 		pal = []Word{

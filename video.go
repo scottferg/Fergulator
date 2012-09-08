@@ -22,7 +22,7 @@ func (v *Video) Init(t <-chan []int) {
 		log.Fatal(sdl.GetError())
 	}
 
-	sdl.WM_SetCaption("GoNES Emulator", "")
+	sdl.WM_SetCaption("Fergulator", "")
 
 	v.tick = t
 }
