@@ -43,36 +43,17 @@ type Masks struct {
 	IntensifyBlues       bool
 }
 
-type AddressRegisters struct {
-	FV  Word
-	V   Word
-	H   Word
-	VT  Word
-	HT  Word
-	FH  Word
-	S   Word
-	PAR Word
-	AR  Word
-}
-
-type AddressCounters struct {
-	FV Word
-	V  Word
-	H  Word
-	VT Word
-	HT Word
-}
-
 type Registers struct {
-	Control    Word
-	Mask       Word
-	Status     Word
-	OamAddress int
-	OamData    Word
-	Scroll     Word
-	Address    int
-	Data       Word
-	FirstWrite bool
+	Control        Word
+	Mask           Word
+	Status         Word
+	OamAddress     int
+	OamData        Word
+	VramAddress    int
+	VramTmpAddress int
+	FineX          int
+	Data           Word
+	FirstWrite     bool
 }
 
 type Ppu struct {
@@ -80,8 +61,6 @@ type Ppu struct {
 	Flags
 	Masks
 	SpriteData
-	AddressRegister AddressRegisters
-	AddressCounter  AddressCounters
 	Vram            [0xFFFF]Word
 	SpriteRam       [0x100]Word
 	PaletteRam      [0x20]Word
@@ -91,56 +70,6 @@ type Ppu struct {
 
 	Output chan []int
 	Cycle  int
-}
-
-func (r *AddressRegisters) Address() int {
-	high := (r.FV & 0x07) << 4
-	high = high | ((r.V & 0x01) << 3)
-	high = high | ((r.H & 0x01) << 2)
-	high = high | ((r.VT >> 3) & 0x03)
-
-	low := (r.VT & 0x07) << 5
-	low = low | (r.HT & 0x1F)
-
-	return ((int(high) << 8) | int(low)) & 0x7FFF
-}
-
-func (r *AddressRegisters) InitFromAddress(a int) {
-	high := Word((a >> 8) & 0xFF)
-	low := Word(a & 0xFF)
-
-	r.FV = (high >> 4) & 0x07
-	r.V = (high >> 3) & 0x01
-	r.H = (high >> 2) & 0x01
-	r.VT = (r.VT & 7) | ((high & 0x03) << 3)
-
-	r.VT = (r.VT & 24) | ((low >> 0x05) & 7)
-	r.HT = low & 0x1F
-}
-
-func (c *AddressCounters) Address() int {
-	high := (c.FV & 0x07) << 4
-	high = high | ((c.V & 0x01) << 3)
-	high = high | ((c.H & 0x01) << 2)
-	high = high | ((c.VT >> 3) & 0x03)
-
-	low := (c.VT & 0x07) << 5
-	low = low | (c.HT & 0x1F)
-
-	return ((int(high) << 8) | int(low)) & 0x7FFF
-}
-
-func (c *AddressCounters) InitFromAddress(a int) {
-	high := Word((a >> 8) & 0xFF)
-	low := Word(a & 0xFF)
-
-	c.FV = (high >> 4) & 0x03
-	c.V = (high >> 3) & 0x01
-	c.H = (high >> 2) & 0x01
-	c.VT = (c.VT & 0x07) | ((high & 0x03) << 3)
-
-	c.VT = (c.VT & 0x18) | ((low >> 5) & 0x07)
-	c.HT = low & 0x1F
 }
 
 func (p *Ppu) Init() chan []int {
@@ -256,6 +185,9 @@ func (p *Ppu) WriteControl(v Word) {
 	p.BackgroundPatternAddress = (v >> 4) & 0x01
 	p.SpriteSize = (v >> 5) & 0x01
 	p.NmiOnVblank = (v >> 7) & 0x01
+
+	p.VramTmpAddress = p.VramTmpAddress & 0x73FF
+	p.VramTmpAddress = p.VramTmpAddress | ((int(v) & 0x03) << 10)
 }
 
 // $2001
@@ -369,7 +301,16 @@ func (p *Ppu) ReadOamData() (Word, error) {
 
 // $2005
 func (p *Ppu) WriteScroll(v Word) {
-	p.Scroll = v
+	if p.FirstWrite {
+		p.VramTmpAddress = p.VramTmpAddress & 0x7FE0
+		p.VramTmpAddress = p.VramTmpAddress | ((int(v) & 0xF8) >> 3)
+        p.FineX = int(v) & 0x07
+	} else {
+		p.VramTmpAddress = p.VramTmpAddress & 0xC1F
+		p.VramTmpAddress = p.VramTmpAddress | (((int(v) & 0xF8) << 2) | ((int(v) & 0x07) << 12))
+	}
+
+	p.FirstWrite = !p.FirstWrite
 }
 
 // $2006
@@ -396,22 +337,12 @@ func (p *Ppu) WriteAddress(v Word) {
 	// ∫PT read (3)    ≥ 210                           C  BA987654     ∫
 	// »ÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕœÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕº
 	if p.FirstWrite {
-		p.AddressRegister.FV = (v >> 4) & 0x03
-		p.AddressRegister.V = (v >> 3) & 0x01
-		p.AddressRegister.H = (v >> 2) & 0x01
-
-		p.AddressRegister.VT = (p.AddressRegister.VT & 7) | ((v & 0x03) << 3)
+		p.VramTmpAddress = p.VramTmpAddress & 0xFF
+		p.VramTmpAddress = p.VramTmpAddress | ((int(v) & 0x3F) << 8)
 	} else {
-		p.AddressRegister.VT = (p.AddressRegister.VT & 0x18) | ((v >> 5) & 0x07)
-		p.AddressRegister.HT = v & 0x1F
-
-		p.AddressCounter.FV = p.AddressRegister.FV
-		p.AddressCounter.V = p.AddressRegister.V
-		p.AddressCounter.H = p.AddressRegister.H
-		p.AddressCounter.VT = p.AddressRegister.VT
-		p.AddressCounter.HT = p.AddressRegister.HT
-
-		p.Address = p.AddressCounter.Address()
+		p.VramTmpAddress = p.VramTmpAddress & 0x7F00
+		p.VramTmpAddress = p.VramTmpAddress | int(v)
+		p.VramAddress = p.VramTmpAddress
 	}
 
 	p.FirstWrite = !p.FirstWrite
@@ -419,25 +350,21 @@ func (p *Ppu) WriteAddress(v Word) {
 
 // $2007
 func (p *Ppu) WriteData(v Word) {
-	p.Address = p.AddressCounter.Address()
-
-	if p.Address > 0x3000 {
-		p.writeMirroredVram(p.Address, v)
-	} else if p.Address >= 0x2000 && p.Address < 0x3000 {
+	if p.VramAddress > 0x3000 {
+		p.writeMirroredVram(p.VramAddress, v)
+	} else if p.VramAddress >= 0x2000 && p.VramAddress < 0x3000 {
 		// Nametable mirroring
-		p.writeNametableData(p.Address, v)
+		p.writeNametableData(p.VramAddress, v)
 	} else {
-		p.Vram[p.Address] = v
+		p.Vram[p.VramAddress] = v
 	}
 
 	switch p.VramAddressInc {
 	case 0x01:
-		p.Address = p.Address + 0x20
+		p.VramAddress = p.VramAddress + 0x20
 	default:
-		p.Address = p.Address + 0x01
+		p.VramAddress = p.VramAddress + 0x01
 	}
-
-	p.AddressCounter.InitFromAddress(p.Address)
 }
 
 // $2007
@@ -446,27 +373,27 @@ func (p *Ppu) ReadData() (Word, error) {
 }
 
 func (p *Ppu) sprPatternTableAddress(i int) int {
-    if p.SpriteSize & 0x01 != 0x0 {
-        // 8x16 Sprites
-        var bank int
-        if i & 0x01 != 0 {
-            bank = 0x1000
-        } else {
-            bank = 0x0000
-        }
+	if p.SpriteSize&0x01 != 0x0 {
+		// 8x16 Sprites
+		var bank int
+		if i&0x01 != 0 {
+			bank = 0x1000
+		} else {
+			bank = 0x0000
+		}
 
-        return bank + ((int(i) >> 1) * 0x20)
-    }
+		return bank + ((int(i) >> 1) * 0x20)
+	}
 
-    // 8x8 Sprites
-    var a int
-    if p.SpritePatternAddress == 0x01 {
-        a = 0x1000
-    } else {
-        a = 0x0
-    }
+	// 8x8 Sprites
+	var a int
+	if p.SpritePatternAddress == 0x01 {
+		a = 0x1000
+	} else {
+		a = 0x0
+	}
 
-    return int(i)*0x10 + a
+	return int(i)*0x10 + a
 }
 
 func (p *Ppu) bgPatternTableAddress(i Word) int {
@@ -557,19 +484,19 @@ func (p *Ppu) decodePatternTile(t, x, y int, pal []Word, attr *Word) {
 	for i := 0; i < l/2; i++ {
 		var b uint
 		for b = 0; b < 8; b++ {
-            var xcoord int
-            if attr != nil && (*attr >> 6) & 0x1 != 0 {
-                xcoord = x + int(b)
-            } else {
-                xcoord = x + int(7-b)
-            }
+			var xcoord int
+			if attr != nil && (*attr>>6)&0x1 != 0 {
+				xcoord = x + int(b)
+			} else {
+				xcoord = x + int(7-b)
+			}
 
-            var ycoord int
-            if attr != nil && (*attr >> 7) & 0x1 != 0 {
-                ycoord = y + int(7-b)
-            } else {
-                ycoord = y + i
-            }
+			var ycoord int
+			if attr != nil && (*attr>>7)&0x1 != 0 {
+				ycoord = y + int(7-b)
+			} else {
+				ycoord = y + i
+			}
 
 			fbRow := ycoord*256 + xcoord
 
@@ -577,15 +504,15 @@ func (p *Ppu) decodePatternTile(t, x, y int, pal []Word, attr *Word) {
 			pixel := (tile[i] >> b) & 0x01
 			pixel += ((tile[i+8] >> b & 0x01) << 1)
 
-            trans := false
-            if attr != nil && pixel == 0 {
-                trans = true
-            }
+			trans := false
+			if attr != nil && pixel == 0 {
+				trans = true
+			}
 
 			// Set the color of the pixel in the buffer
-            if fbRow < 0xF000 && !trans {
-                p.Framebuffer[fbRow] = PaletteRgb[int(pal[pixel])]
-            }
+			if fbRow < 0xF000 && !trans {
+				p.Framebuffer[fbRow] = PaletteRgb[int(pal[pixel])]
+			}
 		}
 	}
 }
@@ -594,20 +521,20 @@ func (p *Ppu) renderSprites() {
 	for i, t := range p.SpriteData.Tiles {
 		attrValue := p.Attributes[i] & 0x3
 
-        if p.SpriteSize & 0x01 != 0x0 {
-            // 8x16 Sprite
-            p.decodePatternTile(p.sprPatternTableAddress(int(t)),
-                int(p.XCoordinates[i]),
-                int(p.YCoordinates[i]) + 1,
-                p.sprPaletteEntry(uint(attrValue)),
-                &p.Attributes[i])
-        } else {
-            p.decodePatternTile(p.sprPatternTableAddress(int(t)),
-                int(p.XCoordinates[i]),
-                int(p.YCoordinates[i]) + 1,
-                p.sprPaletteEntry(uint(attrValue)),
-                &p.Attributes[i])
-        }
+		if p.SpriteSize&0x01 != 0x0 {
+			// 8x16 Sprite
+			p.decodePatternTile(p.sprPatternTableAddress(int(t)),
+				int(p.XCoordinates[i]),
+				int(p.YCoordinates[i])+1,
+				p.sprPaletteEntry(uint(attrValue)),
+				&p.Attributes[i])
+		} else {
+			p.decodePatternTile(p.sprPatternTableAddress(int(t)),
+				int(p.XCoordinates[i]),
+				int(p.YCoordinates[i])+1,
+				p.sprPaletteEntry(uint(attrValue)),
+				&p.Attributes[i])
+		}
 	}
 }
 
