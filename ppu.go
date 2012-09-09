@@ -88,11 +88,11 @@ func (p *Ppu) Init() chan []int {
 		p.SpriteRam[i] = 0x00
 	}
 
-    for i, _ := range p.AttributeShift {
-        x := uint(i)
-        p.AttributeShift[i] = ((x >> 4) & 0x04) | (x & 0x02)
-        p.AttributeLocation[i] = ((x >> 2) & 0x07) | (((x >> 4) & 0x38) | 0x3C0) 
-    }
+	for i, _ := range p.AttributeShift {
+		x := uint(i)
+		p.AttributeShift[i] = ((x >> 4) & 0x04) | (x & 0x02)
+		p.AttributeLocation[i] = ((x >> 2) & 0x07) | (((x >> 4) & 0x38) | 0x3C0)
+	}
 
 	p.Framebuffer = make([]int, 0xF000)
 
@@ -447,11 +447,11 @@ func (p *Ppu) renderNametable(table Word) {
 	y := 0
 
 	// Generates each tile and applies the palette
-	for i := a; i < a+0x3C0; i++ {
+	for i := p.VramAddress; i < a+0x3C0; i++ {
 		attrAddr := 0x23C0 | (p.VramAddress & 0xC00)
-        shift := p.AttributeShift[p.VramAddress & 0x3FF]
+		shift := p.AttributeShift[p.VramAddress&0x3FF]
 		attr := p.Vram[attrAddr+((i&0x1F)>>2)+((i&0x3E0)>>7)*8]
-        attr = (attr >> shift) & 0x03
+		attr = (attr >> shift) & 0x03
 
 		t := p.bgPatternTableAddress(p.Vram[i])
 		p.decodePatternTile(t, x, y, p.bgPaletteEntry(attr), nil)
