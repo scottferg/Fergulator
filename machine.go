@@ -10,8 +10,8 @@ import (
 var (
 	cycle         = "559ns"
 	clockspeed, _ = time.ParseDuration(cycle)
+
 	running       = true
-	breakpoint    = false
 
 	cpu        Cpu
 	ppu        Ppu

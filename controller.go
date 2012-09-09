@@ -79,7 +79,8 @@ func JoypadListen() {
             case sdl.QuitEvent:
 				running = false
 			case sdl.KeyboardEvent:
-                if e.Keysym.Sym == sdl.K_ESCAPE {
+                switch e.Keysym.Sym {
+                case sdl.K_ESCAPE: 
                     running = false
                 }
 

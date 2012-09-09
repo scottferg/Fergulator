@@ -44,16 +44,16 @@ type Masks struct {
 }
 
 type Registers struct {
-	Control        Word
-	Mask           Word
-	Status         Word
-	OamAddress     int
-	OamData        Word
-	VramAddress    int
-	VramTmpAddress int
-	FineX          int
-	Data           Word
-	FirstWrite     bool
+	Control     Word
+	Mask        Word
+	Status      Word
+	OamAddress  int
+	OamData     Word
+	VramAddress int
+	VramLatch   int
+	FineX       int
+	Data        Word
+	FirstWrite  bool
 }
 
 type Ppu struct {
@@ -61,10 +61,12 @@ type Ppu struct {
 	Flags
 	Masks
 	SpriteData
-	Vram            [0xFFFF]Word
-	SpriteRam       [0x100]Word
-	PaletteRam      [0x20]Word
-	Mirroring       int
+	Vram              [0xFFFF]Word
+	SpriteRam         [0x100]Word
+	PaletteRam        [0x20]Word
+	AttributeLocation [0x400]uint
+	AttributeShift    [0x400]uint
+	Mirroring         int
 
 	Framebuffer []int
 
@@ -85,6 +87,12 @@ func (p *Ppu) Init() chan []int {
 	for i, _ := range p.SpriteRam {
 		p.SpriteRam[i] = 0x00
 	}
+
+    for i, _ := range p.AttributeShift {
+        x := uint(i)
+        p.AttributeShift[i] = ((x >> 4) & 0x04) | (x & 0x02)
+        p.AttributeLocation[i] = ((x >> 2) & 0x07) | (((x >> 4) & 0x38) | 0x3C0) 
+    }
 
 	p.Framebuffer = make([]int, 0xF000)
 
@@ -186,8 +194,8 @@ func (p *Ppu) WriteControl(v Word) {
 	p.SpriteSize = (v >> 5) & 0x01
 	p.NmiOnVblank = (v >> 7) & 0x01
 
-	p.VramTmpAddress = p.VramTmpAddress & 0x73FF
-	p.VramTmpAddress = p.VramTmpAddress | ((int(v) & 0x03) << 10)
+	p.VramLatch = p.VramLatch & 0x73FF
+	p.VramLatch = p.VramLatch | ((int(v) & 0x03) << 10)
 }
 
 // $2001
@@ -270,6 +278,7 @@ func (p *Ppu) WriteDma(v Word) {
 	// Halt the CPU for 512 cycles
 	cpu.CyclesToWait = 512
 
+	// Fill sprite RAM
 	addr := int(v) * 0x100
 	for i := 0; i < 256; i++ {
 		d, _ := Ram.Read(addr + i)
@@ -302,12 +311,12 @@ func (p *Ppu) ReadOamData() (Word, error) {
 // $2005
 func (p *Ppu) WriteScroll(v Word) {
 	if p.FirstWrite {
-		p.VramTmpAddress = p.VramTmpAddress & 0x7FE0
-		p.VramTmpAddress = p.VramTmpAddress | ((int(v) & 0xF8) >> 3)
-        p.FineX = int(v) & 0x07
+		p.VramLatch = p.VramLatch & 0x7FE0
+		p.VramLatch = p.VramLatch | ((int(v) & 0xF8) >> 3)
+		p.FineX = int(v) & 0x07
 	} else {
-		p.VramTmpAddress = p.VramTmpAddress & 0xC1F
-		p.VramTmpAddress = p.VramTmpAddress | (((int(v) & 0xF8) << 2) | ((int(v) & 0x07) << 12))
+		p.VramLatch = p.VramLatch & 0xC1F
+		p.VramLatch = p.VramLatch | (((int(v) & 0xF8) << 2) | ((int(v) & 0x07) << 12))
 	}
 
 	p.FirstWrite = !p.FirstWrite
@@ -337,12 +346,12 @@ func (p *Ppu) WriteAddress(v Word) {
 	// ∫PT read (3)    ≥ 210                           C  BA987654     ∫
 	// »ÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕœÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕÕº
 	if p.FirstWrite {
-		p.VramTmpAddress = p.VramTmpAddress & 0xFF
-		p.VramTmpAddress = p.VramTmpAddress | ((int(v) & 0x3F) << 8)
+		p.VramLatch = p.VramLatch & 0xFF
+		p.VramLatch = p.VramLatch | ((int(v) & 0x3F) << 8)
 	} else {
-		p.VramTmpAddress = p.VramTmpAddress & 0x7F00
-		p.VramTmpAddress = p.VramTmpAddress | int(v)
-		p.VramAddress = p.VramTmpAddress
+		p.VramLatch = p.VramLatch & 0x7F00
+		p.VramLatch = p.VramLatch | int(v)
+		p.VramAddress = p.VramLatch
 	}
 
 	p.FirstWrite = !p.FirstWrite
@@ -437,42 +446,21 @@ func (p *Ppu) renderNametable(table Word) {
 	x := 0
 	y := 0
 
-	leftTile := true
-	topTile := true
 	// Generates each tile and applies the palette
 	for i := a; i < a+0x3C0; i++ {
-		attrBase := (i & ^0x3FF) + 0x3C0
-		attr := uint(p.Vram[attrBase+((i&0x1F)>>2)+((i&0x3E0)>>7)*8])
-
-		var attrValue uint
-		switch {
-		case leftTile && topTile:
-			// Top left
-			attrValue = attr & 0x03
-		case !leftTile && topTile:
-			// Top right
-			attrValue = (attr >> 2) & 0x03
-		case leftTile && !topTile:
-			// Bottom left
-			attrValue = (attr >> 4) & 0x03
-		case !leftTile && !topTile:
-			// Bottom right
-			attrValue = (attr >> 6) & 0x03
-		}
+		attrAddr := 0x23C0 | (p.VramAddress & 0xC00)
+        shift := p.AttributeShift[p.VramAddress & 0x3FF]
+		attr := p.Vram[attrAddr+((i&0x1F)>>2)+((i&0x3E0)>>7)*8]
+        attr = (attr >> shift) & 0x03
 
 		t := p.bgPatternTableAddress(p.Vram[i])
-		p.decodePatternTile(t, x, y, p.bgPaletteEntry(attrValue), nil)
-
-		leftTile = !leftTile
+		p.decodePatternTile(t, x, y, p.bgPaletteEntry(attr), nil)
 
 		x += 8
 
 		if x > 255 {
 			x = 0
 			y += 8
-
-			topTile = !topTile
-			leftTile = true
 		}
 	}
 }
@@ -538,7 +526,7 @@ func (p *Ppu) renderSprites() {
 	}
 }
 
-func (p *Ppu) bgPaletteEntry(a uint) (pal []Word) {
+func (p *Ppu) bgPaletteEntry(a Word) (pal []Word) {
 	switch a {
 	case 0x0:
 		pal = []Word{
