@@ -11,7 +11,7 @@ var (
 	cycle         = "559ns"
 	clockspeed, _ = time.ParseDuration(cycle)
 
-	running       = true
+	running = true
 
 	cpu        Cpu
 	ppu        Ppu
@@ -58,10 +58,10 @@ func main() {
 	go video.Render()
 
 	for running {
-		cpu.Step()
+		cycles := cpu.Step()
 
 		// 3 PPU cycles for each CPU cycle
-		for i := 0; i < 3; i++ {
+		for i := 0; i < 3*cycles; i++ {
 			ppu.Step()
 		}
 	}

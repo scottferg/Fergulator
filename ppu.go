@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 )
 
@@ -70,15 +71,20 @@ type Ppu struct {
 
 	Framebuffer []int
 
-	Output chan []int
-	Cycle  int
+	Output   chan []int
+	Cycle    int
+	Scanline int
+
+    FirstLine int
 }
 
 func (p *Ppu) Init() chan []int {
+    p.FirstLine = 0
 	p.FirstWrite = true
 	p.Output = make(chan []int)
 
 	p.Cycle = 0
+	p.Scanline = -1
 
 	for i, _ := range p.Vram {
 		p.Vram[i] = 0x00
@@ -152,18 +158,49 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 }
 
 func (p *Ppu) Step() {
-	switch p.Cycle {
-	case 89001:
+	switch {
+	case p.Scanline == 240:
+		// fmt.Println("Scanline 240")
 		// We're in VBlank
 		p.setStatus(StatusVblankStarted)
 		// Request NMI
 		cpu.RequestInterrupt(InterruptNmi)
 
-		p.renderNametable(p.BaseNametableAddress)
+		// p.renderNametable(p.BaseNametableAddress)
 		p.renderSprites()
 
 		p.Output <- p.Framebuffer
 		p.Cycle = 0
+		p.Scanline++
+	case p.Scanline == 261:
+		// End of vblank
+		// fmt.Println("Scanline 261")
+		p.Scanline = -1
+		p.Cycle = 0
+	case p.Scanline < 240 && p.Scanline > 0:
+		// Render 1 row of 8x8 tiles
+		if p.Cycle == 341 {
+			// fmt.Println("End scanline")
+			p.Cycle = 0
+            if p.Scanline % 8 == 0 {
+                if p.ShowBackground && p.ShowSprites {
+                    p.renderTileRow()
+                }
+            }
+			p.Scanline++
+        }
+		// fmt.Println("Scanline 240")
+	case p.Scanline == -1:
+		// fmt.Println("Scanline -1")
+		if p.Cycle == 304 {
+			// Copy scroll latch into VRAMADDR register
+			p.VramAddress = p.VramLatch
+		}
+	}
+
+	if p.Cycle == 341 {
+		p.Cycle = 0
+		p.Scanline++
 	}
 
 	p.Cycle++
@@ -419,39 +456,32 @@ func (p *Ppu) bgPatternTableAddress(i Word) int {
 func (p *Ppu) renderNametable(table Word) {
 	var a int
 
-	if p.Mirroring == MirroringVertical {
-		switch table {
-		case 0:
-			a = 0x2000
-		case 1:
-			a = 0x2800
-		case 2:
-			a = 0x2400
-		case 3:
-			a = 0x2C00
-		}
-	} else if p.Mirroring == MirroringHorizontal {
-		switch table {
-		case 0:
-			a = 0x2000
-		case 1:
-			a = 0x2400
-		case 2:
-			a = 0x2800
-		case 3:
-			a = 0x2C00
-		}
+	switch table {
+	case 0:
+		a = 0x2000
+	case 1:
+		a = 0x2800
+	case 2:
+		a = 0x2400
+	case 3:
+		a = 0x2C00
 	}
 
 	x := 0
 	y := 0
 
 	// Generates each tile and applies the palette
-	for i := p.VramAddress; i < a+0x3C0; i++ {
+	for i := a; i < a+0x3C0; i++ {
 		attrAddr := 0x23C0 | (p.VramAddress & 0xC00)
 		shift := p.AttributeShift[p.VramAddress&0x3FF]
 		attr := p.Vram[attrAddr+((i&0x1F)>>2)+((i&0x3E0)>>7)*8]
 		attr = (attr >> shift) & 0x03
+
+		// fmt.Printf("X-scroll: 0x%X\n", p.VramAddress & 0x1F)
+
+        if p.FirstLine == 3 {
+            fmt.Printf("0x%X ", i)
+        }
 
 		t := p.bgPatternTableAddress(p.Vram[i])
 		p.decodePatternTile(t, x, y, p.bgPaletteEntry(attr), nil)
@@ -461,7 +491,32 @@ func (p *Ppu) renderNametable(table Word) {
 		if x > 255 {
 			x = 0
 			y += 8
+
+            if p.FirstLine == 3 {
+                fmt.Printf("\n")
+            }
+
+            p.FirstLine++
 		}
+	}
+}
+
+func (p *Ppu) renderTileRow() {
+	// Generates each tile and applies the palette
+	for x := 0; x < 32; x++ {
+		// for i := a; i < a+0x20; i++ {
+		attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress & 0x3FF])
+		shift := p.AttributeShift[p.VramAddress&0x3FF]
+        attr := ((p.Vram[attrAddr] >> shift) & 0x03) << 2
+
+		t := p.bgPatternTableAddress(p.Vram[p.VramAddress + 0x2000])
+		p.decodePatternTile(t, x*8, p.Scanline - 8, p.bgPaletteEntry(attr), nil)
+
+        // Flip bit 10 on wraparound
+        p.VramAddress++
+
+        // If rendering is enabled, at the end of 
+        p.VramAddress = p.VramAddress ^ (p.VramLatch & 0x41F)
 	}
 }
 
@@ -535,21 +590,21 @@ func (p *Ppu) bgPaletteEntry(a Word) (pal []Word) {
 			p.PaletteRam[0x02],
 			p.PaletteRam[0x03],
 		}
-	case 0x1:
+	case 0x4:
 		pal = []Word{
 			p.PaletteRam[0x00],
 			p.PaletteRam[0x05],
 			p.PaletteRam[0x06],
 			p.PaletteRam[0x07],
 		}
-	case 0x2:
+	case 0x8:
 		pal = []Word{
 			p.PaletteRam[0x00],
 			p.PaletteRam[0x09],
 			p.PaletteRam[0x0A],
 			p.PaletteRam[0x0B],
 		}
-	case 0x3:
+	case 0xC:
 		pal = []Word{
 			p.PaletteRam[0x00],
 			p.PaletteRam[0x0D],

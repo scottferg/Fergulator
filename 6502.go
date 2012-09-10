@@ -882,16 +882,11 @@ func (cpu *Cpu) Reset() {
 	cpu.InterruptRequested = false
 }
 
-func (cpu *Cpu) Step() {
-	if cpu.CycleCount > 1 && cpu.Accurate {
-		cpu.CycleCount--
-		return
-	}
-
+func (cpu *Cpu) Step() int {
     // Used during a DMA
 	if cpu.CyclesToWait > 0 {
 		cpu.CyclesToWait--
-		return
+		return 0
 	}
 
 	// Check if an interrupt was requested
@@ -1398,5 +1393,5 @@ func (cpu *Cpu) Step() {
 		panic("Invalid opcode")
 	}
 
-	return
+	return cpu.CycleCount
 }
