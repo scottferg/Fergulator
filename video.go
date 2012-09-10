@@ -16,7 +16,7 @@ func (v *Video) Init(t <-chan []int) {
 		log.Fatal(sdl.GetError())
 	}
 
-	v.screen = sdl.SetVideoMode(256, 240, 32, sdl.RESIZABLE)
+	v.screen = sdl.SetVideoMode(256, 240, 32, 0)
 
 	if v.screen == nil {
 		log.Fatal(sdl.GetError())
