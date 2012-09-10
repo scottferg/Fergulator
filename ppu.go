@@ -107,20 +107,6 @@ func (p *Ppu) writeNametableData(a int, v Word) {
 	case MirroringVertical:
 		if a >= 0x2000 && a < 0x2400 {
 			p.Vram[a] = v
-			p.Vram[0x2400+(a-0x2000)] = v
-		} else if a >= 0x2400 && a < 0x2800 {
-			p.Vram[a] = v
-			p.Vram[0x2000+(a-0x2400)] = v
-		} else if a >= 0x2800 && a < 0x2C00 {
-			p.Vram[a] = v
-			p.Vram[0x2C00+(a-0x2800)] = v
-		} else if a >= 0x2C00 && a < 0x3000 {
-			p.Vram[a] = v
-			p.Vram[0x2800+(a-0x2C00)] = v
-		}
-	case MirroringHorizontal:
-		if a >= 0x2000 && a < 0x2400 {
-			p.Vram[a] = v
 			p.Vram[0x2800+(a-0x2000)] = v
 		} else if a >= 0x2800 && a < 0x2C00 {
 			p.Vram[a] = v
@@ -131,6 +117,20 @@ func (p *Ppu) writeNametableData(a int, v Word) {
 		} else if a >= 0x2C00 && a < 0x3000 {
 			p.Vram[a] = v
 			p.Vram[0x2400+(a-0x2C00)] = v
+		}
+	case MirroringHorizontal:
+		if a >= 0x2000 && a < 0x2400 {
+			p.Vram[a] = v
+			p.Vram[0x2400+(a-0x2000)] = v
+		} else if a >= 0x2400 && a < 0x2800 {
+			p.Vram[a] = v
+			p.Vram[0x2000+(a-0x2400)] = v
+		} else if a >= 0x2800 && a < 0x2C00 {
+			p.Vram[a] = v
+			p.Vram[0x2C00+(a-0x2800)] = v
+		} else if a >= 0x2C00 && a < 0x3000 {
+			p.Vram[a] = v
+			p.Vram[0x2800+(a-0x2C00)] = v
 		}
 	}
 }
@@ -456,12 +456,7 @@ func (p *Ppu) WriteData(v Word) {
 		p.Vram[p.VramAddress] = v
 	}
 
-	switch p.VramAddressInc {
-	case 0x01:
-		p.VramAddress = p.VramAddress + 0x20
-	default:
-		p.VramAddress = p.VramAddress + 0x01
-	}
+    p.incrementVramAddress()
 }
 
 // $2007
@@ -469,9 +464,20 @@ func (p *Ppu) ReadData() (Word, error) {
     // Reads from $2007 are buffered with a
     // 1-byte delay
     tmp := p.VramDataBuffer
-    p.VramDataBuffer = Ram[0x2007]
+    p.VramDataBuffer = p.Vram[p.VramAddress]
+
+    p.incrementVramAddress()
 
 	return tmp, nil
+}
+
+func (p *Ppu) incrementVramAddress() {
+	switch p.VramAddressInc {
+	case 0x01:
+		p.VramAddress = p.VramAddress + 0x20
+	default:
+		p.VramAddress = p.VramAddress + 0x01
+	}
 }
 
 func (p *Ppu) sprPatternTableAddress(i int) int {
@@ -562,12 +568,16 @@ func (p *Ppu) renderTileRow() {
 		p.decodePatternTile(t, x*8, p.Scanline-8, p.bgPaletteEntry(attr), nil)
 
 		// Flip bit 10 on wraparound
-		p.VramAddress++
+		p.incrementVramAddress()
 
 		// If rendering is enabled, at the end of a scanline
         // copy bits 10 and 4-0 from VRAM latch into VRAMADDR
 		p.VramAddress = p.VramAddress ^ (p.VramLatch & 0x41F)
 	}
+
+    if p.VramAddress & 0x1F == 0x1F {
+        p.VramAddress = p.VramAddress ^ 0x41F
+    }
 }
 
 func (p *Ppu) decodePatternTile(t, x, y int, pal []Word, attr *Word) {

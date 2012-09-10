@@ -1,7 +1,8 @@
 package main
 
 const (
-	InterruptIrq = iota
+    InterruptNone = iota
+	InterruptIrq
 	InterruptReset
 	InterruptNmi
 )
@@ -21,7 +22,7 @@ type Cpu struct {
 	Verbose      bool
 	Accurate     bool
 
-	InterruptRequested bool
+	InterruptRequested int
 	CyclesToWait       int
 }
 
@@ -861,13 +862,23 @@ func (cpu *Cpu) PerformNmi() {
 	}
 }
 
+func (cpu *Cpu) PerformReset() {
+	// $2000.7 enables/disables NMIs
+	if ppu.NmiOnVblank != 0x0 {
+		high, _ := Ram.Read(0xFFFD)
+		low, _ := Ram.Read(0xFFFC)
+
+		ProgramCounter = int(high)<<8 + int(low)
+	}
+}
+
 func (cpu *Cpu) RequestInterrupt(i int) {
-	cpu.InterruptRequested = true
+	cpu.InterruptRequested = i
 }
 
 func (cpu *Cpu) Init() {
 	cpu.Reset()
-	cpu.InterruptRequested = false
+	cpu.InterruptRequested = InterruptNone
 }
 
 func (cpu *Cpu) Reset() {
@@ -879,7 +890,7 @@ func (cpu *Cpu) Reset() {
 	cpu.StackPointer = 0xFD
 
 	cpu.Accurate = true
-	cpu.InterruptRequested = false
+	cpu.InterruptRequested = InterruptNone
 }
 
 func (cpu *Cpu) Step() int {
@@ -890,9 +901,13 @@ func (cpu *Cpu) Step() int {
 	}
 
 	// Check if an interrupt was requested
-	if cpu.InterruptRequested {
+    switch cpu.InterruptRequested {
+    case InterruptNmi:
 		cpu.PerformNmi()
-		cpu.InterruptRequested = false
+		cpu.InterruptRequested = InterruptNone
+    case InterruptReset:
+		cpu.PerformReset()
+		cpu.InterruptRequested = InterruptNone
 	}
 
 	opcode, _ := Ram.Read(ProgramCounter)

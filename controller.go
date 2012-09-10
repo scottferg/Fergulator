@@ -82,6 +82,9 @@ func JoypadListen() {
                 switch e.Keysym.Sym {
                 case sdl.K_ESCAPE: 
                     running = false
+                case sdl.K_r: 
+                    // Trigger reset interrupt
+                    cpu.RequestInterrupt(InterruptReset)
                 }
 
                 switch e.Type {
