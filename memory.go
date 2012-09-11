@@ -17,37 +17,37 @@ var (
 )
 
 func PpuRegWrite(v Word, a int) {
-    switch a {
-    case 0x2000:
-        ppu.WriteControl(v)
-    case 0x2001:
-        ppu.WriteMask(v)
-    case 0x2003:
-        ppu.WriteOamAddress(v)
-    case 0x2004:
-        ppu.WriteOamData(v)
-    case 0x2005:
-        ppu.WriteScroll(v)
-    case 0x2006:
-        ppu.WriteAddress(v)
-    case 0x2007:
-        ppu.WriteData(v)
-    case 0x4014:
-        ppu.WriteDma(v)
-    }
+	switch a {
+	case 0x2000:
+		ppu.WriteControl(v)
+	case 0x2001:
+		ppu.WriteMask(v)
+	case 0x2003:
+		ppu.WriteOamAddress(v)
+	case 0x2004:
+		ppu.WriteOamData(v)
+	case 0x2005:
+		ppu.WriteScroll(v)
+	case 0x2006:
+		ppu.WriteAddress(v)
+	case 0x2007:
+		ppu.WriteData(v)
+	case 0x4014:
+		ppu.WriteDma(v)
+	}
 }
 
 func PpuRegRead(a int) (Word, error) {
-    switch a {
-    case 0x2002:
-        return ppu.ReadStatus()
-    case 0x2004:
-        return ppu.ReadOamData()
-    case 0x2007:
-        return ppu.ReadData()
-    }
+	switch a {
+	case 0x2002:
+		return ppu.ReadStatus()
+	case 0x2004:
+		return ppu.ReadOamData()
+	case 0x2007:
+		return ppu.ReadData()
+	}
 
-    return 0, nil
+	return 0, nil
 }
 
 func fitAddressSize(addr interface{}) (v int, e error) {
@@ -73,13 +73,13 @@ func (m *Memory) Write(address interface{}, val Word) error {
 	if a, err := fitAddressSize(address); err == nil {
 		m[a] = val
 
-        if a <= 0x2007 && a >= 0x2000 {
-            PpuRegWrite(val, a)
-        } else if a == 0x4014 {
-            PpuRegWrite(val, a)
-        } else if a == 0x4016 {
-            controller.Write(val)
-        }
+		if a <= 0x2007 && a >= 0x2000 {
+			PpuRegWrite(val, a)
+		} else if a == 0x4014 {
+			PpuRegWrite(val, a)
+		} else if a == 0x4016 {
+			controller.Write(val)
+		}
 
 		return nil
 	}
@@ -90,11 +90,11 @@ func (m *Memory) Write(address interface{}, val Word) error {
 func (m *Memory) Read(address interface{}) (Word, error) {
 	a, _ := fitAddressSize(address)
 
-    if a <= 0x2007 && a >= 0x2000 {
-        return PpuRegRead(a)
-    } else if a == 0x4016 {
-        return controller.Read(), nil
-    }
+	if a <= 0x2007 && a >= 0x2000 {
+		return PpuRegRead(a)
+	} else if a == 0x4016 {
+		return controller.Read(), nil
+	}
 
 	return m[a], nil
 }

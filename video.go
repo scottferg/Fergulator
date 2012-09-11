@@ -31,10 +31,10 @@ func (v *Video) Render() {
 	for {
 		select {
 		case val := <-v.tick:
-            copy((*[256 * 240]int)(v.screen.Pixels)[:], val)
-            v.screen.Flip()
-            // 60hz
-            time.Sleep(16000000 * time.Nanosecond)
+			copy((*[256 * 240]int)(v.screen.Pixels)[:], val)
+			v.screen.Flip()
+			// 60hz
+			time.Sleep(16000000 * time.Nanosecond)
 		}
 	}
 }

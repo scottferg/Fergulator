@@ -12,9 +12,9 @@ type Mapper interface {
 }
 
 type Rom struct {
-	PrgFlag   Word
-	ChrFlag   Word
-	Data      []byte
+	PrgFlag Word
+	ChrFlag Word
+	Data    []byte
 }
 
 type Nrom Rom
@@ -36,14 +36,14 @@ func (r *Nrom) Init(rom []byte) error {
 	r.PrgFlag = Word(rom[4])
 	r.ChrFlag = Word(rom[5])
 
-    switch rom[6] & 0x1 {
-    case 0x0:
-        fmt.Println("Horizontal mirroring")
-        ppu.Mirroring = MirroringHorizontal
-    case 0x1:
-        ppu.Mirroring = MirroringVertical
-        fmt.Println("Vertical mirroring")
-    }
+	switch rom[6] & 0x1 {
+	case 0x0:
+		fmt.Println("Horizontal mirroring")
+		ppu.Mirroring = MirroringHorizontal
+	case 0x1:
+		ppu.Mirroring = MirroringVertical
+		fmt.Println("Vertical mirroring")
+	}
 
 	// ROM data starts at byte 16
 	r.Data = rom[16:]
@@ -102,10 +102,10 @@ func LoadRom(rom []byte) (r Mapper, e error) {
 	mapper := (Word(rom[6])>>4 | (Word(rom[7]) & 0xF0))
 	switch mapper {
 	case 0x00:
-        fallthrough
-    case 0x40:
-        fallthrough
-    case 0x41:
+		fallthrough
+	case 0x40:
+		fallthrough
+	case 0x41:
 		// NROM
 		r = new(Nrom)
 	case 0x01:
@@ -113,7 +113,7 @@ func LoadRom(rom []byte) (r Mapper, e error) {
 		r = new(Mmc1)
 	default:
 		// Unsupported
-        return r, errors.New(fmt.Sprintf("Unsupported memory mapper: 0x%X", mapper))
+		return r, errors.New(fmt.Sprintf("Unsupported memory mapper: 0x%X", mapper))
 	}
 
 	return

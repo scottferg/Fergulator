@@ -1,7 +1,7 @@
 package main
 
 const (
-    InterruptNone = iota
+	InterruptNone = iota
 	InterruptIrq
 	InterruptReset
 	InterruptNmi
@@ -894,18 +894,18 @@ func (cpu *Cpu) Reset() {
 }
 
 func (cpu *Cpu) Step() int {
-    // Used during a DMA
+	// Used during a DMA
 	if cpu.CyclesToWait > 0 {
 		cpu.CyclesToWait--
 		return 0
 	}
 
 	// Check if an interrupt was requested
-    switch cpu.InterruptRequested {
-    case InterruptNmi:
+	switch cpu.InterruptRequested {
+	case InterruptNmi:
 		cpu.PerformNmi()
 		cpu.InterruptRequested = InterruptNone
-    case InterruptReset:
+	case InterruptReset:
 		cpu.PerformReset()
 		cpu.InterruptRequested = InterruptNone
 	}

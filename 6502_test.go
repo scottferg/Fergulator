@@ -17,14 +17,14 @@ type CpuState struct {
 }
 
 func TestGoldLog(test *testing.T) {
-	programCounter = 0xC000
+	ProgramCounter = 0xC000
 
 	Ram.Init()
 	cpu.Reset()
 
 	cpu.P = 0x24
 
-    cpu.Accurate = false
+	cpu.Accurate = false
 
 	if contents, err := ioutil.ReadFile("test_roms/nestest.nes"); err == nil {
 		if rom, err = LoadRom(contents); err != nil {
@@ -32,7 +32,7 @@ func TestGoldLog(test *testing.T) {
 			return
 		}
 
-        rom.Init(contents)
+		rom.Init(contents)
 	}
 
 	logfile, err := ioutil.ReadFile("test_roms/nestest.log")
@@ -69,7 +69,7 @@ func TestGoldLog(test *testing.T) {
 			Op: (int(high) << 8) + int(low),
 		}
 
-		verifyCpuState(programCounter, &cpu, expectedState, test)
+		verifyCpuState(ProgramCounter, &cpu, expectedState, test)
 		cpu.Step()
 	}
 }

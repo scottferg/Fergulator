@@ -50,8 +50,8 @@ func (c *Controller) Write(v Word) {
 func (c *Controller) Read() (r Word) {
 	if c.StrobeState < 8 {
 		r = c.ButtonState[c.StrobeState]
-    } else if c.StrobeState == 19 {
-        r = 0x1
+	} else if c.StrobeState == 19 {
+		r = 0x1
 	} else {
 		r = 0x0
 	}
@@ -76,23 +76,23 @@ func JoypadListen() {
 		select {
 		case ev := <-sdl.Events:
 			switch e := ev.(type) {
-            case sdl.QuitEvent:
+			case sdl.QuitEvent:
 				running = false
 			case sdl.KeyboardEvent:
-                switch e.Keysym.Sym {
-                case sdl.K_ESCAPE: 
-                    running = false
-                case sdl.K_r: 
-                    // Trigger reset interrupt
-                    cpu.RequestInterrupt(InterruptReset)
-                }
+				switch e.Keysym.Sym {
+				case sdl.K_ESCAPE:
+					running = false
+				case sdl.K_r:
+					// Trigger reset interrupt
+					cpu.RequestInterrupt(InterruptReset)
+				}
 
-                switch e.Type {
-                case sdl.KEYDOWN:
-                    controller.KeyDown(e)
-                case sdl.KEYUP:
-                    controller.KeyUp(e)
-                }
+				switch e.Type {
+				case sdl.KEYDOWN:
+					controller.KeyDown(e)
+				case sdl.KEYUP:
+					controller.KeyUp(e)
+				}
 			}
 		}
 	}
