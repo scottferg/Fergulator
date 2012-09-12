@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -61,7 +60,7 @@ type Registers struct {
 	Data           Word
 	FirstWrite     bool
 
-    FirstPrint int
+	FirstPrint int
 }
 
 type Ppu struct {
@@ -76,6 +75,7 @@ type Ppu struct {
 	AttributeLocation [0x400]uint
 	AttributeShift    [0x400]uint
 	Mirroring         int
+	TilerowCounter    int
 
 	Framebuffer []int
 
@@ -145,70 +145,20 @@ func (p *Ppu) writeNametableData(a int, v Word) {
 
 // Writes to mirrored regions of VRAM
 func (p *Ppu) writeMirroredVram(a int, v Word) {
-	// Background Palettes
-	if a > 0x3F00 && a < 0x3F10 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F00] = v
-	} else if a >= 0x3F20 && a < 0x3F30 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F20] = v
-	} else if a >= 0x3F40 && a < 0x3F50 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F40] = v
-	} else if a >= 0x3F60 && a < 0x3F70 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F60] = v
-	} else if a >= 0x3F80 && a < 0x3F90 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F80] = v
-	} else if a >= 0x3FA0 && a < 0x3FB0 {
-		// Palette table entries
-		p.PaletteRam[a-0x3FA0] = v
-	} else if a >= 0x3FC0 && a < 0x3FD0 {
-		// Palette table entries
-		p.PaletteRam[a-0x3FC0] = v
-	} else if a >= 0x3FE0 && a < 0x3FF0 {
-		// Palette table entries
-		p.PaletteRam[a-0x3FE0] = v
-	}
+	if a >= 0x3F00 {
+		base := a & 0x1F // 0b11111
 
-	// Mirrored entries
-	if a == 0x3F00 {
-		p.PaletteRam[0x10] = v
-		p.PaletteRam[0x00] = v
-	} else if a == 0x3F10 {
-		p.PaletteRam[0x00] = v
-		p.PaletteRam[0x10] = v
-	} else if a == 0x3F14 {
-		p.PaletteRam[0x04] = v
-	} else if a == 0x3F18 {
-		p.PaletteRam[0x08] = v
-	} else if a == 0x3F1C {
-		p.PaletteRam[0x0C] = v
-	}
+		if base == 0x0 || base == 0x10 {
+			p.PaletteRam[0x10] = v
+			p.PaletteRam[0x00] = v
+		} else {
+			p.PaletteRam[base] = v
+		}
 
-	// Sprite palettes
-	if a > 0x3F10 && a < 0x3F20 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F00] = v
-	} else if a >= 0x3F30 && a < 0x3F40 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F20] = v
-	} else if a >= 0x3F50 && a < 0x3F60 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F40] = v
-	} else if a >= 0x3F70 && a < 0x3F80 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F70] = v
-	} else if a >= 0x3F90 && a < 0x3FA0 {
-		// Palette table entries
-		p.PaletteRam[a-0x3F90] = v
-	} else if a >= 0x3FB0 && a < 0x3FC0 {
-		// Palette table entries
-		p.PaletteRam[a-0x3FB0] = v
-	} else if a >= 0x3FD0 && a < 0x3FE0 {
-		// Palette table entries
-		p.PaletteRam[a-0x3FD0] = v
+		p.PaletteRam[0x10] = p.PaletteRam[0x0]
+		p.PaletteRam[0x14] = p.PaletteRam[0x4]
+		p.PaletteRam[0x18] = p.PaletteRam[0x8]
+		p.PaletteRam[0x1C] = p.PaletteRam[0xC]
 	} else {
 		p.Vram[a-0x1000] = v
 	}
@@ -217,40 +167,35 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 func (p *Ppu) Step() {
 	switch {
 	case p.Scanline == 240:
-		// fmt.Println("Scanline 240")
 		// We're in VBlank
 		p.setStatus(StatusVblankStarted)
 		// Request NMI
 		cpu.RequestInterrupt(InterruptNmi)
 
-		// p.renderNametable(p.BaseNametableAddress)
 		if p.ShowSprites {
-			// p.renderSprites()
+			p.renderSprites()
 		}
 
 		p.Output <- p.Framebuffer
 		p.Cycle = 0
 		p.Scanline++
-	case p.Scanline == 261:
+		return
+	case p.Scanline == 331:
 		// End of vblank
-		// fmt.Println("Scanline 261")
 		p.Scanline = -1
 		p.Cycle = 0
-	case p.Scanline < 240 && p.Scanline > 0:
-		// Render 1 row of 8x8 tiles
+		return
+	case p.Scanline < 240 && p.Scanline > -1:
 		if p.Cycle == 341 {
-			// fmt.Println("End scanline")
 			p.Cycle = 0
-			if p.Scanline%8 == 0 {
-				if p.ShowBackground {
-					p.renderTileRow()
-				}
+			if p.ShowBackground && p.ShowSprites {
+				p.renderTileRow()
+				p.updateEndScanlineRegisters()
 			}
 			p.Scanline++
+			return
 		}
-		// fmt.Println("Scanline 240")
 	case p.Scanline == -1:
-		// fmt.Println("Scanline -1")
 		if p.Cycle == 304 {
 			// Copy scroll latch into VRAMADDR register
 			p.VramAddress = p.VramLatch
@@ -263,6 +208,28 @@ func (p *Ppu) Step() {
 	}
 
 	p.Cycle++
+}
+
+func (p *Ppu) updateEndScanlineRegisters() {
+	// Scanline has ended
+	if p.VramAddress&0x7000 == 0x7000 {
+		tmp := p.VramAddress & 0x3E0
+		p.VramAddress = p.VramAddress & 0xFFF
+		switch tmp {
+		case 0x3A0:
+			p.VramAddress = p.VramAddress ^ 0xBA0
+		case 0x3E0:
+			p.VramAddress = p.VramAddress ^ 0x3E0
+		default:
+			p.VramAddress = p.VramAddress + 0x20
+		}
+	} else {
+		// Increment the fine-Y
+		p.VramAddress = p.VramAddress + 0x1000
+	}
+
+	p.VramAddress = p.VramAddress & 0xFBE0
+	p.VramAddress = p.VramAddress | (p.VramLatch & 0x41F)
 }
 
 // $2000
@@ -459,9 +426,6 @@ func (p *Ppu) WriteData(v Word) {
 		p.writeMirroredVram(p.VramAddress, v)
 	} else if p.VramAddress >= 0x2000 && p.VramAddress < 0x3000 {
 		// Nametable mirroring
-		if p.VramAddress == 0x2338 {
-			fmt.Printf("Address for 0x%X: 0x%X\n", v, p.VramAddress)
-		}
 		p.writeNametableData(p.VramAddress, v)
 	} else {
 		p.Vram[p.VramAddress] = v
@@ -583,52 +547,34 @@ func (p *Ppu) renderNametable(table int) {
 func (p *Ppu) renderTileRow() {
 	// Generates each tile and applies the palette
 
-	// 8 total loops for 8 scanlines
-	for s := 0; s < 8; s++ {
-		// 32 total loops for 32 tiles, 1 pixel of each
-        renderAddress := p.VramAddress
-		for x := 0; x < 32; x++ {
-			// for i := a; i < a+0x20; i++ {
-			attrAddr := 0x23C0 | (renderAddress & 0xC00) | int(p.AttributeLocation[renderAddress&0x3FF])
-			shift := p.AttributeShift[renderAddress&0x3FF]
-			attr := ((p.Vram[attrAddr] >> shift) & 0x03) << 2
+	// 32 total loops for 32 tiles, 1 pixel of each
+	for x := 0; x < 32; x++ {
+		// for i := a; i < a+0x20; i++ {
+		attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
+		shift := p.AttributeShift[p.VramAddress&0x3FF]
+		attr := ((p.Vram[attrAddr] >> shift) & 0x03) << 2
 
-			ntAddress := p.selectNametable((renderAddress & 0xC00) >> 10)
-			t := p.bgPatternTableAddress(p.Vram[renderAddress+ntAddress])
+		ntAddress := p.selectNametable((p.VramAddress & 0xC00) >> 10)
+		t := p.bgPatternTableAddress(p.Vram[(p.VramAddress&0x3FF)+ntAddress])
 
-			tile := p.Vram[t : t+16]
+		tile := p.Vram[t : t+16]
 
-			p.decodePatternTile([]Word{tile[s], tile[s+8]}, x*8, p.Scanline-8+s, p.bgPaletteEntry(attr), nil)
+		p.decodePatternTile([]Word{tile[p.TilerowCounter], tile[p.TilerowCounter+8]}, x*8, p.Scanline, p.bgPaletteEntry(attr), nil)
 
-			// Flip bit 10 on wraparound
-            if p.VramAddress&0x1F == 0x1F {
-                // If rendering is enabled, at the end of a scanline
-                // copy bits 10 and 4-0 from VRAM latch into VRAMADDR
-                p.VramAddress = p.VramAddress ^ (p.VramLatch & 0x41F)
-            } else {
-                p.VramAddress++
-            }
+		// Flip bit 10 on wraparound
+		if p.VramAddress&0x1F == 0x1F {
+			// If rendering is enabled, at the end of a scanline
+			// copy bits 10 and 4-0 from VRAM latch into VRAMADDR
+			p.VramAddress = p.VramAddress ^ (p.VramLatch & 0x41F)
+		} else {
+			p.VramAddress++
 		}
+	}
 
-        // Scanline has ended
-        if p.VramAddress & 0x7000 == 0x7000 {
-            tmp := p.VramAddress & 0x3E0
-            p.VramAddress = p.VramAddress & 0xFFF
-            switch tmp {
-            case 0x3A0:
-                p.VramAddress = p.VramAddress ^ 0xBA0
-            case 0x3E0:
-                p.VramAddress = p.VramAddress ^ 0x3E0
-            default:
-                p.VramAddress = p.VramAddress + 0x20
-            }
-        } else {
-            // Increment the fine-Y
-            p.VramAddress = p.VramAddress + 0x1000
-        }
+	p.TilerowCounter++
 
-        p.VramAddress = p.VramAddress & 0xFBE0
-        p.VramAddress = p.VramAddress | (p.VramLatch & 0x41F)
+	if p.TilerowCounter == 8 {
+		p.TilerowCounter = 0
 	}
 }
 
@@ -644,7 +590,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word) {
 
 		var ycoord int
 		if attr != nil && (*attr>>7)&0x1 != 0 {
-			ycoord = y + int(7-b)
+			ycoord = y + int(8-b)
 		} else {
 			ycoord = y
 		}
@@ -668,26 +614,35 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word) {
 }
 
 func (p *Ppu) renderSprites() {
-	/*
-		for i, t := range p.SpriteData.Tiles {
-			attrValue := p.Attributes[i] & 0x3
+	for i, t := range p.SpriteData.Tiles {
+		attrValue := p.Attributes[i] & 0x3
 
-			if p.SpriteSize&0x01 != 0x0 {
-				// 8x16 Sprite
-				p.decodePatternTile(p.sprPatternTableAddress(int(t)),
-					int(p.XCoordinates[i]),
-					int(p.YCoordinates[i])+1,
-					p.sprPaletteEntry(uint(attrValue)),
-					&p.Attributes[i])
-			} else {
-				p.decodePatternTile(p.sprPatternTableAddress(int(t)),
-					int(p.XCoordinates[i]),
-					int(p.YCoordinates[i])+1,
-					p.sprPaletteEntry(uint(attrValue)),
-					&p.Attributes[i])
-			}
+		if p.SpriteSize&0x01 != 0x0 {
+			// 8x16 Sprite
+            s := p.sprPatternTableAddress(int(t))
+            tile := p.Vram[s : s+16]
+
+            for c := 0; c < 8; c++ {
+                p.decodePatternTile([]Word{tile[c], tile[c+8]},
+                    int(p.XCoordinates[i]),
+                    int(p.YCoordinates[i])+1,
+                    p.sprPaletteEntry(uint(attrValue)),
+                    &p.Attributes[i])
+            }
+		} else {
+			// 8x8 Sprite
+            s := p.sprPatternTableAddress(int(t))
+            tile := p.Vram[s : s+16]
+
+            for c := 0; c < 8; c++ {
+                p.decodePatternTile([]Word{tile[c], tile[c+8]},
+                    int(p.XCoordinates[i]),
+                    int(p.YCoordinates[i])+c+1,
+                    p.sprPaletteEntry(uint(attrValue)),
+                    &p.Attributes[i])
+            }
 		}
-	*/
+	}
 }
 
 func (p *Ppu) bgPaletteEntry(a Word) (pal []Word) {
