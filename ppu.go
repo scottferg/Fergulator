@@ -586,32 +586,27 @@ func (p *Ppu) renderTileRow() {
 	// 8 total loops for 8 scanlines
 	for s := 0; s < 8; s++ {
 		// 32 total loops for 32 tiles, 1 pixel of each
+        renderAddress := p.VramAddress
 		for x := 0; x < 32; x++ {
 			// for i := a; i < a+0x20; i++ {
-			attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
-			shift := p.AttributeShift[p.VramAddress&0x3FF]
+			attrAddr := 0x23C0 | (renderAddress & 0xC00) | int(p.AttributeLocation[renderAddress&0x3FF])
+			shift := p.AttributeShift[renderAddress&0x3FF]
 			attr := ((p.Vram[attrAddr] >> shift) & 0x03) << 2
 
-			ntAddress := p.selectNametable((p.VramAddress & 0xC00) >> 10)
-			t := p.bgPatternTableAddress(p.Vram[p.VramAddress+ntAddress])
+			ntAddress := p.selectNametable((renderAddress & 0xC00) >> 10)
+			t := p.bgPatternTableAddress(p.Vram[renderAddress+ntAddress])
 
 			tile := p.Vram[t : t+16]
 
 			p.decodePatternTile([]Word{tile[s], tile[s+8]}, x*8, p.Scanline-8+s, p.bgPaletteEntry(attr), nil)
-
-            if p.FirstPrint < 32 {
-                fmt.Printf("0x%X\n", p.VramAddress+ntAddress)
-                p.FirstPrint++
-            }
 
 			// Flip bit 10 on wraparound
             if p.VramAddress&0x1F == 0x1F {
                 // If rendering is enabled, at the end of a scanline
                 // copy bits 10 and 4-0 from VRAM latch into VRAMADDR
                 p.VramAddress = p.VramAddress ^ (p.VramLatch & 0x41F)
-                fmt.Println("Bumping bit")
             } else {
-                p.incrementVramAddress()
+                p.VramAddress++
             }
 		}
 
@@ -625,7 +620,6 @@ func (p *Ppu) renderTileRow() {
             case 0x3E0:
                 p.VramAddress = p.VramAddress ^ 0x3E0
             default:
-                fmt.Println("Bumping Y")
                 p.VramAddress = p.VramAddress + 0x20
             }
         } else {
