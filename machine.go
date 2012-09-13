@@ -38,9 +38,6 @@ func main() {
 	v := ppu.Init()
 	controller.Init()
 
-	video.Init(v)
-	defer video.Close()
-
 	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
 		if rom, err = LoadRom(contents); err != nil {
 			fmt.Println(err.Error())
@@ -53,6 +50,9 @@ func main() {
 		fmt.Println(err.Error())
 		return
 	}
+
+	video.Init(v, os.Args[1])
+	defer video.Close()
 
 	go JoypadListen()
 	go video.Render()

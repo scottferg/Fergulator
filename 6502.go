@@ -227,6 +227,10 @@ func (cpu *Cpu) absoluteIndexedAddress(index Word) (result int) {
 	high, _ := Ram.Read(ProgramCounter + 1)
 	low, _ := Ram.Read(ProgramCounter)
 
+	if int(low)+int(index) > 0xFF {
+		cpu.CycleCount += 1
+	}
+
 	address := (int(high) << 8) + int(low) + int(index)
 
 	if address > 0xFFFF {
@@ -264,6 +268,10 @@ func (cpu *Cpu) indirectIndexedAddress() int {
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
+
+	if int(low)+int(cpu.Y) > 0xFF {
+		cpu.CycleCount += 1
+	}
 
 	address := (int(high) << 8) + int(low) + int(cpu.Y)
 
@@ -417,7 +425,15 @@ func (cpu *Cpu) Iny() {
 
 func (cpu *Cpu) Bpl() {
 	if !cpu.getNegative() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -425,7 +441,15 @@ func (cpu *Cpu) Bpl() {
 
 func (cpu *Cpu) Bmi() {
 	if cpu.getNegative() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -433,7 +457,15 @@ func (cpu *Cpu) Bmi() {
 
 func (cpu *Cpu) Bvc() {
 	if !cpu.getOverflow() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -441,7 +473,15 @@ func (cpu *Cpu) Bvc() {
 
 func (cpu *Cpu) Bvs() {
 	if cpu.getOverflow() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -449,7 +489,15 @@ func (cpu *Cpu) Bvs() {
 
 func (cpu *Cpu) Bcc() {
 	if !cpu.getCarry() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -457,7 +505,15 @@ func (cpu *Cpu) Bcc() {
 
 func (cpu *Cpu) Bcs() {
 	if cpu.getCarry() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -465,7 +521,15 @@ func (cpu *Cpu) Bcs() {
 
 func (cpu *Cpu) Bne() {
 	if !cpu.getZero() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -473,7 +537,15 @@ func (cpu *Cpu) Bne() {
 
 func (cpu *Cpu) Beq() {
 	if cpu.getZero() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}

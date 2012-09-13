@@ -13,6 +13,9 @@ const (
 	MirroringHorizontal
 	MirroringSingleLower
 	MirroringSingleUpper
+
+	Pal  = 70
+	Ntsc = 20
 )
 
 type Nametable struct {
@@ -76,6 +79,7 @@ type Ppu struct {
 	AttributeShift    [0x400]uint
 	Mirroring         int
 	TilerowCounter    int
+	VblankTime        int
 
 	Framebuffer []int
 
@@ -86,10 +90,11 @@ type Ppu struct {
 
 func (p *Ppu) Init() chan []int {
 	p.FirstWrite = true
-	p.Output = make(chan []int)
+	p.Output = make(chan []int, 240)
 
 	p.Cycle = 0
 	p.Scanline = -1
+	p.VblankTime = Pal
 
 	for i, _ := range p.Vram {
 		p.Vram[i] = 0x00
@@ -166,25 +171,28 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 
 func (p *Ppu) Step() {
 	switch {
-	case p.Scanline == 240:
-		// We're in VBlank
-		p.setStatus(StatusVblankStarted)
-		// Request NMI
-		cpu.RequestInterrupt(InterruptNmi)
+	case p.Scanline == 241:
+		if p.Cycle == 341 {
+			// We're in VBlank
+			p.setStatus(StatusVblankStarted)
+			// Request NMI
+			cpu.RequestInterrupt(InterruptNmi)
 
-		if p.ShowSprites {
-			p.renderSprites()
+			if p.ShowSprites {
+				p.renderSprites()
+			}
+
+			p.Output <- p.Framebuffer
+			p.Cycle = 0
+			p.Scanline++
 		}
-
-		p.Output <- p.Framebuffer
-		p.Cycle = 0
-		p.Scanline++
-		return
-	case p.Scanline == 331:
-		// End of vblank
-		p.Scanline = -1
-		p.Cycle = 0
-		return
+	// case p.Scanline == 331: // End of vblank
+	case p.Scanline == 261: // End of vblank
+		if p.Cycle == 341 {
+			p.Scanline = -1
+			p.Cycle = 0
+			return
+		}
 	case p.Scanline < 240 && p.Scanline > -1:
 		if p.Cycle == 341 {
 			p.Cycle = 0
@@ -199,6 +207,9 @@ func (p *Ppu) Step() {
 		if p.Cycle == 304 {
 			// Copy scroll latch into VRAMADDR register
 			p.VramAddress = p.VramLatch
+		} else if p.Cycle == 1 {
+			// Clear VBlank flag
+			p.clearStatus(StatusVblankStarted)
 		}
 	}
 
@@ -206,7 +217,6 @@ func (p *Ppu) Step() {
 		p.Cycle = 0
 		p.Scanline++
 	}
-
 	p.Cycle++
 }
 
@@ -619,28 +629,28 @@ func (p *Ppu) renderSprites() {
 
 		if p.SpriteSize&0x01 != 0x0 {
 			// 8x16 Sprite
-            s := p.sprPatternTableAddress(int(t))
-            tile := p.Vram[s : s+16]
+			s := p.sprPatternTableAddress(int(t))
+			tile := p.Vram[s : s+16]
 
-            for c := 0; c < 8; c++ {
-                p.decodePatternTile([]Word{tile[c], tile[c+8]},
-                    int(p.XCoordinates[i]),
-                    int(p.YCoordinates[i])+1,
-                    p.sprPaletteEntry(uint(attrValue)),
-                    &p.Attributes[i])
-            }
+			for c := 0; c < 8; c++ {
+				p.decodePatternTile([]Word{tile[c], tile[c+8]},
+					int(p.XCoordinates[i]),
+					int(p.YCoordinates[i])+1,
+					p.sprPaletteEntry(uint(attrValue)),
+					&p.Attributes[i])
+			}
 		} else {
 			// 8x8 Sprite
-            s := p.sprPatternTableAddress(int(t))
-            tile := p.Vram[s : s+16]
+			s := p.sprPatternTableAddress(int(t))
+			tile := p.Vram[s : s+16]
 
-            for c := 0; c < 8; c++ {
-                p.decodePatternTile([]Word{tile[c], tile[c+8]},
-                    int(p.XCoordinates[i]),
-                    int(p.YCoordinates[i])+c+1,
-                    p.sprPaletteEntry(uint(attrValue)),
-                    &p.Attributes[i])
-            }
+			for c := 0; c < 8; c++ {
+				p.decodePatternTile([]Word{tile[c], tile[c+8]},
+					int(p.XCoordinates[i]),
+					int(p.YCoordinates[i])+c+1,
+					p.sprPaletteEntry(uint(attrValue)),
+					&p.Attributes[i])
+			}
 		}
 	}
 }

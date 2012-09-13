@@ -41,8 +41,8 @@ func (r *Nrom) Init(rom []byte) error {
 		fmt.Println("Horizontal mirroring")
 		ppu.Mirroring = MirroringHorizontal
 	case 0x1:
-		ppu.Mirroring = MirroringVertical
 		fmt.Println("Vertical mirroring")
+		ppu.Mirroring = MirroringVertical
 	}
 
 	// ROM data starts at byte 16
