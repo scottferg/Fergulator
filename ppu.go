@@ -83,13 +83,14 @@ type Ppu struct {
 	DebugMode  bool
 	DebugCount int
 
-	Output     chan []int
-	Debug      chan []int
-	Cycle      int
-	Scanline   int
-	Timestamp  int
-	VblankTime int
-	FrameCount int
+	Output      chan []int
+	Debug       chan []int
+	Cycle       int
+	Scanline    int
+	Timestamp   int
+	VblankTime  int
+	FrameCount  int
+	FrameCycles int
 }
 
 func (p *Ppu) Init() (chan []int, chan []int) {
@@ -242,7 +243,7 @@ func (p *Ppu) Step() {
 
 			p.Scanline = -1
 			p.Cycle = 0
-            p.FrameCount++
+			p.FrameCount++
 			return
 		}
 	case p.Scanline < 240 && p.Scanline > -1:
@@ -268,8 +269,8 @@ func (p *Ppu) Step() {
 			p.clearStatus(StatusVblankStarted)
 		} else if p.Cycle == 304 {
 			// Copy scroll latch into VRAMADDR register
-		//	p.VramAddress = (p.VramAddress & ^0x41F) | (p.VramLatch & 0x41F)
-			p.VramAddress = p.VramLatch
+			p.VramAddress = (p.VramAddress & ^0x41F) | (p.VramLatch & 0x41F)
+			// p.VramAddress = p.VramLatch
 		}
 	}
 
@@ -284,19 +285,23 @@ func (p *Ppu) Step() {
 // Runs the PPU until it catches up to the CPU timestamp
 func (p *Ppu) Run(t int) {
 	if p.Timestamp < p.VblankTime {
+        fmt.Println("Timestamp less than vblank")
 		p.Timestamp = p.VblankTime
 		p.Scanline = -1
 		p.Cycle = 0
 
-        // TODO: Reset timestamps here, or at 240?
-        
+		// TODO: Reset timestamps here, or at 240?
+        p.Timestamp -= p.FrameCycles
+        cpu.Timestamp -= p.FrameCycles
 	}
 
 	if p.Timestamp >= t {
+        fmt.Println("Timestamp exceeded")
 		return
 	}
 
 	if p.Scanline == -1 {
+        fmt.Println("Scanline -1")
 		if p.Cycle == 1 {
 			// Clear VBlank flag
 			p.clearStatus(StatusVblankStarted)
@@ -309,6 +314,7 @@ func (p *Ppu) Run(t int) {
 	}
 
 	for p.Scanline < 240 {
+        fmt.Printf("Scanline %d\n", p.Scanline)
 		for p.Cycle < 256 {
 			// TODO: Per-pixel evaluation should happen here
 			p.Cycle++
@@ -330,6 +336,7 @@ func (p *Ppu) Run(t int) {
 	}
 
 	for p.Cycle < 340 {
+        fmt.Println("Cycle 340")
 		// TODO: Do something?
 		p.Cycle++
 		p.Timestamp += 5
@@ -340,6 +347,7 @@ func (p *Ppu) Run(t int) {
 	}
 
 	if p.Scanline == 240 {
+        fmt.Println("Endframe")
 		// We're in VBlank
 		p.setStatus(StatusVblankStarted)
 
@@ -357,6 +365,8 @@ func (p *Ppu) Run(t int) {
 		}
 	}
 
+    fmt.Println("End Run()")
+    p.FrameCycles += p.Cycle
 	p.Cycle = 0
 	p.Scanline++
 }

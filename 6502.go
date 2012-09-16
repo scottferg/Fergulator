@@ -1,5 +1,9 @@
 package main
 
+import (
+    "fmt"
+)
+
 const (
 	InterruptNone = iota
 	InterruptIrq
@@ -24,7 +28,7 @@ type Cpu struct {
 
 	InterruptRequested int
 	CyclesToWait       int
-    CycleTimestamp     int
+	Timestamp          int
 }
 
 func (cpu *Cpu) getCarry() bool {
@@ -918,18 +922,18 @@ func (cpu *Cpu) Bit(location int) {
 }
 
 func (cpu *Cpu) PerformNmi() {
-    high := ProgramCounter >> 8
-    low := ProgramCounter & 0xFF
+	high := ProgramCounter >> 8
+	low := ProgramCounter & 0xFF
 
-    cpu.pushToStack(Word(high))
-    cpu.pushToStack(Word(low))
+	cpu.pushToStack(Word(high))
+	cpu.pushToStack(Word(low))
 
-    cpu.pushToStack(cpu.P)
+	cpu.pushToStack(cpu.P)
 
-    h, _ := Ram.Read(0xFFFB)
-    l, _ := Ram.Read(0xFFFA)
+	h, _ := Ram.Read(0xFFFB)
+	l, _ := Ram.Read(0xFFFA)
 
-    ProgramCounter = int(h)<<8 + int(l)
+	ProgramCounter = int(h)<<8 + int(l)
 }
 
 func (cpu *Cpu) PerformReset() {
@@ -1475,10 +1479,10 @@ func (cpu *Cpu) Step() int {
 		cpu.CycleCount = 4
 		cpu.Bit(cpu.absoluteAddress())
 	default:
-		panic("Invalid opcode")
+		panic(fmt.Sprintf("Invalid opcode: 0x%X", opcode))
 	}
 
-    cpu.CycleTimestamp = (cpu.CycleCount * 15)
+	cpu.Timestamp = (cpu.CycleCount * 15)
 
 	return cpu.CycleCount
 }

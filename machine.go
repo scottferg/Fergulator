@@ -57,13 +57,14 @@ func main() {
 	go JoypadListen()
 	go video.Render()
 
+    cpu.Verbose = true
+
 	for running {
 		cycles := cpu.Step()
 
-		// 3 PPU cycles for each CPU cycle
-		for i := 0; i < 3*cycles; i++ {
-			ppu.Step()
-		}
+        for i := 0; i < 3*cycles; i++ {
+            ppu.Step()
+        }
 	}
 
 	return
