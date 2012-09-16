@@ -103,6 +103,7 @@ func (p *Ppu) Init() (chan []int, chan []int) {
 	p.FrameCount = 0
 
 	p.VblankTime = 20 * 341 * 5 // NTSC
+    p.TilerowCounter = 0
 
 	for i, _ := range p.Vram {
 		p.Vram[i] = 0x00
@@ -263,14 +264,15 @@ func (p *Ppu) Step() {
 			return
 		}
 	case p.Scanline == -1:
-
 		if p.Cycle == 1 {
 			// Clear VBlank flag
 			p.clearStatus(StatusVblankStarted)
 		} else if p.Cycle == 304 {
 			// Copy scroll latch into VRAMADDR register
-			p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
-			// p.VramAddress = p.VramLatch
+            if p.ShowBackground && p.ShowSprites {
+                // p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
+                p.VramAddress = p.VramLatch
+            }
 		}
 	}
 
@@ -285,23 +287,23 @@ func (p *Ppu) Step() {
 // Runs the PPU until it catches up to the CPU timestamp
 func (p *Ppu) Run(t int) {
 	if p.Timestamp < p.VblankTime {
-        fmt.Println("Timestamp less than vblank")
+		fmt.Println("Timestamp less than vblank")
 		p.Timestamp = p.VblankTime
 		p.Scanline = -1
 		p.Cycle = 0
 
 		// TODO: Reset timestamps here, or at 240?
-        p.Timestamp -= p.FrameCycles
-        cpu.Timestamp -= p.FrameCycles
+		p.Timestamp -= p.FrameCycles
+		cpu.Timestamp -= p.FrameCycles
 	}
 
 	if p.Timestamp >= t {
-        fmt.Println("Timestamp exceeded")
+		fmt.Println("Timestamp exceeded")
 		return
 	}
 
 	if p.Scanline == -1 {
-        fmt.Println("Scanline -1")
+		fmt.Println("Scanline -1")
 		if p.Cycle == 1 {
 			// Clear VBlank flag
 			p.clearStatus(StatusVblankStarted)
@@ -314,7 +316,7 @@ func (p *Ppu) Run(t int) {
 	}
 
 	for p.Scanline < 240 {
-        fmt.Printf("Scanline %d\n", p.Scanline)
+		fmt.Printf("Scanline %d\n", p.Scanline)
 		for p.Cycle < 256 {
 			// TODO: Per-pixel evaluation should happen here
 			p.Cycle++
@@ -336,7 +338,7 @@ func (p *Ppu) Run(t int) {
 	}
 
 	for p.Cycle < 340 {
-        fmt.Println("Cycle 340")
+		fmt.Println("Cycle 340")
 		// TODO: Do something?
 		p.Cycle++
 		p.Timestamp += 5
@@ -347,7 +349,7 @@ func (p *Ppu) Run(t int) {
 	}
 
 	if p.Scanline == 240 {
-        fmt.Println("Endframe")
+		fmt.Println("Endframe")
 		// We're in VBlank
 		p.setStatus(StatusVblankStarted)
 
@@ -365,8 +367,8 @@ func (p *Ppu) Run(t int) {
 		}
 	}
 
-    fmt.Println("End Run()")
-    p.FrameCycles += p.Cycle
+	fmt.Println("End Run()")
+	p.FrameCycles += p.Cycle
 	p.Cycle = 0
 	p.Scanline++
 }
@@ -832,7 +834,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			// Sprite 0 
 			if p.Palettebuffer[fbRow] != 0 && spZero {
 				p.setStatus(StatusSprite0Hit)
-				p.Framebuffer[fbRow] = 0x00FF00
+				// p.Framebuffer[fbRow] = 0x00FF00
 			}
 		}
 	}

@@ -40,7 +40,7 @@ type Unrom Rom
 
 func (r *Nrom) WriteRamBank(bank, dest int) {
 	for i := 0; i < 0x4000; i++ {
-		Ram.Write(i+dest, r.RomBanks[bank][i])
+		Ram[i+dest] = r.RomBanks[bank][i]
 	}
 }
 
@@ -52,7 +52,7 @@ func (r *Nrom) WriteVramBank(dest int, length int, offset int) {
 
 func (r *Mmc1) WriteRamBank(bank, dest int) {
 	for i := 0; i < 0x4000; i++ {
-		Ram.Write(i+dest, r.RomBanks[bank][i])
+		Ram[i+dest] = r.RomBanks[bank][i]
 	}
 }
 
@@ -64,7 +64,7 @@ func (r *Mmc1) WriteVramBank(dest int, length int, offset int) {
 
 func (r *Unrom) WriteRamBank(bank, dest int) {
 	for i := 0; i < 0x4000; i++ {
-		Ram.Write(i+dest, r.RomBanks[bank][i])
+		Ram[i+dest] = r.RomBanks[bank][i]
 	}
 }
 
@@ -349,7 +349,6 @@ func (r *Unrom) Init(rom []byte) error {
 }
 
 func (r *Unrom) Write(v Word, a int) {
-	fmt.Printf("Loading new bank: %d\n", v)
 	r.WriteRamBank(int(v), 0x8000)
 }
 
@@ -375,6 +374,8 @@ func LoadRom(rom []byte) (r Mapper, e error) {
 	case 0x01:
 		// MMC1
 		r = new(Mmc1)
+	case 0x42:
+		fallthrough
 	case 0x02:
 		// Unrom
 		r = new(Unrom)
