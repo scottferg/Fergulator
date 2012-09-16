@@ -391,8 +391,10 @@ func (p *Ppu) updateEndScanlineRegisters() {
 		p.VramAddress = p.VramAddress + 0x1000
 	}
 
-	p.VramAddress = p.VramAddress & 0xFBE0
-	p.VramAddress = p.VramAddress | (p.VramLatch & 0x41F)
+    if p.ShowBackground && p.ShowSprites {
+        p.VramAddress = p.VramAddress & 0xFBE0
+        p.VramAddress = p.VramAddress | (p.VramLatch & 0x41F)
+    }
 }
 
 // $2000
