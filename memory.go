@@ -59,7 +59,7 @@ func (m *Memory) Write(address interface{}, val Word) error {
 			controller.Write(val)
 		} else if a >= 0x8000 && a <= 0xFFFF {
 			// MMC1
-			//rom.Write(val, a)
+			rom.Write(val, a)
 			return nil
 		}
 

@@ -269,7 +269,7 @@ func (p *Ppu) Step() {
 			p.clearStatus(StatusVblankStarted)
 		} else if p.Cycle == 304 {
 			// Copy scroll latch into VRAMADDR register
-			p.VramAddress = (p.VramAddress & ^0x41F) | (p.VramLatch & 0x41F)
+			p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
 			// p.VramAddress = p.VramLatch
 		}
 	}

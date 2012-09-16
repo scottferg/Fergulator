@@ -57,8 +57,6 @@ func main() {
 	go JoypadListen()
 	go video.Render()
 
-    cpu.Verbose = true
-
 	for running {
 		cycles := cpu.Step()
 

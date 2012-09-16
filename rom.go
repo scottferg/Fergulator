@@ -7,16 +7,16 @@ import (
 )
 
 type Mapper interface {
-	WriteRamBank(dest int, length int, offset int)
+	WriteRamBank(bank, dest int)
 	WriteVramBank(dest int, length int, offset int)
 	Write(v Word, a int)
 	Init(rom []byte) error
 }
 
 type Rom struct {
-	PrgFlag     Word
-	ChrRomCount int
-	Data        []byte
+	PrgBankCount int
+	ChrRomCount  int
+	Data         []byte
 
 	// TODO: MMC1
 	Buffer            int
@@ -38,9 +38,9 @@ type Unrom Rom
 
 // TODO: HOLY SHIT
 
-func (r *Nrom) WriteRamBank(dest int, length int, offset int) {
-	for i := 0; i < length; i++ {
-		Ram.Write(i+dest, Word(r.Data[i+offset]))
+func (r *Nrom) WriteRamBank(bank, dest int) {
+	for i := 0; i < 0x4000; i++ {
+		Ram.Write(i+dest, r.RomBanks[bank][i])
 	}
 }
 
@@ -50,9 +50,9 @@ func (r *Nrom) WriteVramBank(dest int, length int, offset int) {
 	}
 }
 
-func (r *Mmc1) WriteRamBank(dest int, length int, offset int) {
-	for i := 0; i < length; i++ {
-		Ram.Write(i+dest, Word(r.Data[i+offset]))
+func (r *Mmc1) WriteRamBank(bank, dest int) {
+	for i := 0; i < 0x4000; i++ {
+		Ram.Write(i+dest, r.RomBanks[bank][i])
 	}
 }
 
@@ -62,7 +62,7 @@ func (r *Mmc1) WriteVramBank(dest int, length int, offset int) {
 	}
 }
 
-func (r *Unrom) WriteRamBank(dest int, length int, bank int) {
+func (r *Unrom) WriteRamBank(bank, dest int) {
 	for i := 0; i < 0x4000; i++ {
 		Ram.Write(i+dest, r.RomBanks[bank][i])
 	}
@@ -81,7 +81,7 @@ func (r *Nrom) Write(v Word, a int) {
 }
 
 func (r *Nrom) Init(rom []byte) error {
-	r.PrgFlag = Word(rom[4])
+	r.PrgBankCount = int(rom[4])
 	r.ChrRomCount = int(rom[5])
 
 	switch rom[6] & 0x1 {
@@ -96,19 +96,33 @@ func (r *Nrom) Init(rom []byte) error {
 	// ROM data dests at byte 16
 	r.Data = rom[16:]
 
-	r.WriteRamBank(0x8000, 0x4000, 0x0)
+	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
+	r.RomBanks = make(map[int][]Word)
 
-	fmt.Printf("PRG-ROM Count: %d\n", r.PrgFlag)
-	switch r.PrgFlag {
+    fmt.Printf("Length of banks: %d\n", (len(r.Data) / 0x4000))
+
+    bankCount := (len(r.Data) / 0x4000)
+	for i := 0; i < bankCount; i++ {
+		// Move 16kb chunk to 16kb bank
+		bank := make([]Word, 0x4000)
+		for x := 0; x < 0x4000; x++ {
+			bank[x] = Word(r.Data[(0x4000*i)+x])
+		}
+
+		r.RomBanks[i] = bank
+	}
+
+	switch r.PrgBankCount {
 	case 0x01:
-		r.WriteRamBank(0x8000, 0x4000, 0x0)
-		r.WriteRamBank(0xC000, 0x4000, 0x0)
+		r.WriteRamBank(0, 0x8000)
+		r.WriteRamBank(0, 0xC000)
 
 		if r.ChrRomCount != 0 {
 			r.WriteVramBank(0x0000, 0x2000, 0x4000)
 		}
 	case 0x02:
-		r.WriteRamBank(0xC000, 0x4000, 0x4000)
+        r.WriteRamBank(0, 0x8000)
+		r.WriteRamBank(1, 0xC000)
 		r.WriteVramBank(0x0000, 0x2000, 0x8000)
 	}
 
@@ -210,7 +224,7 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 
 		var bank int
 
-		if r.PrgFlag >= 32 {
+		if r.PrgBankCount >= 32 {
 			// 1024kb Cartridge
 			if r.VromSwitchingSize == 0 {
 				if r.RomSelectionReg0 == 1 {
@@ -219,7 +233,7 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 			} else {
 				baseBank = (r.RomSelectionReg0 | (r.RomSelectionReg1 << 0x1)) << 0x3
 			}
-		} else if r.PrgFlag >= 16 {
+		} else if r.PrgBankCount >= 16 {
 			if r.RomSelectionReg0 == 1 {
 				baseBank = 8
 			}
@@ -257,7 +271,7 @@ func (r *Mmc1) RegisterNumber(a int) int {
 }
 
 func (r *Mmc1) Init(rom []byte) error {
-	r.PrgFlag = Word(rom[4])
+	r.PrgBankCount = int(rom[4])
 	r.ChrRomCount = int(rom[5])
 
 	switch rom[6] & 0x1 {
@@ -271,11 +285,22 @@ func (r *Mmc1) Init(rom []byte) error {
 
 	r.Data = rom[16:]
 
-	fmt.Printf("PRG-ROM Count: %d\n", r.PrgFlag)
+	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
+	r.RomBanks = make(map[int][]Word)
+	for i := 0; i < (r.PrgBankCount * 0x4000); i++ {
+		// Move 16kb chunk to 16kb bank
+		bank := make([]Word, 0x4000)
+		for x := 0; x < 0x4000; x++ {
+			bank[x] = Word(r.Data[(0x4000*i)+x])
+		}
+
+		r.RomBanks[i] = bank
+	}
+
 	// Write the first ROM bank
-	r.WriteRamBank(0x8000, 0x4000, 0x0)
+	r.WriteRamBank(0, 0x8000)
 	// and the last ROM bank
-	r.WriteRamBank(0xC000, 0x4000, len(r.Data)-0x4000)
+	r.WriteRamBank(7, 0xC000)
 
 	// r.WriteVramBank(0x0000, 0x2000, 0x0)
 
@@ -283,7 +308,7 @@ func (r *Mmc1) Init(rom []byte) error {
 }
 
 func (r *Unrom) Init(rom []byte) error {
-	r.PrgFlag = Word(rom[4])
+	r.PrgBankCount = int(rom[4])
 	r.ChrRomCount = int(rom[5])
 
 	switch rom[6] & 0x1 {
@@ -297,28 +322,25 @@ func (r *Unrom) Init(rom []byte) error {
 
 	// ROM data dests at byte 16
 	r.Data = rom[16:]
+	r.RomBanks = make(map[int][]Word)
 
-	fmt.Printf("PRG-ROM Count: %d\n", r.PrgFlag)
+	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
 
-    r.RomBanks = make(map[int][]Word)
-	for i := 0; i < (len(r.Data) / 0x4000); i++ {
-        fmt.Printf("Length of banks: %d\n", (len(r.Data) / 0x4000))
-        // Move 16kb chunk to 16kb bank
-        bank := make([]Word, 0x4000)
-        for x := 0; x < 0x4000; x++ {
-            fmt.Printf("Reading: 0x%X\n", (0x4000*i)+x)
-            bank[x] = Word(r.Data[(0x4000*i)+x])
-        }
+    bankCount := (len(r.Data) / 0x4000)
+	for i := 0; i < bankCount; i++ {
+		// Move 16kb chunk to 16kb bank
+		bank := make([]Word, 0x4000)
+		for x := 0; x < 0x4000; x++ {
+			bank[x] = Word(r.Data[(0x4000*i)+x])
+		}
 
-        r.RomBanks[i] = bank
+		r.RomBanks[i] = bank
 	}
 
-    fmt.Printf("Length: %d\n", len(r.RomBanks))
-
 	// Write the first ROM bank
-	r.WriteRamBank(0x8000, 0x0, 0)
+	r.WriteRamBank(0, 0x8000)
 	// and the last ROM bank
-	r.WriteRamBank(0xC000, 0x0, 7)
+	r.WriteRamBank(7, 0xC000)
 
 	fmt.Printf("VROM: %d\n", r.ChrRomCount)
 	// r.WriteVramBank(0x0000, 0x2000, 0x8000)
@@ -327,8 +349,8 @@ func (r *Unrom) Init(rom []byte) error {
 }
 
 func (r *Unrom) Write(v Word, a int) {
-    fmt.Printf("Loading new bank: %d\n", v)
-    r.WriteRamBank(0x8000, 0x0, int(v))
+	fmt.Printf("Loading new bank: %d\n", v)
+	r.WriteRamBank(int(v), 0x8000)
 }
 
 func LoadRom(rom []byte) (r Mapper, e error) {
