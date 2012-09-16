@@ -31,167 +31,167 @@ type Cpu struct {
 	Timestamp          int
 }
 
-func (cpu *Cpu) getCarry() bool {
-	return cpu.P&0x01 == 0x01
+func (c *Cpu) getCarry() bool {
+	return c.P&0x01 == 0x01
 }
 
-func (cpu *Cpu) getZero() bool {
-	return cpu.P&0x02 == 0x02
+func (c *Cpu) getZero() bool {
+	return c.P&0x02 == 0x02
 }
 
-func (cpu *Cpu) getIrqDisable() bool {
-	return cpu.P&0x04 == 0x04
+func (c *Cpu) getIrqDisable() bool {
+	return c.P&0x04 == 0x04
 }
 
-func (cpu *Cpu) getDecimalMode() bool {
-	return cpu.P&0x08 == 0x08
+func (c *Cpu) getDecimalMode() bool {
+	return c.P&0x08 == 0x08
 }
 
-func (cpu *Cpu) getBrkCommand() bool {
-	return cpu.P&0x10 == 0x10
+func (c *Cpu) getBrkCommand() bool {
+	return c.P&0x10 == 0x10
 }
 
-func (cpu *Cpu) getOverflow() bool {
-	return cpu.P&0x40 == 0x40
+func (c *Cpu) getOverflow() bool {
+	return c.P&0x40 == 0x40
 }
 
-func (cpu *Cpu) getNegative() bool {
-	return cpu.P&0x80 == 0x80
+func (c *Cpu) getNegative() bool {
+	return c.P&0x80 == 0x80
 }
 
-func (cpu *Cpu) setCarry() {
-	cpu.P = cpu.P | 0x01
+func (c *Cpu) setCarry() {
+	c.P = c.P | 0x01
 }
 
-func (cpu *Cpu) setZero() {
-	cpu.P = cpu.P | 0x02
+func (c *Cpu) setZero() {
+	c.P = c.P | 0x02
 }
 
-func (cpu *Cpu) setIrqDisable() {
-	cpu.P = cpu.P | 0x04
+func (c *Cpu) setIrqDisable() {
+	c.P = c.P | 0x04
 }
 
-func (cpu *Cpu) setDecimalMode() {
-	cpu.P = cpu.P | 0x08
+func (c *Cpu) setDecimalMode() {
+	c.P = c.P | 0x08
 }
 
-func (cpu *Cpu) setBrkCommand() {
-	cpu.P = cpu.P | 0x10
+func (c *Cpu) setBrkCommand() {
+	c.P = c.P | 0x10
 }
 
-func (cpu *Cpu) setOverflow() {
-	cpu.P = cpu.P | 0x40
+func (c *Cpu) setOverflow() {
+	c.P = c.P | 0x40
 }
 
-func (cpu *Cpu) setNegative() {
-	cpu.P = cpu.P | 0x80
+func (c *Cpu) setNegative() {
+	c.P = c.P | 0x80
 }
 
-func (cpu *Cpu) clearCarry() {
-	cpu.P = cpu.P & 0xFE
+func (c *Cpu) clearCarry() {
+	c.P = c.P & 0xFE
 }
 
-func (cpu *Cpu) clearZero() {
-	cpu.P = cpu.P & 0xFD
+func (c *Cpu) clearZero() {
+	c.P = c.P & 0xFD
 }
 
-func (cpu *Cpu) clearIrqDisable() {
-	cpu.P = cpu.P & 0xFB
+func (c *Cpu) clearIrqDisable() {
+	c.P = c.P & 0xFB
 }
 
-func (cpu *Cpu) clearDecimalMode() {
-	cpu.P = cpu.P & 0xF7
+func (c *Cpu) clearDecimalMode() {
+	c.P = c.P & 0xF7
 }
 
-func (cpu *Cpu) clearBrkCommand() {
-	cpu.P = cpu.P & 0xEF
+func (c *Cpu) clearBrkCommand() {
+	c.P = c.P & 0xEF
 }
 
-func (cpu *Cpu) clearOverflow() {
-	cpu.P = cpu.P & 0xBF
+func (c *Cpu) clearOverflow() {
+	c.P = c.P & 0xBF
 }
 
-func (cpu *Cpu) clearNegative() {
-	cpu.P = cpu.P & 0x7F
+func (c *Cpu) clearNegative() {
+	c.P = c.P & 0x7F
 }
 
-func (cpu *Cpu) pushToStack(value Word) {
-	Ram.Write(0x100+int(cpu.StackPointer), value)
-	cpu.StackPointer--
+func (c *Cpu) pushToStack(value Word) {
+	Ram.Write(0x100+int(c.StackPointer), value)
+	c.StackPointer--
 }
 
-func (cpu *Cpu) pullFromStack() Word {
-	cpu.StackPointer++
-	val, _ := Ram.Read(0x100 + int(cpu.StackPointer))
+func (c *Cpu) pullFromStack() Word {
+	c.StackPointer++
+	val, _ := Ram.Read(0x100 + int(c.StackPointer))
 
 	return val
 }
 
-func (cpu *Cpu) testAndSetNegative(value Word) {
+func (c *Cpu) testAndSetNegative(value Word) {
 	if value&0x80 == 0x80 {
-		cpu.setNegative()
+		c.setNegative()
 		return
 	}
 
-	cpu.clearNegative()
+	c.clearNegative()
 }
 
-func (cpu *Cpu) testAndSetZero(value Word) {
+func (c *Cpu) testAndSetZero(value Word) {
 	if value == 0x00 {
-		cpu.setZero()
+		c.setZero()
 		return
 	}
 
-	cpu.clearZero()
+	c.clearZero()
 }
 
-func (cpu *Cpu) testAndSetCarryAddition(result int) {
+func (c *Cpu) testAndSetCarryAddition(result int) {
 	if result > 0xff {
-		cpu.setCarry()
+		c.setCarry()
 		return
 	}
 
-	cpu.clearCarry()
+	c.clearCarry()
 }
 
-func (cpu *Cpu) testAndSetCarrySubtraction(result int) {
+func (c *Cpu) testAndSetCarrySubtraction(result int) {
 	if result < 0x00 {
-		cpu.clearCarry()
+		c.clearCarry()
 		return
 	}
 
-	cpu.setCarry()
+	c.setCarry()
 }
 
-func (cpu *Cpu) testAndSetOverflowAddition(a Word, b Word) {
+func (c *Cpu) testAndSetOverflowAddition(a Word, b Word) {
 	if (a & 0x80) == (b & 0x80) {
 		switch {
 		case int(a+b) > 127:
 			fallthrough
 		case int(a+b) < -128:
-			cpu.setOverflow()
+			c.setOverflow()
 			return
 		}
 	}
 
-	cpu.clearOverflow()
+	c.clearOverflow()
 }
 
-func (cpu *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
-	val := a - b - (1 - cpu.P&0x01)
+func (c *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
+	val := a - b - (1 - c.P&0x01)
 	if ((a^val)&0x80) != 0 && ((a^b)&0x80) != 0 {
-		cpu.setOverflow()
+		c.setOverflow()
 	} else {
-		cpu.clearOverflow()
+		c.clearOverflow()
 	}
 }
 
-func (cpu *Cpu) immediateAddress() int {
+func (c *Cpu) immediateAddress() int {
 	ProgramCounter++
 	return ProgramCounter - 1
 }
 
-func (cpu *Cpu) absoluteAddress() (result int) {
+func (c *Cpu) absoluteAddress() (result int) {
 	// Switch to an int (or more appropriately uint16) since we 
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(ProgramCounter + 1)
@@ -201,14 +201,14 @@ func (cpu *Cpu) absoluteAddress() (result int) {
 	return (int(high) << 8) + int(low)
 }
 
-func (cpu *Cpu) zeroPageAddress() int {
+func (c *Cpu) zeroPageAddress() int {
 	ProgramCounter++
 	res, _ := Ram.Read(ProgramCounter - 1)
 
 	return int(res)
 }
 
-func (cpu *Cpu) indirectAbsoluteAddress(addr int) (result int) {
+func (c *Cpu) indirectAbsoluteAddress(addr int) (result int) {
 	high, _ := Ram.Read(addr + 1)
 	low, _ := Ram.Read(addr)
 
@@ -226,14 +226,14 @@ func (cpu *Cpu) indirectAbsoluteAddress(addr int) (result int) {
 	return
 }
 
-func (cpu *Cpu) absoluteIndexedAddress(index Word) (result int) {
+func (c *Cpu) absoluteIndexedAddress(index Word) (result int) {
 	// Switch to an int (or more appropriately uint16) since we 
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(ProgramCounter + 1)
 	low, _ := Ram.Read(ProgramCounter)
 
 	if int(low)+int(index) > 0xFF {
-		cpu.CycleCount += 1
+		c.CycleCount += 1
 	}
 
 	address := (int(high) << 8) + int(low) + int(index)
@@ -246,15 +246,15 @@ func (cpu *Cpu) absoluteIndexedAddress(index Word) (result int) {
 	return address
 }
 
-func (cpu *Cpu) zeroPageIndexedAddress(index Word) int {
+func (c *Cpu) zeroPageIndexedAddress(index Word) int {
 	location, _ := Ram.Read(ProgramCounter)
 	ProgramCounter++
 	return int(location + index)
 }
 
-func (cpu *Cpu) indexedIndirectAddress() int {
+func (c *Cpu) indexedIndirectAddress() int {
 	location, _ := Ram.Read(ProgramCounter)
-	location = location + cpu.X
+	location = location + c.X
 
 	ProgramCounter++
 
@@ -266,7 +266,7 @@ func (cpu *Cpu) indexedIndirectAddress() int {
 	return (int(high) << 8) + int(low)
 }
 
-func (cpu *Cpu) indirectIndexedAddress() int {
+func (c *Cpu) indirectIndexedAddress() int {
 	location, _ := Ram.Read(ProgramCounter)
 
 	// Switch to an int (or more appropriately uint16) since we 
@@ -274,11 +274,11 @@ func (cpu *Cpu) indirectIndexedAddress() int {
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
 
-	if int(low)+int(cpu.Y) > 0xFF {
-		cpu.CycleCount += 1
+	if int(low)+int(c.Y) > 0xFF {
+		c.CycleCount += 1
 	}
 
-	address := (int(high) << 8) + int(low) + int(cpu.Y)
+	address := (int(high) << 8) + int(low) + int(c.Y)
 
 	if address > 0xFFFF {
 		address = address & 0xFFFF
@@ -288,7 +288,7 @@ func (cpu *Cpu) indirectIndexedAddress() int {
 	return address
 }
 
-func (cpu *Cpu) relativeAddress() (a int) {
+func (c *Cpu) relativeAddress() (a int) {
 	val, _ := Ram.Read(ProgramCounter)
 
 	a = int(val)
@@ -303,139 +303,139 @@ func (cpu *Cpu) relativeAddress() (a int) {
 	return
 }
 
-func (cpu *Cpu) accumulatorAddress() int {
+func (c *Cpu) accumulatorAddress() int {
 	return 0
 }
 
-func (cpu *Cpu) Adc(location int) {
+func (c *Cpu) Adc(location int) {
 	val, _ := Ram.Read(location)
 
-	cached := cpu.A
+	cached := c.A
 
-	cpu.A = cpu.A + val
+	c.A = c.A + val
 
-	if cpu.getCarry() {
-		cpu.A++
+	if c.getCarry() {
+		c.A++
 	}
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
-	cpu.testAndSetOverflowAddition(cached, val)
-	cpu.testAndSetCarryAddition(int(cached) + int(val) + int(cpu.P&0x01))
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
+	c.testAndSetOverflowAddition(cached, val)
+	c.testAndSetCarryAddition(int(cached) + int(val) + int(c.P&0x01))
 }
 
-func (cpu *Cpu) Lda(location int) {
+func (c *Cpu) Lda(location int) {
 	val, _ := Ram.Read(location)
-	cpu.A = val
+	c.A = val
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Ldx(location int) {
+func (c *Cpu) Ldx(location int) {
 	val, _ := Ram.Read(location)
-	cpu.X = val
+	c.X = val
 
-	cpu.testAndSetNegative(cpu.X)
-	cpu.testAndSetZero(cpu.X)
+	c.testAndSetNegative(c.X)
+	c.testAndSetZero(c.X)
 }
 
-func (cpu *Cpu) Ldy(location int) {
+func (c *Cpu) Ldy(location int) {
 	val, _ := Ram.Read(location)
-	cpu.Y = val
+	c.Y = val
 
-	cpu.testAndSetNegative(cpu.Y)
-	cpu.testAndSetZero(cpu.Y)
+	c.testAndSetNegative(c.Y)
+	c.testAndSetZero(c.Y)
 }
 
-func (cpu *Cpu) Sta(location int) {
-	Ram.Write(location, cpu.A)
+func (c *Cpu) Sta(location int) {
+	Ram.Write(location, c.A)
 }
 
-func (cpu *Cpu) Stx(location int) {
-	Ram.Write(location, cpu.X)
+func (c *Cpu) Stx(location int) {
+	Ram.Write(location, c.X)
 }
 
-func (cpu *Cpu) Sty(location int) {
-	Ram.Write(location, cpu.Y)
+func (c *Cpu) Sty(location int) {
+	Ram.Write(location, c.Y)
 }
 
-func (cpu *Cpu) Jmp(location int) {
+func (c *Cpu) Jmp(location int) {
 	ProgramCounter = location
 }
 
-func (cpu *Cpu) Tax() {
-	cpu.X = cpu.A
+func (c *Cpu) Tax() {
+	c.X = c.A
 
-	cpu.testAndSetNegative(cpu.X)
-	cpu.testAndSetZero(cpu.X)
+	c.testAndSetNegative(c.X)
+	c.testAndSetZero(c.X)
 }
 
-func (cpu *Cpu) Txa() {
-	cpu.A = cpu.X
+func (c *Cpu) Txa() {
+	c.A = c.X
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Dex() {
-	cpu.X = cpu.X - 1
+func (c *Cpu) Dex() {
+	c.X = c.X - 1
 
-	if cpu.X == 0 {
-		cpu.setZero()
+	if c.X == 0 {
+		c.setZero()
 	}
 
-	cpu.testAndSetNegative(cpu.X)
-	cpu.testAndSetZero(cpu.X)
+	c.testAndSetNegative(c.X)
+	c.testAndSetZero(c.X)
 }
 
-func (cpu *Cpu) Inx() {
-	cpu.X = cpu.X + 1
+func (c *Cpu) Inx() {
+	c.X = c.X + 1
 
-	cpu.testAndSetNegative(cpu.X)
-	cpu.testAndSetZero(cpu.X)
+	c.testAndSetNegative(c.X)
+	c.testAndSetZero(c.X)
 }
 
-func (cpu *Cpu) Tay() {
-	cpu.Y = cpu.A
+func (c *Cpu) Tay() {
+	c.Y = c.A
 
-	cpu.testAndSetNegative(cpu.Y)
-	cpu.testAndSetZero(cpu.Y)
+	c.testAndSetNegative(c.Y)
+	c.testAndSetZero(c.Y)
 }
 
-func (cpu *Cpu) Tya() {
-	cpu.A = cpu.Y
+func (c *Cpu) Tya() {
+	c.A = c.Y
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Dey() {
-	cpu.Y = cpu.Y - 1
+func (c *Cpu) Dey() {
+	c.Y = c.Y - 1
 
-	if cpu.X == 0 {
-		cpu.setZero()
+	if c.X == 0 {
+		c.setZero()
 	}
 
-	cpu.testAndSetNegative(cpu.Y)
-	cpu.testAndSetZero(cpu.Y)
+	c.testAndSetNegative(c.Y)
+	c.testAndSetZero(c.Y)
 }
 
-func (cpu *Cpu) Iny() {
-	cpu.Y = cpu.Y + 1
+func (c *Cpu) Iny() {
+	c.Y = c.Y + 1
 
-	cpu.testAndSetNegative(cpu.Y)
-	cpu.testAndSetZero(cpu.Y)
+	c.testAndSetNegative(c.Y)
+	c.testAndSetZero(c.Y)
 }
 
-func (cpu *Cpu) Bpl() {
-	if !cpu.getNegative() {
-		a := cpu.relativeAddress()
+func (c *Cpu) Bpl() {
+	if !c.getNegative() {
+		a := c.relativeAddress()
 
 		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			cpu.CycleCount += 2
+			c.CycleCount += 2
 		} else {
-			cpu.CycleCount += 1
+			c.CycleCount += 1
 		}
 
 		ProgramCounter = a
@@ -444,14 +444,14 @@ func (cpu *Cpu) Bpl() {
 	}
 }
 
-func (cpu *Cpu) Bmi() {
-	if cpu.getNegative() {
-		a := cpu.relativeAddress()
+func (c *Cpu) Bmi() {
+	if c.getNegative() {
+		a := c.relativeAddress()
 
 		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			cpu.CycleCount += 2
+			c.CycleCount += 2
 		} else {
-			cpu.CycleCount += 1
+			c.CycleCount += 1
 		}
 
 		ProgramCounter = a
@@ -460,14 +460,14 @@ func (cpu *Cpu) Bmi() {
 	}
 }
 
-func (cpu *Cpu) Bvc() {
-	if !cpu.getOverflow() {
-		a := cpu.relativeAddress()
+func (c *Cpu) Bvc() {
+	if !c.getOverflow() {
+		a := c.relativeAddress()
 
 		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			cpu.CycleCount += 2
+			c.CycleCount += 2
 		} else {
-			cpu.CycleCount += 1
+			c.CycleCount += 1
 		}
 
 		ProgramCounter = a
@@ -476,14 +476,14 @@ func (cpu *Cpu) Bvc() {
 	}
 }
 
-func (cpu *Cpu) Bvs() {
-	if cpu.getOverflow() {
-		a := cpu.relativeAddress()
+func (c *Cpu) Bvs() {
+	if c.getOverflow() {
+		a := c.relativeAddress()
 
 		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			cpu.CycleCount += 2
+			c.CycleCount += 2
 		} else {
-			cpu.CycleCount += 1
+			c.CycleCount += 1
 		}
 
 		ProgramCounter = a
@@ -492,14 +492,14 @@ func (cpu *Cpu) Bvs() {
 	}
 }
 
-func (cpu *Cpu) Bcc() {
-	if !cpu.getCarry() {
-		a := cpu.relativeAddress()
+func (c *Cpu) Bcc() {
+	if !c.getCarry() {
+		a := c.relativeAddress()
 
 		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			cpu.CycleCount += 2
+			c.CycleCount += 2
 		} else {
-			cpu.CycleCount += 1
+			c.CycleCount += 1
 		}
 
 		ProgramCounter = a
@@ -508,14 +508,14 @@ func (cpu *Cpu) Bcc() {
 	}
 }
 
-func (cpu *Cpu) Bcs() {
-	if cpu.getCarry() {
-		a := cpu.relativeAddress()
+func (c *Cpu) Bcs() {
+	if c.getCarry() {
+		a := c.relativeAddress()
 
 		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			cpu.CycleCount += 2
+			c.CycleCount += 2
 		} else {
-			cpu.CycleCount += 1
+			c.CycleCount += 1
 		}
 
 		ProgramCounter = a
@@ -524,14 +524,14 @@ func (cpu *Cpu) Bcs() {
 	}
 }
 
-func (cpu *Cpu) Bne() {
-	if !cpu.getZero() {
-		a := cpu.relativeAddress()
+func (c *Cpu) Bne() {
+	if !c.getZero() {
+		a := c.relativeAddress()
 
 		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			cpu.CycleCount += 2
+			c.CycleCount += 2
 		} else {
-			cpu.CycleCount += 1
+			c.CycleCount += 1
 		}
 
 		ProgramCounter = a
@@ -540,14 +540,14 @@ func (cpu *Cpu) Bne() {
 	}
 }
 
-func (cpu *Cpu) Beq() {
-	if cpu.getZero() {
-		a := cpu.relativeAddress()
+func (c *Cpu) Beq() {
+	if c.getZero() {
+		a := c.relativeAddress()
 
 		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			cpu.CycleCount += 2
+			c.CycleCount += 2
 		} else {
-			cpu.CycleCount += 1
+			c.CycleCount += 1
 		}
 
 		ProgramCounter = a
@@ -556,155 +556,155 @@ func (cpu *Cpu) Beq() {
 	}
 }
 
-func (cpu *Cpu) Txs() {
-	cpu.StackPointer = cpu.X
+func (c *Cpu) Txs() {
+	c.StackPointer = c.X
 }
 
-func (cpu *Cpu) Tsx() {
-	cpu.X = cpu.StackPointer
+func (c *Cpu) Tsx() {
+	c.X = c.StackPointer
 
-	cpu.testAndSetZero(cpu.X)
-	cpu.testAndSetNegative(cpu.X)
+	c.testAndSetZero(c.X)
+	c.testAndSetNegative(c.X)
 }
 
-func (cpu *Cpu) Pha() {
-	cpu.pushToStack(cpu.A)
+func (c *Cpu) Pha() {
+	c.pushToStack(c.A)
 }
 
-func (cpu *Cpu) Pla() {
-	val := cpu.pullFromStack()
+func (c *Cpu) Pla() {
+	val := c.pullFromStack()
 
-	cpu.A = val
+	c.A = val
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Php() {
+func (c *Cpu) Php() {
 	// BRK and PHP push P OR #$10, so that the IRQ handler can tell 
 	// whether the entry was from a BRK or from an /IRQ.
-	cpu.pushToStack(cpu.P | 0x10)
+	c.pushToStack(c.P | 0x10)
 }
 
-func (cpu *Cpu) Plp() {
-	val := cpu.pullFromStack()
+func (c *Cpu) Plp() {
+	val := c.pullFromStack()
 
 	// Unset bit 5 since it's unused in the NES
-	cpu.P = (val | 0x30) - 0x10
+	c.P = (val | 0x30) - 0x10
 }
 
-func (cpu *Cpu) Compare(register Word, value Word) {
+func (c *Cpu) Compare(register Word, value Word) {
 	r := register - value
 
-	cpu.testAndSetZero(r)
-	cpu.testAndSetNegative(r)
-	cpu.testAndSetCarrySubtraction(int(register) - int(value))
+	c.testAndSetZero(r)
+	c.testAndSetNegative(r)
+	c.testAndSetCarrySubtraction(int(register) - int(value))
 }
 
-func (cpu *Cpu) Cmp(location int) {
+func (c *Cpu) Cmp(location int) {
 	val, _ := Ram.Read(location)
-	cpu.Compare(cpu.A, val)
+	c.Compare(c.A, val)
 }
 
-func (cpu *Cpu) Cpx(location int) {
+func (c *Cpu) Cpx(location int) {
 	val, _ := Ram.Read(location)
-	cpu.Compare(cpu.X, val)
+	c.Compare(c.X, val)
 }
 
-func (cpu *Cpu) Cpy(location int) {
+func (c *Cpu) Cpy(location int) {
 	val, _ := Ram.Read(location)
-	cpu.Compare(cpu.Y, val)
+	c.Compare(c.Y, val)
 }
 
-func (cpu *Cpu) Sbc(location int) {
+func (c *Cpu) Sbc(location int) {
 	val, _ := Ram.Read(location)
 
-	cache := cpu.A
-	cpu.A = cache - val
+	cache := c.A
+	c.A = cache - val
 
-	cpu.A = cpu.A - (1 - cpu.P&0x01)
+	c.A = c.A - (1 - c.P&0x01)
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
-	cpu.testAndSetOverflowSubtraction(cache, val)
-	cpu.testAndSetCarrySubtraction(int(cache) - int(val) - (1 - int(cpu.P&0x01)))
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
+	c.testAndSetOverflowSubtraction(cache, val)
+	c.testAndSetCarrySubtraction(int(cache) - int(val) - (1 - int(c.P&0x01)))
 
-	cpu.A = cpu.A & 0xff
+	c.A = c.A & 0xff
 }
 
-func (cpu *Cpu) Clc() {
-	cpu.clearCarry()
+func (c *Cpu) Clc() {
+	c.clearCarry()
 }
 
-func (cpu *Cpu) Sec() {
-	cpu.setCarry()
+func (c *Cpu) Sec() {
+	c.setCarry()
 }
 
-func (cpu *Cpu) Cli() {
-	cpu.clearIrqDisable()
+func (c *Cpu) Cli() {
+	c.clearIrqDisable()
 }
 
-func (cpu *Cpu) Sei() {
-	cpu.setIrqDisable()
+func (c *Cpu) Sei() {
+	c.setIrqDisable()
 }
 
-func (cpu *Cpu) Clv() {
-	cpu.clearOverflow()
+func (c *Cpu) Clv() {
+	c.clearOverflow()
 }
 
-func (cpu *Cpu) Cld() {
-	cpu.clearDecimalMode()
+func (c *Cpu) Cld() {
+	c.clearDecimalMode()
 }
 
-func (cpu *Cpu) Sed() {
-	cpu.setDecimalMode()
+func (c *Cpu) Sed() {
+	c.setDecimalMode()
 }
 
-func (cpu *Cpu) And(location int) {
+func (c *Cpu) And(location int) {
 	val, _ := Ram.Read(location)
-	cpu.A = cpu.A & val
+	c.A = c.A & val
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Ora(location int) {
+func (c *Cpu) Ora(location int) {
 	val, _ := Ram.Read(location)
-	cpu.A = cpu.A | val
+	c.A = c.A | val
 
-	cpu.testAndSetNegative(val)
-	cpu.testAndSetZero(val)
+	c.testAndSetNegative(val)
+	c.testAndSetZero(val)
 }
 
-func (cpu *Cpu) Eor(location int) {
+func (c *Cpu) Eor(location int) {
 	val, _ := Ram.Read(location)
-	cpu.A = cpu.A ^ val
+	c.A = c.A ^ val
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Dec(location int) {
+func (c *Cpu) Dec(location int) {
 	val, _ := Ram.Read(location)
 	val = val - 1
 
 	Ram.Write(location, val)
 
-	cpu.testAndSetNegative(val)
-	cpu.testAndSetZero(val)
+	c.testAndSetNegative(val)
+	c.testAndSetZero(val)
 }
 
-func (cpu *Cpu) Inc(location int) {
+func (c *Cpu) Inc(location int) {
 	val, _ := Ram.Read(location)
 	val = val + 1
 
 	Ram.Write(location, val)
 
-	cpu.testAndSetNegative(val)
-	cpu.testAndSetZero(val)
+	c.testAndSetNegative(val)
+	c.testAndSetZero(val)
 }
 
-func (cpu *Cpu) Brk() {
+func (c *Cpu) Brk() {
 	// perfect example of the confusion the "B flag exists in status register" 
 	// causes (pdq, nothing specific to you; this confusion is present in 
 	// almost every 6502 book and web page). 
@@ -717,218 +717,218 @@ func (cpu *Cpu) Brk() {
 	// 4. JMP ($FFFE)
 	ProgramCounter = ProgramCounter + 1
 
-	cpu.pushToStack(Word(ProgramCounter >> 8))
-	cpu.pushToStack(Word(ProgramCounter & 0xFF))
+	c.pushToStack(Word(ProgramCounter >> 8))
+	c.pushToStack(Word(ProgramCounter & 0xFF))
 
-	cpu.Php()
-	cpu.Sei()
+	c.Php()
+	c.Sei()
 
-	cpu.setIrqDisable()
+	c.setIrqDisable()
 
-	cpu.Jmp(cpu.indirectAbsoluteAddress(0xFFFE))
+	c.Jmp(c.indirectAbsoluteAddress(0xFFFE))
 }
 
-func (cpu *Cpu) Jsr(location int) {
+func (c *Cpu) Jsr(location int) {
 	high := (ProgramCounter - 1) >> 8
 	low := (ProgramCounter - 1) & 0xFF
 
-	cpu.pushToStack(Word(high))
-	cpu.pushToStack(Word(low))
+	c.pushToStack(Word(high))
+	c.pushToStack(Word(low))
 
 	ProgramCounter = location
 }
 
-func (cpu *Cpu) Rti() {
-	cpu.Plp()
+func (c *Cpu) Rti() {
+	c.Plp()
 
-	low := cpu.pullFromStack()
-	high := cpu.pullFromStack()
+	low := c.pullFromStack()
+	high := c.pullFromStack()
 
 	ProgramCounter = ((int(high) << 8) + int(low))
 }
 
-func (cpu *Cpu) Rts() {
-	low := cpu.pullFromStack()
-	high := cpu.pullFromStack()
+func (c *Cpu) Rts() {
+	low := c.pullFromStack()
+	high := c.pullFromStack()
 
 	ProgramCounter = ((int(high) << 8) + int(low)) + 1
 }
 
-func (cpu *Cpu) Lsr(location int) {
+func (c *Cpu) Lsr(location int) {
 	val, _ := Ram.Read(location)
 
 	if val&0x01 > 0x00 {
-		cpu.setCarry()
+		c.setCarry()
 	} else {
-		cpu.clearCarry()
+		c.clearCarry()
 	}
 
 	Ram.Write(location, val>>1)
 
 	val, _ = Ram.Read(location)
 
-	cpu.testAndSetNegative(val)
-	cpu.testAndSetZero(val)
+	c.testAndSetNegative(val)
+	c.testAndSetZero(val)
 }
 
-func (cpu *Cpu) LsrAcc() {
-	if cpu.A&0x01 > 0 {
-		cpu.setCarry()
+func (c *Cpu) LsrAcc() {
+	if c.A&0x01 > 0 {
+		c.setCarry()
 	} else {
-		cpu.clearCarry()
+		c.clearCarry()
 	}
 
-	cpu.A = cpu.A >> 1
+	c.A = c.A >> 1
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Asl(location int) {
+func (c *Cpu) Asl(location int) {
 	val, _ := Ram.Read(location)
 
 	if val&0x80 > 0 {
-		cpu.setCarry()
+		c.setCarry()
 	} else {
-		cpu.clearCarry()
+		c.clearCarry()
 	}
 
 	Ram.Write(location, val<<1)
 
 	val, _ = Ram.Read(location)
-	cpu.testAndSetNegative(val)
-	cpu.testAndSetZero(val)
+	c.testAndSetNegative(val)
+	c.testAndSetZero(val)
 }
 
-func (cpu *Cpu) AslAcc() {
-	if cpu.A&0x80 > 0 {
-		cpu.setCarry()
+func (c *Cpu) AslAcc() {
+	if c.A&0x80 > 0 {
+		c.setCarry()
 	} else {
-		cpu.clearCarry()
+		c.clearCarry()
 	}
 
-	cpu.A = cpu.A << 1
+	c.A = c.A << 1
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Rol(location int) {
+func (c *Cpu) Rol(location int) {
 	value, _ := Ram.Read(location)
 
 	carry := value & 0x80
 
 	value = value << 1
 
-	if cpu.getCarry() {
+	if c.getCarry() {
 		value += 1
 	}
 
 	if carry > 0x00 {
-		cpu.setCarry()
+		c.setCarry()
 	} else {
-		cpu.clearCarry()
+		c.clearCarry()
 	}
 
 	Ram.Write(location, value)
 
 	value, _ = Ram.Read(location)
-	cpu.testAndSetNegative(value)
-	cpu.testAndSetZero(value)
+	c.testAndSetNegative(value)
+	c.testAndSetZero(value)
 }
 
-func (cpu *Cpu) RolAcc() {
-	carry := cpu.A & 0x80
+func (c *Cpu) RolAcc() {
+	carry := c.A & 0x80
 
-	cpu.A = cpu.A << 1
+	c.A = c.A << 1
 
-	if cpu.getCarry() {
-		cpu.A += 1
+	if c.getCarry() {
+		c.A += 1
 	}
 
 	if carry > 0x00 {
-		cpu.setCarry()
+		c.setCarry()
 	} else {
-		cpu.clearCarry()
+		c.clearCarry()
 	}
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Ror(location int) {
+func (c *Cpu) Ror(location int) {
 	value, _ := Ram.Read(location)
 
 	carry := value & 0x1
 
 	value = value >> 1
 
-	if cpu.getCarry() {
+	if c.getCarry() {
 		value += 0x80
 	}
 
 	if carry > 0x00 {
-		cpu.setCarry()
+		c.setCarry()
 	} else {
-		cpu.clearCarry()
+		c.clearCarry()
 	}
 
 	Ram.Write(location, value)
 
 	value, _ = Ram.Read(location)
-	cpu.testAndSetNegative(value)
-	cpu.testAndSetZero(value)
+	c.testAndSetNegative(value)
+	c.testAndSetZero(value)
 }
 
-func (cpu *Cpu) RorAcc() {
-	carry := cpu.A & 0x1
+func (c *Cpu) RorAcc() {
+	carry := c.A & 0x1
 
-	cpu.A = cpu.A >> 1
+	c.A = c.A >> 1
 
-	if cpu.getCarry() {
-		cpu.A += 0x80
+	if c.getCarry() {
+		c.A += 0x80
 	}
 
 	if carry > 0x00 {
-		cpu.setCarry()
+		c.setCarry()
 	} else {
-		cpu.clearCarry()
+		c.clearCarry()
 	}
 
-	cpu.testAndSetNegative(cpu.A)
-	cpu.testAndSetZero(cpu.A)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
-func (cpu *Cpu) Bit(location int) {
+func (c *Cpu) Bit(location int) {
 	val, _ := Ram.Read(location)
 
-	if val&cpu.A == 0 {
-		cpu.setZero()
+	if val&c.A == 0 {
+		c.setZero()
 	} else {
-		cpu.clearZero()
+		c.clearZero()
 	}
 
 	if val&0x80 > 0x00 {
-		cpu.setNegative()
+		c.setNegative()
 	} else {
-		cpu.clearNegative()
+		c.clearNegative()
 	}
 
 	if val&0x40 > 0x00 {
-		cpu.setOverflow()
+		c.setOverflow()
 	} else {
-		cpu.clearOverflow()
+		c.clearOverflow()
 	}
 }
 
-func (cpu *Cpu) PerformNmi() {
+func (c *Cpu) PerformNmi() {
 	high := ProgramCounter >> 8
 	low := ProgramCounter & 0xFF
 
-	cpu.pushToStack(Word(high))
-	cpu.pushToStack(Word(low))
+	c.pushToStack(Word(high))
+	c.pushToStack(Word(low))
 
-	cpu.pushToStack(cpu.P)
+	c.pushToStack(c.P)
 
 	h, _ := Ram.Read(0xFFFB)
 	l, _ := Ram.Read(0xFFFA)
@@ -936,7 +936,7 @@ func (cpu *Cpu) PerformNmi() {
 	ProgramCounter = int(h)<<8 + int(l)
 }
 
-func (cpu *Cpu) PerformReset() {
+func (c *Cpu) PerformReset() {
 	// $2000.7 enables/disables NMIs
 	if ppu.NmiOnVblank != 0x0 {
 		high, _ := Ram.Read(0xFFFD)
@@ -946,543 +946,543 @@ func (cpu *Cpu) PerformReset() {
 	}
 }
 
-func (cpu *Cpu) RequestInterrupt(i int) {
-	cpu.InterruptRequested = i
+func (c *Cpu) RequestInterrupt(i int) {
+	c.InterruptRequested = i
 }
 
-func (cpu *Cpu) Init() {
-	cpu.Reset()
-	cpu.InterruptRequested = InterruptNone
+func (c *Cpu) Init() {
+	c.Reset()
+	c.InterruptRequested = InterruptNone
 }
 
-func (cpu *Cpu) Reset() {
-	cpu.X = 0
-	cpu.Y = 0
-	cpu.A = 0
-	cpu.CycleCount = 0
-	cpu.P = 0x34
-	cpu.StackPointer = 0xFD
+func (c *Cpu) Reset() {
+	c.X = 0
+	c.Y = 0
+	c.A = 0
+	c.CycleCount = 0
+	c.P = 0x34
+	c.StackPointer = 0xFD
 
-	cpu.Accurate = true
-	cpu.InterruptRequested = InterruptNone
+	c.Accurate = true
+	c.InterruptRequested = InterruptNone
 }
 
-func (cpu *Cpu) Step() int {
+func (c *Cpu) Step() int {
 	// Used during a DMA
-	if cpu.CyclesToWait > 0 {
-		cpu.CyclesToWait--
+	if c.CyclesToWait > 0 {
+		c.CyclesToWait--
 		return 0
 	}
 
 	// Check if an interrupt was requested
-	switch cpu.InterruptRequested {
+	switch c.InterruptRequested {
 	case InterruptNmi:
-		cpu.PerformNmi()
-		cpu.InterruptRequested = InterruptNone
+		c.PerformNmi()
+		c.InterruptRequested = InterruptNone
 	case InterruptReset:
-		cpu.PerformReset()
-		cpu.InterruptRequested = InterruptNone
+		c.PerformReset()
+		c.InterruptRequested = InterruptNone
 	}
 
 	opcode, _ := Ram.Read(ProgramCounter)
 
-	cpu.Opcode = opcode
+	c.Opcode = opcode
 
 	ProgramCounter++
 
-	if cpu.Verbose {
-		Disassemble(opcode, cpu, ProgramCounter)
+	if c.Verbose {
+		Disassemble(opcode, c, ProgramCounter)
 	}
 
 	switch opcode {
 	// ADC
 	case 0x69:
-		cpu.CycleCount = 2
-		cpu.Adc(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Adc(c.immediateAddress())
 	case 0x65:
-		cpu.CycleCount = 3
-		cpu.Adc(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Adc(c.zeroPageAddress())
 	case 0x75:
-		cpu.CycleCount = 4
-		cpu.Adc(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Adc(c.zeroPageIndexedAddress(c.X))
 	case 0x6D:
-		cpu.CycleCount = 4
-		cpu.Adc(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Adc(c.absoluteAddress())
 	case 0x7D:
-		cpu.CycleCount = 4
-		cpu.Adc(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Adc(c.absoluteIndexedAddress(c.X))
 	case 0x79:
-		cpu.CycleCount = 4
-		cpu.Adc(cpu.absoluteIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.Adc(c.absoluteIndexedAddress(c.Y))
 	case 0x61:
-		cpu.CycleCount = 6
-		cpu.Adc(cpu.indexedIndirectAddress())
+		c.CycleCount = 6
+		c.Adc(c.indexedIndirectAddress())
 	case 0x71:
-		cpu.CycleCount = 5
-		cpu.Adc(cpu.indirectIndexedAddress())
+		c.CycleCount = 5
+		c.Adc(c.indirectIndexedAddress())
 	// LDA
 	case 0xA9:
-		cpu.CycleCount = 2
-		cpu.Lda(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Lda(c.immediateAddress())
 	case 0xA5:
-		cpu.CycleCount = 3
-		cpu.Lda(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Lda(c.zeroPageAddress())
 	case 0xB5:
-		cpu.CycleCount = 4
-		cpu.Lda(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Lda(c.zeroPageIndexedAddress(c.X))
 	case 0xAD:
-		cpu.CycleCount = 4
-		cpu.Lda(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Lda(c.absoluteAddress())
 	case 0xBD:
-		cpu.CycleCount = 4
-		cpu.Lda(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Lda(c.absoluteIndexedAddress(c.X))
 	case 0xB9:
-		cpu.CycleCount = 4
-		cpu.Lda(cpu.absoluteIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.Lda(c.absoluteIndexedAddress(c.Y))
 	case 0xA1:
-		cpu.CycleCount = 6
-		cpu.Lda(cpu.indexedIndirectAddress())
+		c.CycleCount = 6
+		c.Lda(c.indexedIndirectAddress())
 	case 0xB1:
-		cpu.CycleCount = 5
-		cpu.Lda(cpu.indirectIndexedAddress())
+		c.CycleCount = 5
+		c.Lda(c.indirectIndexedAddress())
 	// LDX
 	case 0xA2:
-		cpu.CycleCount = 2
-		cpu.Ldx(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Ldx(c.immediateAddress())
 	case 0xA6:
-		cpu.CycleCount = 3
-		cpu.Ldx(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Ldx(c.zeroPageAddress())
 	case 0xB6:
-		cpu.CycleCount = 4
-		cpu.Ldx(cpu.zeroPageIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.Ldx(c.zeroPageIndexedAddress(c.Y))
 	case 0xAE:
-		cpu.CycleCount = 4
-		cpu.Ldx(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Ldx(c.absoluteAddress())
 	case 0xBE:
-		cpu.CycleCount = 4
-		cpu.Ldx(cpu.absoluteIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.Ldx(c.absoluteIndexedAddress(c.Y))
 	// LDY
 	case 0xA0:
-		cpu.CycleCount = 2
-		cpu.Ldy(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Ldy(c.immediateAddress())
 	case 0xA4:
-		cpu.CycleCount = 3
-		cpu.Ldy(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Ldy(c.zeroPageAddress())
 	case 0xB4:
-		cpu.CycleCount = 4
-		cpu.Ldy(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Ldy(c.zeroPageIndexedAddress(c.X))
 	case 0xAC:
-		cpu.CycleCount = 4
-		cpu.Ldy(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Ldy(c.absoluteAddress())
 	case 0xBC:
-		cpu.CycleCount = 4
-		cpu.Ldy(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Ldy(c.absoluteIndexedAddress(c.X))
 	// STA
 	case 0x85:
-		cpu.CycleCount = 3
-		cpu.Sta(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Sta(c.zeroPageAddress())
 	case 0x95:
-		cpu.CycleCount = 4
-		cpu.Sta(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Sta(c.zeroPageIndexedAddress(c.X))
 	case 0x8D:
-		cpu.CycleCount = 4
-		cpu.Sta(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Sta(c.absoluteAddress())
 	case 0x9D:
-		cpu.CycleCount = 5
-		cpu.Sta(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 5
+		c.Sta(c.absoluteIndexedAddress(c.X))
 	case 0x99:
-		cpu.CycleCount = 5
-		cpu.Sta(cpu.absoluteIndexedAddress(cpu.Y))
+		c.CycleCount = 5
+		c.Sta(c.absoluteIndexedAddress(c.Y))
 	case 0x81:
-		cpu.CycleCount = 6
-		cpu.Sta(cpu.indexedIndirectAddress())
+		c.CycleCount = 6
+		c.Sta(c.indexedIndirectAddress())
 	case 0x91:
-		cpu.CycleCount = 6
-		cpu.Sta(cpu.indirectIndexedAddress())
+		c.CycleCount = 6
+		c.Sta(c.indirectIndexedAddress())
 	// STX
 	case 0x86:
-		cpu.CycleCount = 3
-		cpu.Stx(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Stx(c.zeroPageAddress())
 	case 0x96:
-		cpu.CycleCount = 4
-		cpu.Stx(cpu.zeroPageIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.Stx(c.zeroPageIndexedAddress(c.Y))
 	case 0x8E:
-		cpu.CycleCount = 4
-		cpu.Stx(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Stx(c.absoluteAddress())
 	// STY
 	case 0x84:
-		cpu.CycleCount = 3
-		cpu.Sty(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Sty(c.zeroPageAddress())
 	case 0x94:
-		cpu.CycleCount = 4
-		cpu.Sty(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Sty(c.zeroPageIndexedAddress(c.X))
 	case 0x8C:
-		cpu.CycleCount = 4
-		cpu.Sty(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Sty(c.absoluteAddress())
 	// JMP
 	case 0x4C:
-		cpu.CycleCount = 3
-		cpu.Jmp(cpu.absoluteAddress())
+		c.CycleCount = 3
+		c.Jmp(c.absoluteAddress())
 	case 0x6C:
-		cpu.CycleCount = 5
-		cpu.Jmp(cpu.indirectAbsoluteAddress(ProgramCounter))
+		c.CycleCount = 5
+		c.Jmp(c.indirectAbsoluteAddress(ProgramCounter))
 	// JSR
 	case 0x20:
-		cpu.CycleCount = 6
-		cpu.Jsr(cpu.absoluteAddress())
+		c.CycleCount = 6
+		c.Jsr(c.absoluteAddress())
 	// Register Instructions
 	case 0xAA:
-		cpu.CycleCount = 2
-		cpu.Tax()
+		c.CycleCount = 2
+		c.Tax()
 	case 0x8A:
-		cpu.CycleCount = 2
-		cpu.Txa()
+		c.CycleCount = 2
+		c.Txa()
 	case 0xCA:
-		cpu.CycleCount = 2
-		cpu.Dex()
+		c.CycleCount = 2
+		c.Dex()
 	case 0xE8:
-		cpu.CycleCount = 2
-		cpu.Inx()
+		c.CycleCount = 2
+		c.Inx()
 	case 0xA8:
-		cpu.CycleCount = 2
-		cpu.Tay()
+		c.CycleCount = 2
+		c.Tay()
 	case 0x98:
-		cpu.CycleCount = 2
-		cpu.Tya()
+		c.CycleCount = 2
+		c.Tya()
 	case 0x88:
-		cpu.CycleCount = 2
-		cpu.Dey()
+		c.CycleCount = 2
+		c.Dey()
 	case 0xC8:
-		cpu.CycleCount = 2
-		cpu.Iny()
+		c.CycleCount = 2
+		c.Iny()
 	// Branch Instructions
 	case 0x10:
-		cpu.CycleCount = 2
-		cpu.Bpl()
+		c.CycleCount = 2
+		c.Bpl()
 	case 0x30:
-		cpu.CycleCount = 2
-		cpu.Bmi()
+		c.CycleCount = 2
+		c.Bmi()
 	case 0x50:
-		cpu.CycleCount = 2
-		cpu.Bvc()
+		c.CycleCount = 2
+		c.Bvc()
 	case 0x70:
-		cpu.CycleCount = 2
-		cpu.Bvs()
+		c.CycleCount = 2
+		c.Bvs()
 	case 0x90:
-		cpu.CycleCount = 2
-		cpu.Bcc()
+		c.CycleCount = 2
+		c.Bcc()
 	case 0xB0:
-		cpu.CycleCount = 2
-		cpu.Bcs()
+		c.CycleCount = 2
+		c.Bcs()
 	case 0xD0:
-		cpu.CycleCount = 2
-		cpu.Bne()
+		c.CycleCount = 2
+		c.Bne()
 	case 0xF0:
-		cpu.CycleCount = 2
-		cpu.Beq()
+		c.CycleCount = 2
+		c.Beq()
 	// CMP
 	case 0xC9:
-		cpu.CycleCount = 2
-		cpu.Cmp(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Cmp(c.immediateAddress())
 	case 0xC5:
-		cpu.CycleCount = 3
-		cpu.Cmp(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Cmp(c.zeroPageAddress())
 	case 0xD5:
-		cpu.CycleCount = 4
-		cpu.Cmp(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Cmp(c.zeroPageIndexedAddress(c.X))
 	case 0xCD:
-		cpu.CycleCount = 4
-		cpu.Cmp(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Cmp(c.absoluteAddress())
 	case 0xDD:
-		cpu.CycleCount = 4
-		cpu.Cmp(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Cmp(c.absoluteIndexedAddress(c.X))
 	case 0xD9:
-		cpu.CycleCount = 4
-		cpu.Cmp(cpu.absoluteIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.Cmp(c.absoluteIndexedAddress(c.Y))
 	case 0xC1:
-		cpu.CycleCount = 6
-		cpu.Cmp(cpu.indexedIndirectAddress())
+		c.CycleCount = 6
+		c.Cmp(c.indexedIndirectAddress())
 	case 0xD1:
-		cpu.CycleCount = 5
-		cpu.Cmp(cpu.indirectIndexedAddress())
+		c.CycleCount = 5
+		c.Cmp(c.indirectIndexedAddress())
 	// CPX
 	case 0xE0:
-		cpu.CycleCount = 2
-		cpu.Cpx(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Cpx(c.immediateAddress())
 	case 0xE4:
-		cpu.CycleCount = 3
-		cpu.Cpx(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Cpx(c.zeroPageAddress())
 	case 0xEC:
-		cpu.CycleCount = 4
-		cpu.Cpx(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Cpx(c.absoluteAddress())
 	// CPY
 	case 0xC0:
-		cpu.CycleCount = 2
-		cpu.Cpy(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Cpy(c.immediateAddress())
 	case 0xC4:
-		cpu.CycleCount = 3
-		cpu.Cpy(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Cpy(c.zeroPageAddress())
 	case 0xCC:
-		cpu.CycleCount = 4
-		cpu.Cpy(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Cpy(c.absoluteAddress())
 	// SBC
 	case 0xE9:
-		cpu.CycleCount = 2
-		cpu.Sbc(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Sbc(c.immediateAddress())
 	case 0xE5:
-		cpu.CycleCount = 3
-		cpu.Sbc(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Sbc(c.zeroPageAddress())
 	case 0xF5:
-		cpu.CycleCount = 4
-		cpu.Sbc(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Sbc(c.zeroPageIndexedAddress(c.X))
 	case 0xED:
-		cpu.CycleCount = 4
-		cpu.Sbc(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Sbc(c.absoluteAddress())
 	case 0xFD:
-		cpu.CycleCount = 4
-		cpu.Sbc(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Sbc(c.absoluteIndexedAddress(c.X))
 	case 0xF9:
-		cpu.CycleCount = 4
-		cpu.Sbc(cpu.absoluteIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.Sbc(c.absoluteIndexedAddress(c.Y))
 	case 0xE1:
-		cpu.CycleCount = 6
-		cpu.Sbc(cpu.indexedIndirectAddress())
+		c.CycleCount = 6
+		c.Sbc(c.indexedIndirectAddress())
 	case 0xF1:
-		cpu.CycleCount = 5
-		cpu.Sbc(cpu.indirectIndexedAddress())
+		c.CycleCount = 5
+		c.Sbc(c.indirectIndexedAddress())
 	// Flag Instructions
 	case 0x18:
-		cpu.CycleCount = 2
-		cpu.Clc()
+		c.CycleCount = 2
+		c.Clc()
 	case 0x38:
-		cpu.CycleCount = 2
-		cpu.Sec()
+		c.CycleCount = 2
+		c.Sec()
 	case 0x58:
-		cpu.CycleCount = 2
-		cpu.Cli()
+		c.CycleCount = 2
+		c.Cli()
 	case 0x78:
-		cpu.CycleCount = 2
-		cpu.Sei()
+		c.CycleCount = 2
+		c.Sei()
 	case 0xB8:
-		cpu.CycleCount = 2
-		cpu.Clv()
+		c.CycleCount = 2
+		c.Clv()
 	case 0xD8:
-		cpu.CycleCount = 2
-		cpu.Cld()
+		c.CycleCount = 2
+		c.Cld()
 	case 0xF8:
-		cpu.CycleCount = 2
-		cpu.Sed()
+		c.CycleCount = 2
+		c.Sed()
 	// Stack instructions
 	case 0x9A:
-		cpu.CycleCount = 2
-		cpu.Txs()
+		c.CycleCount = 2
+		c.Txs()
 	case 0xBA:
-		cpu.CycleCount = 2
-		cpu.Tsx()
+		c.CycleCount = 2
+		c.Tsx()
 	case 0x48:
-		cpu.CycleCount = 3
-		cpu.Pha()
+		c.CycleCount = 3
+		c.Pha()
 	case 0x68:
-		cpu.CycleCount = 4
-		cpu.Pla()
+		c.CycleCount = 4
+		c.Pla()
 	case 0x08:
-		cpu.CycleCount = 3
-		cpu.Php()
+		c.CycleCount = 3
+		c.Php()
 	case 0x28:
-		cpu.CycleCount = 4
-		cpu.Plp()
+		c.CycleCount = 4
+		c.Plp()
 	// AND
 	case 0x29:
-		cpu.CycleCount = 2
-		cpu.And(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.And(c.immediateAddress())
 	case 0x25:
-		cpu.CycleCount = 3
-		cpu.And(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.And(c.zeroPageAddress())
 	case 0x35:
-		cpu.CycleCount = 4
-		cpu.And(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.And(c.zeroPageIndexedAddress(c.X))
 	case 0x2d:
-		cpu.CycleCount = 4
-		cpu.And(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.And(c.absoluteAddress())
 	case 0x3d:
-		cpu.CycleCount = 4
-		cpu.And(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.And(c.absoluteIndexedAddress(c.X))
 	case 0x39:
-		cpu.CycleCount = 4
-		cpu.And(cpu.absoluteIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.And(c.absoluteIndexedAddress(c.Y))
 	case 0x21:
-		cpu.CycleCount = 6
-		cpu.And(cpu.indexedIndirectAddress())
+		c.CycleCount = 6
+		c.And(c.indexedIndirectAddress())
 	case 0x31:
-		cpu.CycleCount = 5
-		cpu.And(cpu.indirectIndexedAddress())
+		c.CycleCount = 5
+		c.And(c.indirectIndexedAddress())
 	// ORA
 	case 0x09:
-		cpu.CycleCount = 2
-		cpu.Ora(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Ora(c.immediateAddress())
 	case 0x05:
-		cpu.CycleCount = 3
-		cpu.Ora(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Ora(c.zeroPageAddress())
 	case 0x15:
-		cpu.CycleCount = 4
-		cpu.Ora(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Ora(c.zeroPageIndexedAddress(c.X))
 	case 0x0d:
-		cpu.CycleCount = 4
-		cpu.Ora(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Ora(c.absoluteAddress())
 	case 0x1d:
-		cpu.CycleCount = 4
-		cpu.Ora(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Ora(c.absoluteIndexedAddress(c.X))
 	case 0x19:
-		cpu.CycleCount = 4
-		cpu.Ora(cpu.absoluteIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.Ora(c.absoluteIndexedAddress(c.Y))
 	case 0x01:
-		cpu.CycleCount = 6
-		cpu.Ora(cpu.indexedIndirectAddress())
+		c.CycleCount = 6
+		c.Ora(c.indexedIndirectAddress())
 	case 0x11:
-		cpu.CycleCount = 5
-		cpu.Ora(cpu.indirectIndexedAddress())
+		c.CycleCount = 5
+		c.Ora(c.indirectIndexedAddress())
 	// EOR
 	case 0x49:
-		cpu.CycleCount = 2
-		cpu.Eor(cpu.immediateAddress())
+		c.CycleCount = 2
+		c.Eor(c.immediateAddress())
 	case 0x45:
-		cpu.CycleCount = 3
-		cpu.Eor(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Eor(c.zeroPageAddress())
 	case 0x55:
-		cpu.CycleCount = 4
-		cpu.Eor(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Eor(c.zeroPageIndexedAddress(c.X))
 	case 0x4d:
-		cpu.CycleCount = 4
-		cpu.Eor(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Eor(c.absoluteAddress())
 	case 0x5d:
-		cpu.CycleCount = 4
-		cpu.Eor(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 4
+		c.Eor(c.absoluteIndexedAddress(c.X))
 	case 0x59:
-		cpu.CycleCount = 4
-		cpu.Eor(cpu.absoluteIndexedAddress(cpu.Y))
+		c.CycleCount = 4
+		c.Eor(c.absoluteIndexedAddress(c.Y))
 	case 0x41:
-		cpu.CycleCount = 6
-		cpu.Eor(cpu.indexedIndirectAddress())
+		c.CycleCount = 6
+		c.Eor(c.indexedIndirectAddress())
 	case 0x51:
-		cpu.CycleCount = 5
-		cpu.Eor(cpu.indirectIndexedAddress())
+		c.CycleCount = 5
+		c.Eor(c.indirectIndexedAddress())
 	// DEC
 	case 0xc6:
-		cpu.CycleCount = 5
-		cpu.Dec(cpu.zeroPageAddress())
+		c.CycleCount = 5
+		c.Dec(c.zeroPageAddress())
 	case 0xd6:
-		cpu.CycleCount = 6
-		cpu.Dec(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 6
+		c.Dec(c.zeroPageIndexedAddress(c.X))
 	case 0xce:
-		cpu.CycleCount = 6
-		cpu.Dec(cpu.absoluteAddress())
+		c.CycleCount = 6
+		c.Dec(c.absoluteAddress())
 	case 0xde:
-		cpu.CycleCount = 7
-		cpu.Dec(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 7
+		c.Dec(c.absoluteIndexedAddress(c.X))
 	// INC
 	case 0xe6:
-		cpu.CycleCount = 5
-		cpu.Inc(cpu.zeroPageAddress())
+		c.CycleCount = 5
+		c.Inc(c.zeroPageAddress())
 	case 0xf6:
-		cpu.CycleCount = 6
-		cpu.Inc(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 6
+		c.Inc(c.zeroPageIndexedAddress(c.X))
 	case 0xee:
-		cpu.CycleCount = 6
-		cpu.Inc(cpu.absoluteAddress())
+		c.CycleCount = 6
+		c.Inc(c.absoluteAddress())
 	case 0xfe:
-		cpu.CycleCount = 7
-		cpu.Inc(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 7
+		c.Inc(c.absoluteIndexedAddress(c.X))
 	// BRK
 	case 0x00:
-		cpu.CycleCount = 7
-		cpu.Brk()
+		c.CycleCount = 7
+		c.Brk()
 	// RTI
 	case 0x40:
-		cpu.CycleCount = 6
-		cpu.Rti()
+		c.CycleCount = 6
+		c.Rti()
 	// RTS
 	case 0x60:
-		cpu.CycleCount = 6
-		cpu.Rts()
+		c.CycleCount = 6
+		c.Rts()
 	// NOP
 	case 0xea:
-		cpu.CycleCount = 2
+		c.CycleCount = 2
 	// LSR
 	case 0x4a:
-		cpu.CycleCount = 2
-		cpu.LsrAcc()
+		c.CycleCount = 2
+		c.LsrAcc()
 	case 0x46:
-		cpu.CycleCount = 5
-		cpu.Lsr(cpu.zeroPageAddress())
+		c.CycleCount = 5
+		c.Lsr(c.zeroPageAddress())
 	case 0x56:
-		cpu.CycleCount = 6
-		cpu.Lsr(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 6
+		c.Lsr(c.zeroPageIndexedAddress(c.X))
 	case 0x4e:
-		cpu.CycleCount = 6
-		cpu.Lsr(cpu.absoluteAddress())
+		c.CycleCount = 6
+		c.Lsr(c.absoluteAddress())
 	case 0x5e:
-		cpu.CycleCount = 7
-		cpu.Lsr(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 7
+		c.Lsr(c.absoluteIndexedAddress(c.X))
 	// ASL
 	case 0x0a:
-		cpu.CycleCount = 2
-		cpu.AslAcc()
+		c.CycleCount = 2
+		c.AslAcc()
 	case 0x06:
-		cpu.CycleCount = 5
-		cpu.Asl(cpu.zeroPageAddress())
+		c.CycleCount = 5
+		c.Asl(c.zeroPageAddress())
 	case 0x16:
-		cpu.CycleCount = 6
-		cpu.Asl(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 6
+		c.Asl(c.zeroPageIndexedAddress(c.X))
 	case 0x0e:
-		cpu.CycleCount = 6
-		cpu.Asl(cpu.absoluteAddress())
+		c.CycleCount = 6
+		c.Asl(c.absoluteAddress())
 	case 0x1e:
-		cpu.CycleCount = 7
-		cpu.Asl(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 7
+		c.Asl(c.absoluteIndexedAddress(c.X))
 	// ROL
 	case 0x2a:
-		cpu.CycleCount = 2
-		cpu.RolAcc()
+		c.CycleCount = 2
+		c.RolAcc()
 	case 0x26:
-		cpu.CycleCount = 5
-		cpu.Rol(cpu.zeroPageAddress())
+		c.CycleCount = 5
+		c.Rol(c.zeroPageAddress())
 	case 0x36:
-		cpu.CycleCount = 6
-		cpu.Rol(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 6
+		c.Rol(c.zeroPageIndexedAddress(c.X))
 	case 0x2e:
-		cpu.CycleCount = 6
-		cpu.Rol(cpu.absoluteAddress())
+		c.CycleCount = 6
+		c.Rol(c.absoluteAddress())
 	case 0x3e:
-		cpu.CycleCount = 7
-		cpu.Rol(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 7
+		c.Rol(c.absoluteIndexedAddress(c.X))
 	// ROR
 	case 0x6a:
-		cpu.CycleCount = 2
-		cpu.RorAcc()
+		c.CycleCount = 2
+		c.RorAcc()
 	case 0x66:
-		cpu.CycleCount = 5
-		cpu.Ror(cpu.zeroPageAddress())
+		c.CycleCount = 5
+		c.Ror(c.zeroPageAddress())
 	case 0x76:
-		cpu.CycleCount = 6
-		cpu.Ror(cpu.zeroPageIndexedAddress(cpu.X))
+		c.CycleCount = 6
+		c.Ror(c.zeroPageIndexedAddress(c.X))
 	case 0x6e:
-		cpu.CycleCount = 6
-		cpu.Ror(cpu.absoluteAddress())
+		c.CycleCount = 6
+		c.Ror(c.absoluteAddress())
 	case 0x7e:
-		cpu.CycleCount = 7
-		cpu.Ror(cpu.absoluteIndexedAddress(cpu.X))
+		c.CycleCount = 7
+		c.Ror(c.absoluteIndexedAddress(c.X))
 	// BIT
 	case 0x24:
-		cpu.CycleCount = 3
-		cpu.Bit(cpu.zeroPageAddress())
+		c.CycleCount = 3
+		c.Bit(c.zeroPageAddress())
 	case 0x2c:
-		cpu.CycleCount = 4
-		cpu.Bit(cpu.absoluteAddress())
+		c.CycleCount = 4
+		c.Bit(c.absoluteAddress())
 	default:
 		panic(fmt.Sprintf("Invalid opcode: 0x%X", opcode))
 	}
 
-	cpu.Timestamp = (cpu.CycleCount * 15)
+	c.Timestamp = (c.CycleCount * 15)
 
-	return cpu.CycleCount
+	return c.CycleCount
 }
