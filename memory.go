@@ -16,40 +16,6 @@ var (
 	Ram Memory
 )
 
-func PpuRegWrite(v Word, a int) {
-    switch a {
-    case 0x2000:
-        ppu.WriteControl(v)
-    case 0x2001:
-        ppu.WriteMask(v)
-    case 0x2003:
-        ppu.WriteOamAddress(v)
-    case 0x2004:
-        ppu.WriteOamData(v)
-    case 0x2005:
-        ppu.WriteScroll(v)
-    case 0x2006:
-        ppu.WriteAddress(v)
-    case 0x2007:
-        ppu.WriteData(v)
-    case 0x4014:
-        ppu.WriteDma(v)
-    }
-}
-
-func PpuRegRead(a int) (Word, error) {
-    switch a {
-    case 0x2002:
-        return ppu.ReadStatus()
-    case 0x2004:
-        return ppu.ReadOamData()
-    case 0x2007:
-        return ppu.ReadData()
-    }
-
-    return 0, nil
-}
-
 func fitAddressSize(addr interface{}) (v int, e error) {
 	switch a := addr.(type) {
 	case Word:
@@ -69,17 +35,33 @@ func (m *Memory) Init() {
 	}
 }
 
+func (m *Memory) WriteMirroredRam(v Word, a int) {
+	for i := 0; i < 0x2FFB; i += 8 {
+		m[0x2002+i] = v
+	}
+}
+
 func (m *Memory) Write(address interface{}, val Word) error {
 	if a, err := fitAddressSize(address); err == nil {
+		if a == 0x2002 {
+			return nil
+		}
+
 		m[a] = val
 
-        if a <= 0x2007 && a >= 0x2000 {
-            PpuRegWrite(val, a)
-        } else if a == 0x4014 {
-            PpuRegWrite(val, a)
-        } else if a == 0x4016 {
-            controller.Write(val)
-        }
+		if a <= 0x2007 && a >= 0x2000 {
+            //ppu.Run(cpu.Timestamp * 3)
+			ppu.PpuRegWrite(val, a)
+		} else if a == 0x4014 {
+            //ppu.Run(cpu.Timestamp * 3)
+			ppu.PpuRegWrite(val, a)
+		} else if a == 0x4016 {
+			controller.Write(val)
+		} else if a >= 0x8000 && a <= 0xFFFF {
+			// MMC1
+			rom.Write(val, a)
+			return nil
+		}
 
 		return nil
 	}
@@ -90,11 +72,16 @@ func (m *Memory) Write(address interface{}, val Word) error {
 func (m *Memory) Read(address interface{}) (Word, error) {
 	a, _ := fitAddressSize(address)
 
-    if a <= 0x2007 && a >= 0x2000 {
-        return PpuRegRead(a)
-    } else if a == 0x4016 {
-        return controller.Read(), nil
+    if a == 0x200A {
+        return m[0x2002], nil
     }
+
+	if a <= 0x2007 && a >= 0x2000 {
+        //ppu.Run(cpu.Timestamp)
+		return ppu.PpuRegRead(a)
+	} else if a == 0x4016 {
+		return controller.Read(), nil
+	}
 
 	return m[a], nil
 }

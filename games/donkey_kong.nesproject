@@ -71,9 +71,7 @@
  </properties>
  <inspectors>
   <symbolinspector/>
-  <breakpoints>
-   <breakpoint target="0" itemtype="0" condition="0" item1absolute="2023" enabled="1" event="0" datatype="0" type="0" data="0" item1="51175" item2="51175" conditiontype="0"/>
-  </breakpoints>
+  <breakpoints/>
   <markers>
    <marker startaddr="0" endabsaddr="0" index="0" state="0" startabsaddr="0" endaddr="0"/>
    <marker startaddr="0" endabsaddr="0" index="1" state="0" startabsaddr="0" endaddr="0"/>

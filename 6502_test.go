@@ -2,7 +2,9 @@ package main
 
 import (
 	"encoding/hex"
+	"fmt"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -13,18 +15,20 @@ type CpuState struct {
 	Y  int
 	P  int
 	S  int
+    C  int
 	Op int
 }
 
 func TestGoldLog(test *testing.T) {
-	programCounter = 0xC000
+	ProgramCounter = 0xC000
 
 	Ram.Init()
 	cpu.Reset()
+	ppu.Init()
 
 	cpu.P = 0x24
 
-    cpu.Accurate = false
+	cpu.Accurate = false
 
 	if contents, err := ioutil.ReadFile("test_roms/nestest.nes"); err == nil {
 		if rom, err = LoadRom(contents); err != nil {
@@ -32,7 +36,7 @@ func TestGoldLog(test *testing.T) {
 			return
 		}
 
-        rom.Init(contents)
+		rom.Init(contents)
 	}
 
 	logfile, err := ioutil.ReadFile("test_roms/nestest.log")
@@ -43,7 +47,8 @@ func TestGoldLog(test *testing.T) {
 
 	log := strings.Split(string(logfile), "\n")
 
-	sentinel := 5003
+    sentinel := 100
+	//sentinel := 5003
 	for i := 0; i < sentinel; i++ {
 		op, _ := hex.DecodeString(log[i][:4])
 
@@ -59,6 +64,9 @@ func TestGoldLog(test *testing.T) {
 		y, _ := hex.DecodeString(strings.Split(registers[2], ":")[1])
 		p, _ := hex.DecodeString(strings.Split(registers[3], ":")[1])
 		sp, _ := hex.DecodeString(strings.Split(registers[4], ":")[1])
+        cyc, _ := strconv.Atoi(strings.TrimSpace(log[i][78:81]))
+
+        fmt.Printf("Cycle: %d\n", cyc)
 
 		expectedState := CpuState{
 			A:  int(a[0]),
@@ -66,11 +74,17 @@ func TestGoldLog(test *testing.T) {
 			Y:  int(y[0]),
 			P:  int(p[0]),
 			S:  int(sp[0]),
+            C:  cyc,
 			Op: (int(high) << 8) + int(low),
 		}
 
-		verifyCpuState(programCounter, &cpu, expectedState, test)
-		cpu.Step()
+		verifyCpuState(ProgramCounter, &cpu, expectedState, test)
+		cycles := cpu.Step()
+
+		// 3 PPU cycles for each CPU cycle
+		for i := 0; i < 3*cycles; i++ {
+			ppu.Step()
+		}
 	}
 }
 
@@ -97,5 +111,9 @@ func verifyCpuState(pc int, c *Cpu, e CpuState, test *testing.T) {
 
 	if c.StackPointer != Word(e.S) {
 		test.Errorf("PC: 0x%X Stack pointer was 0x%X, was expecting 0x%X\n", pc, c.StackPointer, e.S)
+	}
+
+	if ppu.Cycle != e.C {
+		test.Errorf("PC: 0x%X PPU Cycle was %d, was expecting %d\n", pc, ppu.Cycle, e.C)
 	}
 }

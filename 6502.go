@@ -1,7 +1,12 @@
 package main
 
+import (
+    "fmt"
+)
+
 const (
-	InterruptIrq = iota
+	InterruptNone = iota
+	InterruptIrq
 	InterruptReset
 	InterruptNmi
 )
@@ -21,8 +26,9 @@ type Cpu struct {
 	Verbose      bool
 	Accurate     bool
 
-	InterruptRequested bool
+	InterruptRequested int
 	CyclesToWait       int
+	Timestamp          int
 }
 
 func (cpu *Cpu) getCarry() bool {
@@ -226,6 +232,10 @@ func (cpu *Cpu) absoluteIndexedAddress(index Word) (result int) {
 	high, _ := Ram.Read(ProgramCounter + 1)
 	low, _ := Ram.Read(ProgramCounter)
 
+	if int(low)+int(index) > 0xFF {
+		cpu.CycleCount += 1
+	}
+
 	address := (int(high) << 8) + int(low) + int(index)
 
 	if address > 0xFFFF {
@@ -263,6 +273,10 @@ func (cpu *Cpu) indirectIndexedAddress() int {
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
+
+	if int(low)+int(cpu.Y) > 0xFF {
+		cpu.CycleCount += 1
+	}
 
 	address := (int(high) << 8) + int(low) + int(cpu.Y)
 
@@ -416,7 +430,15 @@ func (cpu *Cpu) Iny() {
 
 func (cpu *Cpu) Bpl() {
 	if !cpu.getNegative() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -424,7 +446,15 @@ func (cpu *Cpu) Bpl() {
 
 func (cpu *Cpu) Bmi() {
 	if cpu.getNegative() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -432,7 +462,15 @@ func (cpu *Cpu) Bmi() {
 
 func (cpu *Cpu) Bvc() {
 	if !cpu.getOverflow() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -440,7 +478,15 @@ func (cpu *Cpu) Bvc() {
 
 func (cpu *Cpu) Bvs() {
 	if cpu.getOverflow() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -448,7 +494,15 @@ func (cpu *Cpu) Bvs() {
 
 func (cpu *Cpu) Bcc() {
 	if !cpu.getCarry() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -456,7 +510,15 @@ func (cpu *Cpu) Bcc() {
 
 func (cpu *Cpu) Bcs() {
 	if cpu.getCarry() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -464,7 +526,15 @@ func (cpu *Cpu) Bcs() {
 
 func (cpu *Cpu) Bne() {
 	if !cpu.getZero() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -472,7 +542,15 @@ func (cpu *Cpu) Bne() {
 
 func (cpu *Cpu) Beq() {
 	if cpu.getZero() {
-		ProgramCounter = cpu.relativeAddress()
+		a := cpu.relativeAddress()
+
+		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+			cpu.CycleCount += 2
+		} else {
+			cpu.CycleCount += 1
+		}
+
+		ProgramCounter = a
 	} else {
 		ProgramCounter++
 	}
@@ -844,30 +922,37 @@ func (cpu *Cpu) Bit(location int) {
 }
 
 func (cpu *Cpu) PerformNmi() {
+	high := ProgramCounter >> 8
+	low := ProgramCounter & 0xFF
+
+	cpu.pushToStack(Word(high))
+	cpu.pushToStack(Word(low))
+
+	cpu.pushToStack(cpu.P)
+
+	h, _ := Ram.Read(0xFFFB)
+	l, _ := Ram.Read(0xFFFA)
+
+	ProgramCounter = int(h)<<8 + int(l)
+}
+
+func (cpu *Cpu) PerformReset() {
 	// $2000.7 enables/disables NMIs
 	if ppu.NmiOnVblank != 0x0 {
-		high := ProgramCounter >> 8
-		low := ProgramCounter & 0xFF
+		high, _ := Ram.Read(0xFFFD)
+		low, _ := Ram.Read(0xFFFC)
 
-		cpu.pushToStack(Word(high))
-		cpu.pushToStack(Word(low))
-
-		cpu.pushToStack(cpu.P)
-
-		h, _ := Ram.Read(0xFFFB)
-		l, _ := Ram.Read(0xFFFA)
-
-		ProgramCounter = int(h)<<8 + int(l)
+		ProgramCounter = int(high)<<8 + int(low)
 	}
 }
 
 func (cpu *Cpu) RequestInterrupt(i int) {
-	cpu.InterruptRequested = true
+	cpu.InterruptRequested = i
 }
 
 func (cpu *Cpu) Init() {
 	cpu.Reset()
-	cpu.InterruptRequested = false
+	cpu.InterruptRequested = InterruptNone
 }
 
 func (cpu *Cpu) Reset() {
@@ -879,25 +964,24 @@ func (cpu *Cpu) Reset() {
 	cpu.StackPointer = 0xFD
 
 	cpu.Accurate = true
-	cpu.InterruptRequested = false
+	cpu.InterruptRequested = InterruptNone
 }
 
-func (cpu *Cpu) Step() {
-	if cpu.CycleCount > 1 && cpu.Accurate {
-		cpu.CycleCount--
-		return
-	}
-
-    // Used during a DMA
+func (cpu *Cpu) Step() int {
+	// Used during a DMA
 	if cpu.CyclesToWait > 0 {
 		cpu.CyclesToWait--
-		return
+		return 0
 	}
 
 	// Check if an interrupt was requested
-	if cpu.InterruptRequested {
+	switch cpu.InterruptRequested {
+	case InterruptNmi:
 		cpu.PerformNmi()
-		cpu.InterruptRequested = false
+		cpu.InterruptRequested = InterruptNone
+	case InterruptReset:
+		cpu.PerformReset()
+		cpu.InterruptRequested = InterruptNone
 	}
 
 	opcode, _ := Ram.Read(ProgramCounter)
@@ -1395,8 +1479,10 @@ func (cpu *Cpu) Step() {
 		cpu.CycleCount = 4
 		cpu.Bit(cpu.absoluteAddress())
 	default:
-		panic("Invalid opcode")
+		panic(fmt.Sprintf("Invalid opcode: 0x%X", opcode))
 	}
 
-	return
+	cpu.Timestamp = (cpu.CycleCount * 15)
+
+	return cpu.CycleCount
 }

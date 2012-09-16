@@ -11,7 +11,7 @@ var (
 	cycle         = "559ns"
 	clockspeed, _ = time.ParseDuration(cycle)
 
-	running       = true
+	running = true
 
 	cpu        Cpu
 	ppu        Ppu
@@ -35,11 +35,8 @@ func main() {
 
 	Ram.Init()
 	cpu.Init()
-	v := ppu.Init()
+	v, d := ppu.Init()
 	controller.Init()
-
-	video.Init(v)
-	defer video.Close()
 
 	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
 		if rom, err = LoadRom(contents); err != nil {
@@ -54,16 +51,18 @@ func main() {
 		return
 	}
 
+	video.Init(v, d, os.Args[1])
+	defer video.Close()
+
 	go JoypadListen()
 	go video.Render()
 
 	for running {
-		cpu.Step()
+		cycles := cpu.Step()
 
-		// 3 PPU cycles for each CPU cycle
-		for i := 0; i < 3; i++ {
-			ppu.Step()
-		}
+        for i := 0; i < 3*cycles; i++ {
+            ppu.Step()
+        }
 	}
 
 	return
