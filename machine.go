@@ -35,7 +35,7 @@ func main() {
 
 	Ram.Init()
 	cpu.Init()
-	v := ppu.Init()
+	v, d := ppu.Init()
 	controller.Init()
 
 	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
@@ -51,7 +51,7 @@ func main() {
 		return
 	}
 
-	video.Init(v, os.Args[1])
+	video.Init(v, d, os.Args[1])
 	defer video.Close()
 
 	go JoypadListen()

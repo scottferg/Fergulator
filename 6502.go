@@ -24,6 +24,7 @@ type Cpu struct {
 
 	InterruptRequested int
 	CyclesToWait       int
+    CycleTimestamp     int
 }
 
 func (cpu *Cpu) getCarry() bool {
@@ -917,21 +918,18 @@ func (cpu *Cpu) Bit(location int) {
 }
 
 func (cpu *Cpu) PerformNmi() {
-	// $2000.7 enables/disables NMIs
-	if ppu.NmiOnVblank != 0x0 {
-		high := ProgramCounter >> 8
-		low := ProgramCounter & 0xFF
+    high := ProgramCounter >> 8
+    low := ProgramCounter & 0xFF
 
-		cpu.pushToStack(Word(high))
-		cpu.pushToStack(Word(low))
+    cpu.pushToStack(Word(high))
+    cpu.pushToStack(Word(low))
 
-		cpu.pushToStack(cpu.P)
+    cpu.pushToStack(cpu.P)
 
-		h, _ := Ram.Read(0xFFFB)
-		l, _ := Ram.Read(0xFFFA)
+    h, _ := Ram.Read(0xFFFB)
+    l, _ := Ram.Read(0xFFFA)
 
-		ProgramCounter = int(h)<<8 + int(l)
-	}
+    ProgramCounter = int(h)<<8 + int(l)
 }
 
 func (cpu *Cpu) PerformReset() {
@@ -1479,6 +1477,8 @@ func (cpu *Cpu) Step() int {
 	default:
 		panic("Invalid opcode")
 	}
+
+    cpu.CycleTimestamp = (cpu.CycleCount * 15)
 
 	return cpu.CycleCount
 }

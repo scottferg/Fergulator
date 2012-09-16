@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 )
 
@@ -84,7 +85,15 @@ func JoypadListen() {
 					running = false
 				case sdl.K_r:
 					// Trigger reset interrupt
-					cpu.RequestInterrupt(InterruptReset)
+                    if e.Type == sdl.KEYDOWN {
+                        fmt.Printf("VRAM: 0x%X\n", ppu.VramAddress)
+                        cpu.RequestInterrupt(InterruptReset)
+                    }
+				case sdl.K_n:
+                    if e.Type == sdl.KEYDOWN {
+                        // Trigger reset interrupt
+                        ppu.DebugMode = !ppu.DebugMode
+                    }
 				}
 
 				switch e.Type {

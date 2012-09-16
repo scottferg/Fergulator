@@ -11,9 +11,10 @@ import (
 type Video struct {
 	screen *sdl.Surface
 	tick   <-chan []int
+    debug  <-chan []int
 }
 
-func (v *Video) Init(t <-chan []int, n string) {
+func (v *Video) Init(t <-chan []int, d <-chan []int, n string) {
 	if sdl.Init(sdl.INIT_EVERYTHING) != 0 {
 		log.Fatal(sdl.GetError())
 	}
@@ -27,13 +28,19 @@ func (v *Video) Init(t <-chan []int, n string) {
 	sdl.WM_SetCaption(fmt.Sprintf("Fergulator - %s", n), "")
 
 	v.tick = t
+    v.debug = d
 }
 
 func (v *Video) Render() {
 	for {
 		select {
+        case d := <-v.debug:
+			copy((*[512 * 480]int)(v.screen.Pixels)[:], d)
+			v.screen.Flip()
+			// 60hz
+			// time.Sleep(16000000 * time.Nanosecond)
+			// time.Sleep(12000000 * time.Nanosecond)
 		case val := <-v.tick:
-
 			bigscreen := make([]int, 512*480)
 			for i := len(val) - 1; i >= 0; i-- {
 				y := int(math.Floor(float64(i / 256)))
