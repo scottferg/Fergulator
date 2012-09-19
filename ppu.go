@@ -106,7 +106,6 @@ func (p *Ppu) Init() (chan []int, chan []int) {
 	p.FrameCount = 0
 
 	p.VblankTime = 20 * 341 * 5 // NTSC
-	p.TilerowCounter = 0
 
 	p.Nametables.Init()
 
@@ -627,6 +626,8 @@ func (p *Ppu) renderTileRow() {
 	// one per loop and shift the other back out
 	// xcoord := p.VramAddress & 0x1F
 
+    p.TilerowCounter = p.Scanline % 8
+
 	fetchTileAttributes := func() (int, Word) {
 		attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
 		shift := p.AttributeShift[p.VramAddress&0x3FF]
@@ -695,12 +696,6 @@ func (p *Ppu) renderTileRow() {
 		// Shift the first tile out, bring the new tile in
 		p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[p.TilerowCounter])
 		p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
-	}
-
-	p.TilerowCounter++
-
-	if p.TilerowCounter == 8 {
-		p.TilerowCounter = 0
 	}
 }
 
