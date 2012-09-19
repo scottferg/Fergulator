@@ -18,10 +18,6 @@ const (
 	Ntsc = 20
 )
 
-type Nametable struct {
-	Bank [0x400]Word
-}
-
 type SpriteData struct {
 	Tiles        [256]Word
 	YCoordinates [256]Word
@@ -37,6 +33,11 @@ type Flags struct {
 	SpriteSize               Word
 	MasterSlaveSel           Word
 	NmiOnVblank              Word
+}
+
+type Pixel struct {
+	Color  int
+	Value  int
 }
 
 type Masks struct {
@@ -58,9 +59,11 @@ type Registers struct {
 	VramAddress      int
 	VramLatch        int
 	SpriteRamAddress int
-	FineX            int
+	FineX            Word
 	Data             Word
 	WriteLatch       bool
+    HighBitShift     uint16
+    LowBitShift      uint16
 }
 
 type Ppu struct {
@@ -70,14 +73,14 @@ type Ppu struct {
 	SpriteData
 	Vram              [0xFFFF]Word
 	SpriteRam         [0x100]Word
-	Nametables        [4]Nametable
+	Nametables        Nametable
 	PaletteRam        [0x20]Word
 	AttributeLocation [0x400]uint
 	AttributeShift    [0x400]uint
 	Mirroring         int
 	TilerowCounter    int
 
-	Palettebuffer []int
+	Palettebuffer []Pixel
 	Framebuffer   []int
 
 	DebugMode  bool
@@ -103,7 +106,9 @@ func (p *Ppu) Init() (chan []int, chan []int) {
 	p.FrameCount = 0
 
 	p.VblankTime = 20 * 341 * 5 // NTSC
-    p.TilerowCounter = 0
+	p.TilerowCounter = 0
+
+    p.Nametables.Init()
 
 	for i, _ := range p.Vram {
 		p.Vram[i] = 0x00
@@ -119,7 +124,7 @@ func (p *Ppu) Init() (chan []int, chan []int) {
 		p.AttributeLocation[i] = ((x >> 2) & 0x07) | (((x >> 4) & 0x38) | 0x3C0)
 	}
 
-	p.Palettebuffer = make([]int, 0xF000)
+	p.Palettebuffer = make([]Pixel, 0xF000)
 	p.Framebuffer = make([]int, 0xF000)
 
 	return p.Output, p.Debug
@@ -161,39 +166,6 @@ func (p *Ppu) PpuRegWrite(v Word, a int) {
 	}
 }
 
-func (p *Ppu) writeNametableData(a int, v Word) {
-	switch p.Mirroring {
-	case MirroringHorizontal:
-		if a >= 0x2000 && a < 0x2400 {
-			p.Vram[a] = v
-			p.Vram[0x2400+(a-0x2000)] = v
-		} else if a >= 0x2400 && a < 0x2800 {
-			p.Vram[a] = v
-			p.Vram[0x2000+(a-0x2400)] = v
-		} else if a >= 0x2800 && a < 0x2C00 {
-			p.Vram[a] = v
-			p.Vram[0x2C00+(a-0x2800)] = v
-		} else if a >= 0x2C00 && a < 0x3000 {
-			p.Vram[a] = v
-			p.Vram[0x2800+(a-0x2C00)] = v
-		}
-	case MirroringVertical:
-		if a >= 0x2000 && a < 0x2400 {
-			p.Vram[a] = v
-			p.Vram[0x2800+(a-0x2000)] = v
-		} else if a >= 0x2800 && a < 0x2C00 {
-			p.Vram[a] = v
-			p.Vram[0x2000+(a-0x2800)] = v
-		} else if a >= 0x2400 && a < 0x2800 {
-			p.Vram[a] = v
-			p.Vram[0x2C00+(a-0x2400)] = v
-		} else if a >= 0x2C00 && a < 0x3000 {
-			p.Vram[a] = v
-			p.Vram[0x2400+(a-0x2C00)] = v
-		}
-	}
-}
-
 // Writes to mirrored regions of VRAM
 func (p *Ppu) writeMirroredVram(a int, v Word) {
 	if a >= 0x3F00 {
@@ -215,6 +187,20 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 	}
 }
 
+func (p *Ppu) raster() {
+    length := len(p.Palettebuffer)
+	for i := length - 1; i >= 0; i-- {
+		y := int(math.Floor(float64(i / 256)))
+		x := i - (y * 256)
+
+        var color int
+        color = p.Palettebuffer[i].Color
+		p.Framebuffer[(y*256)+x] = color
+	}
+
+	p.Output <- p.Framebuffer
+}
+
 func (p *Ppu) Step() {
 	switch {
 	case p.Scanline == 240:
@@ -232,7 +218,7 @@ func (p *Ppu) Step() {
 				p.RenderNametables()
 				p.Debug <- p.Framebuffer
 			} else {
-				p.Output <- p.Framebuffer
+				p.raster()
 			}
 
 			p.Cycle++
@@ -269,10 +255,10 @@ func (p *Ppu) Step() {
 			p.clearStatus(StatusVblankStarted)
 		} else if p.Cycle == 304 {
 			// Copy scroll latch into VRAMADDR register
-            if p.ShowBackground && p.ShowSprites {
-                // p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
-                p.VramAddress = p.VramLatch
-            }
+			if p.ShowBackground || p.ShowSprites {
+				// p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
+				p.VramAddress = p.VramLatch
+			}
 		}
 	}
 
@@ -282,95 +268,6 @@ func (p *Ppu) Step() {
 	}
 
 	p.Cycle++
-}
-
-// Runs the PPU until it catches up to the CPU timestamp
-func (p *Ppu) Run(t int) {
-	if p.Timestamp < p.VblankTime {
-		fmt.Println("Timestamp less than vblank")
-		p.Timestamp = p.VblankTime
-		p.Scanline = -1
-		p.Cycle = 0
-
-		// TODO: Reset timestamps here, or at 240?
-		p.Timestamp -= p.FrameCycles
-		cpu.Timestamp -= p.FrameCycles
-	}
-
-	if p.Timestamp >= t {
-		fmt.Println("Timestamp exceeded")
-		return
-	}
-
-	if p.Scanline == -1 {
-		fmt.Println("Scanline -1")
-		if p.Cycle == 1 {
-			// Clear VBlank flag
-			p.clearStatus(StatusVblankStarted)
-			p.clearStatus(StatusSprite0Hit)
-			p.clearStatus(StatusSpriteOverflow)
-		} else if p.Cycle == 304 {
-			// Copy scroll latch into VRAMADDR register
-			p.VramAddress = (p.VramAddress & ^0x41F) | (p.VramLatch & 0x41F)
-		}
-	}
-
-	for p.Scanline < 240 {
-		fmt.Printf("Scanline %d\n", p.Scanline)
-		for p.Cycle < 256 {
-			// TODO: Per-pixel evaluation should happen here
-			p.Cycle++
-			p.Timestamp += 5
-		}
-
-		if p.ShowBackground {
-			p.renderTileRow()
-			p.updateEndScanlineRegisters()
-		}
-
-		if p.ShowSprites {
-			p.evaluateScanlineSprites()
-		}
-
-		if p.Timestamp >= t {
-			return
-		}
-	}
-
-	for p.Cycle < 340 {
-		fmt.Println("Cycle 340")
-		// TODO: Do something?
-		p.Cycle++
-		p.Timestamp += 5
-
-		if p.Timestamp >= t {
-			return
-		}
-	}
-
-	if p.Scanline == 240 {
-		fmt.Println("Endframe")
-		// We're in VBlank
-		p.setStatus(StatusVblankStarted)
-
-		// $2000.7 enables/disables NMIs
-		if p.NmiOnVblank == 0x1 {
-			// Request NMI
-			cpu.RequestInterrupt(InterruptNmi)
-		}
-
-		if p.DebugMode {
-			p.RenderNametables()
-			p.Debug <- p.Framebuffer
-		} else {
-			p.Output <- p.Framebuffer
-		}
-	}
-
-	fmt.Println("End Run()")
-	p.FrameCycles += p.Cycle
-	p.Cycle = 0
-	p.Scanline++
 }
 
 func (p *Ppu) updateEndScanlineRegisters() {
@@ -391,10 +288,10 @@ func (p *Ppu) updateEndScanlineRegisters() {
 		p.VramAddress = p.VramAddress + 0x1000
 	}
 
-    if p.ShowBackground && p.ShowSprites {
-        p.VramAddress = p.VramAddress & 0xFBE0
-        p.VramAddress = p.VramAddress | (p.VramLatch & 0x41F)
-    }
+	if p.ShowBackground || p.ShowSprites {
+		p.VramAddress = p.VramAddress & 0xFBE0
+		p.VramAddress = p.VramAddress | (p.VramLatch & 0x41F)
+	}
 }
 
 // $2000
@@ -547,7 +444,7 @@ func (p *Ppu) WriteScroll(v Word) {
 	if p.WriteLatch {
 		p.VramLatch = p.VramLatch & 0x7FE0
 		p.VramLatch = p.VramLatch | ((int(v) & 0xF8) >> 3)
-		p.FineX = int(v) & 0x07
+		p.FineX = v & 0x07
 	} else {
 		p.VramLatch = p.VramLatch & 0xC1F
 		p.VramLatch = p.VramLatch | (((int(v) & 0xF8) << 2) | ((int(v) & 0x07) << 12))
@@ -576,9 +473,9 @@ func (p *Ppu) WriteData(v Word) {
 		p.writeMirroredVram(p.VramAddress, v)
 	} else if p.VramAddress >= 0x2000 && p.VramAddress < 0x3000 {
 		// Nametable mirroring
-		p.writeNametableData(p.VramAddress, v)
+		p.Nametables.writeNametableData(p.VramAddress, v)
 	} else {
-		p.Vram[p.VramAddress] = v
+		p.Vram[p.VramAddress & 0x3FFF] = v
 	}
 
 	p.incrementVramAddress()
@@ -640,14 +537,6 @@ func (p *Ppu) bgPatternTableAddress(i Word) int {
 	return int(i)*0x10 + a
 }
 
-func (p *Ppu) scrollX() int {
-	return ((p.VramAddress & 0x1F) << 0x3) | p.FineX
-}
-
-func (p *Ppu) scrollY() int {
-	return (((p.VramAddress >> 0x5) & 0x1F) << 0x3) | ((p.VramAddress >> 0xC) & 0x7)
-}
-
 func (p *Ppu) selectNametable(t int) (a int) {
 	switch p.Mirroring {
 	case MirroringHorizontal:
@@ -678,12 +567,12 @@ func (p *Ppu) selectNametable(t int) (a int) {
 }
 
 func (p *Ppu) RenderNametables() {
-	p.renderNametable(0, 0, 0)
 	/*
-		p.renderNametable(1, 256, 0)
-		p.renderNametable(2, 0, 240)
-		p.renderNametable(3, 256, 240)
+		p.renderNametable(0, 0, 0)
+			p.renderNametable(2, 0, 240)
+			p.renderNametable(3, 256, 240)
 	*/
+	p.renderNametable(1, 256, 0)
 
 	p.Debug <- p.Framebuffer
 }
@@ -722,30 +611,83 @@ func (p *Ppu) renderNametable(table, xoff, yoff int) {
 }
 
 func (p *Ppu) renderTileRow() {
-	// Generates each tile and applies the palette
+	// Generates each tile, one scanline at a time
+    // and applies the palette
 
-	// 32 total loops for 32 tiles, 1 pixel of each
+	// 32 total for 32 tiles, 8 pixels of each
+    
+    // Load first two tiles into shift registers at start, then load
+    // one per loop and shift the other back out
+    // xcoord := p.VramAddress & 0x1F
+
+    fetchTileAttributes := func() (int, Word) {
+        attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
+        shift := p.AttributeShift[p.VramAddress&0x3FF]
+        attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
+
+        index := p.Nametables.readNametableData(p.VramAddress)
+        t := p.bgPatternTableAddress(index)
+
+        // Flip bit 10 on wraparound
+        if p.VramAddress&0x1F == 0x1F {
+            // If rendering is enabled, at the end of a scanline
+            // copy bits 10 and 4-0 from VRAM latch into VRAMADDR
+            p.VramAddress = p.VramAddress ^ 0x41F
+        } else {
+            p.VramAddress++
+        }
+
+        return t, attr
+    }
+
+    t, attr := fetchTileAttributes()
+    tile := p.Vram[t : t+16]
+    // Move first tile into shift registers
+    p.LowBitShift = uint16(tile[p.TilerowCounter])
+    p.HighBitShift = uint16(tile[p.TilerowCounter+8])
+
+    t, attrBuf := fetchTileAttributes()
+    tile = p.Vram[t : t+16]
+    // Get second tile, move the pixels into the right side of
+    // shift registers
+    // Current tile to render is attrBuf
+    p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[p.TilerowCounter])
+    p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
+
 	for x := 0; x < 32; x++ {
-		// for i := a; i < a+0x20; i++ {
-		attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
-		shift := p.AttributeShift[p.VramAddress&0x3FF]
-		attr := ((p.Vram[attrAddr] >> shift) & 0x03) << 2
+        var palette []Word
 
-		ntAddress := 0x2000 + (p.VramAddress & 0xC00)
-		t := p.bgPatternTableAddress(p.Vram[(p.VramAddress&0x3FF)+ntAddress])
+        var b uint
+        for b = 0; b < 8; b++ {
+            fbRow := p.Scanline*256 + ((x*8) + int(b))
 
-		tile := p.Vram[t : t+16]
+            // If we're grabbing the pixel from the high
+            // part of the shift register, use the buffered
+            // palette, not the current one
+            if (15 - b - uint(p.FineX)) < 8 {
+                palette = p.bgPaletteEntry(attrBuf)
+            } else {
+                palette = p.bgPaletteEntry(attr)
+            }
 
-		p.decodePatternTile([]Word{tile[p.TilerowCounter], tile[p.TilerowCounter+8]}, x*8, p.Scanline, p.bgPaletteEntry(attr), nil, false)
+            pixel := (p.LowBitShift >> (15 - b - uint(p.FineX))) & 0x01
+            pixel += ((p.HighBitShift >> (15 - b - uint(p.FineX)) & 0x01) << 1)
 
-		// Flip bit 10 on wraparound
-		if p.VramAddress&0x1F == 0x1F {
-			// If rendering is enabled, at the end of a scanline
-			// copy bits 10 and 4-0 from VRAM latch into VRAMADDR
-			p.VramAddress = p.VramAddress ^ (p.VramLatch & 0x41F)
-		} else {
-			p.VramAddress++
-		}
+            p.Palettebuffer[fbRow] = Pixel{
+                PaletteRgb[int(palette[pixel])],
+                int(pixel),
+            }
+        }
+
+		// xcoord = p.VramAddress & 0x1F
+        attr = attrBuf
+
+        t, attrBuf = fetchTileAttributes()
+        tile = p.Vram[t : t+16]
+
+        // Shift the first tile out, bring the new tile in
+        p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[p.TilerowCounter])
+        p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
 	}
 
 	p.TilerowCounter++
@@ -828,13 +770,25 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 		// Set the color of the pixel in the buffer
 		//
 		if fbRow < 0xF000 && !trans {
-			p.Palettebuffer[fbRow] = int(pixel)
-			p.Framebuffer[fbRow] = PaletteRgb[int(pal[pixel])]
+			if attr != nil {
+				priority := (*attr >> 5) & 0x1
+
+				if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
+					// Pixel is already rendered and priority
+					// 1 means show behind background
+					// continue
+				}
+			}
+
+			p.Palettebuffer[fbRow] = Pixel{
+				PaletteRgb[int(pal[pixel])],
+				int(pixel),
+			}
 
 			// Since we render sprites first, if we're placing an opaque
 			// pixel here and the existing pixel is opaque, we've hit
 			// Sprite 0 
-			if p.Palettebuffer[fbRow] != 0 && spZero {
+			if p.Palettebuffer[fbRow].Value != 0 && spZero {
 				p.setStatus(StatusSprite0Hit)
 				// p.Framebuffer[fbRow] = 0x00FF00
 			}

@@ -88,9 +88,11 @@ func (r *Nrom) Init(rom []byte) error {
 	case 0x0:
 		fmt.Println("Horizontal mirroring")
 		ppu.Mirroring = MirroringHorizontal
+        ppu.Nametables.Init()
 	case 0x1:
 		fmt.Println("Vertical mirroring")
 		ppu.Mirroring = MirroringVertical
+        ppu.Nametables.Init()
 	}
 
 	// ROM data dests at byte 16
@@ -167,11 +169,14 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 			if (r.Mirroring & 0x2) == 0 {
 				// TODO: Single screen mirroring
 				ppu.Mirroring = MirroringSingleScreen
+                ppu.Nametables.Init()
 				fmt.Println("Single screen mirroring!")
 			} else if (r.Mirroring & 0x1) != 0 {
 				ppu.Mirroring = MirroringHorizontal
+                ppu.Nametables.Init()
 			} else {
 				ppu.Mirroring = MirroringVertical
+                ppu.Nametables.Init()
 			}
 		}
 
@@ -278,9 +283,11 @@ func (r *Mmc1) Init(rom []byte) error {
 	case 0x0:
 		fmt.Println("Horizontal mirroring")
 		ppu.Mirroring = MirroringHorizontal
+        ppu.Nametables.Init()
 	case 0x1:
 		fmt.Println("Vertical mirroring")
 		ppu.Mirroring = MirroringVertical
+        ppu.Nametables.Init()
 	}
 
 	r.Data = rom[16:]
@@ -315,9 +322,11 @@ func (r *Unrom) Init(rom []byte) error {
 	case 0x0:
 		fmt.Println("Horizontal mirroring")
 		ppu.Mirroring = MirroringHorizontal
+        ppu.Nametables.Init()
 	case 0x1:
 		fmt.Println("Vertical mirroring")
 		ppu.Mirroring = MirroringVertical
+        ppu.Nametables.Init()
 	}
 
 	// ROM data dests at byte 16

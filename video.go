@@ -59,7 +59,7 @@ func (v *Video) Render() {
 			v.screen.Flip()
 			// 60hz
 			// time.Sleep(16000000 * time.Nanosecond)
-			time.Sleep(8000000 * time.Nanosecond)
+			time.Sleep(4000000 * time.Nanosecond)
 		}
 	}
 }
