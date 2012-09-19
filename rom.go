@@ -29,7 +29,7 @@ type Rom struct {
 	RomSelectionReg1  int
 	RomBankSelect     int
 
-	RomBanks map[int][]Word
+	RomBanks [][]Word
 }
 
 type Nrom Rom
@@ -99,7 +99,7 @@ func (r *Nrom) Init(rom []byte) error {
 	r.Data = rom[16:]
 
 	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
-	r.RomBanks = make(map[int][]Word)
+	r.RomBanks = make([][]Word, (len(r.Data) / 0x4000))
 
     fmt.Printf("Length of banks: %d\n", (len(r.Data) / 0x4000))
 
@@ -293,7 +293,7 @@ func (r *Mmc1) Init(rom []byte) error {
 	r.Data = rom[16:]
 
 	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
-	r.RomBanks = make(map[int][]Word)
+	r.RomBanks = make([][]Word, (len(r.Data) / 0x4000))
 	for i := 0; i < (r.PrgBankCount * 0x4000); i++ {
 		// Move 16kb chunk to 16kb bank
 		bank := make([]Word, 0x4000)
@@ -331,7 +331,7 @@ func (r *Unrom) Init(rom []byte) error {
 
 	// ROM data dests at byte 16
 	r.Data = rom[16:]
-	r.RomBanks = make(map[int][]Word)
+	r.RomBanks = make([][]Word, (len(r.Data) / 0x4000))
 
 	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
 
