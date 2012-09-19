@@ -36,8 +36,8 @@ type Flags struct {
 }
 
 type Pixel struct {
-	Color  int
-	Value  int
+	Color int
+	Value int
 }
 
 type Masks struct {
@@ -62,8 +62,8 @@ type Registers struct {
 	FineX            Word
 	Data             Word
 	WriteLatch       bool
-    HighBitShift     uint16
-    LowBitShift      uint16
+	HighBitShift     uint16
+	LowBitShift      uint16
 }
 
 type Ppu struct {
@@ -108,7 +108,7 @@ func (p *Ppu) Init() (chan []int, chan []int) {
 	p.VblankTime = 20 * 341 * 5 // NTSC
 	p.TilerowCounter = 0
 
-    p.Nametables.Init()
+	p.Nametables.Init()
 
 	for i, _ := range p.Vram {
 		p.Vram[i] = 0x00
@@ -188,13 +188,13 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 }
 
 func (p *Ppu) raster() {
-    length := len(p.Palettebuffer)
+	length := len(p.Palettebuffer)
 	for i := length - 1; i >= 0; i-- {
 		y := int(math.Floor(float64(i / 256)))
 		x := i - (y * 256)
 
-        var color int
-        color = p.Palettebuffer[i].Color
+		var color int
+		color = p.Palettebuffer[i].Color
 		p.Framebuffer[(y*256)+x] = color
 	}
 
@@ -218,12 +218,12 @@ func (p *Ppu) Step() {
 				p.RenderNametables()
 				p.Debug <- p.Framebuffer
 			} else {
-                // TODO: This should happen per scanline
-                if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
-                    for i := 0; i < 240; i++ {
-                        p.evaluateScanlineSprites(i)
-                    }
-                }
+				// TODO: This should happen per scanline
+				if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
+					for i := 0; i < 240; i++ {
+						p.evaluateScanlineSprites(i)
+					}
+				}
 				p.raster()
 			}
 
@@ -248,7 +248,7 @@ func (p *Ppu) Step() {
 				p.updateEndScanlineRegisters()
 			}
 
-            // TODO: Shouldn't have to do this
+			// TODO: Shouldn't have to do this
 			if p.ShowSprites && (p.SpriteSize&0x1 == 0) {
 				p.evaluateScanlineSprites(p.Scanline)
 			}
@@ -482,7 +482,7 @@ func (p *Ppu) WriteData(v Word) {
 		// Nametable mirroring
 		p.Nametables.writeNametableData(p.VramAddress, v)
 	} else {
-		p.Vram[p.VramAddress & 0x3FFF] = v
+		p.Vram[p.VramAddress&0x3FFF] = v
 	}
 
 	p.incrementVramAddress()
@@ -513,9 +513,9 @@ func (p *Ppu) sprPatternTableAddress(i int) int {
 	if p.SpriteSize&0x01 != 0x0 {
 		// 8x16 Sprites
 		if i&0x01 != 0 {
-            return 0x1000 | ((int(i) >> 1) * 0x20)
+			return 0x1000 | ((int(i) >> 1) * 0x20)
 		} else {
-            return ((int(i) >> 1) * 0x20)
+			return ((int(i) >> 1) * 0x20)
 		}
 
 	}
@@ -617,82 +617,82 @@ func (p *Ppu) renderNametable(table, xoff, yoff int) {
 
 func (p *Ppu) renderTileRow() {
 	// Generates each tile, one scanline at a time
-    // and applies the palette
+	// and applies the palette
 
 	// 32 total for 32 tiles, 8 pixels of each
-    
-    // Load first two tiles into shift registers at start, then load
-    // one per loop and shift the other back out
-    // xcoord := p.VramAddress & 0x1F
 
-    fetchTileAttributes := func() (int, Word) {
-        attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
-        shift := p.AttributeShift[p.VramAddress&0x3FF]
-        attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
+	// Load first two tiles into shift registers at start, then load
+	// one per loop and shift the other back out
+	// xcoord := p.VramAddress & 0x1F
 
-        index := p.Nametables.readNametableData(p.VramAddress)
-        t := p.bgPatternTableAddress(index)
+	fetchTileAttributes := func() (int, Word) {
+		attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
+		shift := p.AttributeShift[p.VramAddress&0x3FF]
+		attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
 
-        // Flip bit 10 on wraparound
-        if p.VramAddress&0x1F == 0x1F {
-            // If rendering is enabled, at the end of a scanline
-            // copy bits 10 and 4-0 from VRAM latch into VRAMADDR
-            p.VramAddress = p.VramAddress ^ 0x41F
-        } else {
-            p.VramAddress++
-        }
+		index := p.Nametables.readNametableData(p.VramAddress)
+		t := p.bgPatternTableAddress(index)
 
-        return t, attr
-    }
+		// Flip bit 10 on wraparound
+		if p.VramAddress&0x1F == 0x1F {
+			// If rendering is enabled, at the end of a scanline
+			// copy bits 10 and 4-0 from VRAM latch into VRAMADDR
+			p.VramAddress = p.VramAddress ^ 0x41F
+		} else {
+			p.VramAddress++
+		}
 
-    t, attr := fetchTileAttributes()
-    tile := p.Vram[t : t+16]
-    // Move first tile into shift registers
-    p.LowBitShift = uint16(tile[p.TilerowCounter])
-    p.HighBitShift = uint16(tile[p.TilerowCounter+8])
+		return t, attr
+	}
 
-    t, attrBuf := fetchTileAttributes()
-    tile = p.Vram[t : t+16]
-    // Get second tile, move the pixels into the right side of
-    // shift registers
-    // Current tile to render is attrBuf
-    p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[p.TilerowCounter])
-    p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
+	t, attr := fetchTileAttributes()
+	tile := p.Vram[t : t+16]
+	// Move first tile into shift registers
+	p.LowBitShift = uint16(tile[p.TilerowCounter])
+	p.HighBitShift = uint16(tile[p.TilerowCounter+8])
+
+	t, attrBuf := fetchTileAttributes()
+	tile = p.Vram[t : t+16]
+	// Get second tile, move the pixels into the right side of
+	// shift registers
+	// Current tile to render is attrBuf
+	p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[p.TilerowCounter])
+	p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
 
 	for x := 0; x < 32; x++ {
-        var palette []Word
+		var palette []Word
 
-        var b uint
-        for b = 0; b < 8; b++ {
-            fbRow := p.Scanline*256 + ((x*8) + int(b))
+		var b uint
+		for b = 0; b < 8; b++ {
+			fbRow := p.Scanline*256 + ((x * 8) + int(b))
 
-            // If we're grabbing the pixel from the high
-            // part of the shift register, use the buffered
-            // palette, not the current one
-            if (15 - b - uint(p.FineX)) < 8 {
-                palette = p.bgPaletteEntry(attrBuf)
-            } else {
-                palette = p.bgPaletteEntry(attr)
-            }
+			// If we're grabbing the pixel from the high
+			// part of the shift register, use the buffered
+			// palette, not the current one
+			if (15 - b - uint(p.FineX)) < 8 {
+				palette = p.bgPaletteEntry(attrBuf)
+			} else {
+				palette = p.bgPaletteEntry(attr)
+			}
 
-            pixel := (p.LowBitShift >> (15 - b - uint(p.FineX))) & 0x01
-            pixel += ((p.HighBitShift >> (15 - b - uint(p.FineX)) & 0x01) << 1)
+			pixel := (p.LowBitShift >> (15 - b - uint(p.FineX))) & 0x01
+			pixel += ((p.HighBitShift >> (15 - b - uint(p.FineX)) & 0x01) << 1)
 
-            p.Palettebuffer[fbRow] = Pixel{
-                PaletteRgb[int(palette[pixel])],
-                int(pixel),
-            }
-        }
+			p.Palettebuffer[fbRow] = Pixel{
+				PaletteRgb[int(palette[pixel])],
+				int(pixel),
+			}
+		}
 
 		// xcoord = p.VramAddress & 0x1F
-        attr = attrBuf
+		attr = attrBuf
 
-        t, attrBuf = fetchTileAttributes()
-        tile = p.Vram[t : t+16]
+		t, attrBuf = fetchTileAttributes()
+		tile = p.Vram[t : t+16]
 
-        // Shift the first tile out, bring the new tile in
-        p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[p.TilerowCounter])
-        p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
+		// Shift the first tile out, bring the new tile in
+		p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[p.TilerowCounter])
+		p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
 	}
 
 	p.TilerowCounter++
@@ -723,6 +723,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 					p.sprPaletteEntry(uint(attrValue)),
 					&p.Attributes[i], i == 0)
 
+				// Next tile
 				tile = p.Vram[s+16 : s+32]
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},

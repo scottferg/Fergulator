@@ -60,9 +60,9 @@ func main() {
 	for running {
 		cycles := cpu.Step()
 
-        for i := 0; i < 3*cycles; i++ {
-            ppu.Step()
-        }
+		for i := 0; i < 3*cycles; i++ {
+			ppu.Step()
+		}
 	}
 
 	return

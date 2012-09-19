@@ -50,10 +50,10 @@ func (m *Memory) Write(address interface{}, val Word) error {
 		m[a] = val
 
 		if a <= 0x2007 && a >= 0x2000 {
-            //ppu.Run(cpu.Timestamp * 3)
+			//ppu.Run(cpu.Timestamp * 3)
 			ppu.PpuRegWrite(val, a)
 		} else if a == 0x4014 {
-            //ppu.Run(cpu.Timestamp * 3)
+			//ppu.Run(cpu.Timestamp * 3)
 			ppu.PpuRegWrite(val, a)
 		} else if a == 0x4016 {
 			controller.Write(val)
@@ -72,12 +72,12 @@ func (m *Memory) Write(address interface{}, val Word) error {
 func (m *Memory) Read(address interface{}) (Word, error) {
 	a, _ := fitAddressSize(address)
 
-    if a == 0x200A {
-        return m[0x2002], nil
-    }
+	if a == 0x200A {
+		return m[0x2002], nil
+	}
 
 	if a <= 0x2007 && a >= 0x2000 {
-        //ppu.Run(cpu.Timestamp)
+		//ppu.Run(cpu.Timestamp)
 		return ppu.PpuRegRead(a)
 	} else if a == 0x4016 {
 		return controller.Read(), nil

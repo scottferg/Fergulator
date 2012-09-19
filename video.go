@@ -11,7 +11,7 @@ import (
 type Video struct {
 	screen *sdl.Surface
 	tick   <-chan []int
-    debug  <-chan []int
+	debug  <-chan []int
 }
 
 func (v *Video) Init(t <-chan []int, d <-chan []int, n string) {
@@ -28,13 +28,13 @@ func (v *Video) Init(t <-chan []int, d <-chan []int, n string) {
 	sdl.WM_SetCaption(fmt.Sprintf("Fergulator - %s", n), "")
 
 	v.tick = t
-    v.debug = d
+	v.debug = d
 }
 
 func (v *Video) Render() {
 	for {
 		select {
-        case d := <-v.debug:
+		case d := <-v.debug:
 			copy((*[512 * 480]int)(v.screen.Pixels)[:], d)
 			v.screen.Flip()
 			// 60hz

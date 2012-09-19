@@ -88,11 +88,11 @@ func (r *Nrom) Init(rom []byte) error {
 	case 0x0:
 		fmt.Println("Horizontal mirroring")
 		ppu.Mirroring = MirroringHorizontal
-        ppu.Nametables.Init()
+		ppu.Nametables.Init()
 	case 0x1:
 		fmt.Println("Vertical mirroring")
 		ppu.Mirroring = MirroringVertical
-        ppu.Nametables.Init()
+		ppu.Nametables.Init()
 	}
 
 	// ROM data dests at byte 16
@@ -101,9 +101,9 @@ func (r *Nrom) Init(rom []byte) error {
 	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
 	r.RomBanks = make([][]Word, (len(r.Data) / 0x4000))
 
-    fmt.Printf("Length of banks: %d\n", (len(r.Data) / 0x4000))
+	fmt.Printf("Length of banks: %d\n", (len(r.Data) / 0x4000))
 
-    bankCount := (len(r.Data) / 0x4000)
+	bankCount := (len(r.Data) / 0x4000)
 	for i := 0; i < bankCount; i++ {
 		// Move 16kb chunk to 16kb bank
 		bank := make([]Word, 0x4000)
@@ -123,7 +123,7 @@ func (r *Nrom) Init(rom []byte) error {
 			r.WriteVramBank(0x0000, 0x2000, 0x4000)
 		}
 	case 0x02:
-        r.WriteRamBank(0, 0x8000)
+		r.WriteRamBank(0, 0x8000)
 		r.WriteRamBank(1, 0xC000)
 		r.WriteVramBank(0x0000, 0x2000, 0x8000)
 	}
@@ -169,14 +169,14 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 			if (r.Mirroring & 0x2) == 0 {
 				// TODO: Single screen mirroring
 				ppu.Mirroring = MirroringSingleScreen
-                ppu.Nametables.Init()
+				ppu.Nametables.Init()
 				fmt.Println("Single screen mirroring!")
 			} else if (r.Mirroring & 0x1) != 0 {
 				ppu.Mirroring = MirroringHorizontal
-                ppu.Nametables.Init()
+				ppu.Nametables.Init()
 			} else {
 				ppu.Mirroring = MirroringVertical
-                ppu.Nametables.Init()
+				ppu.Nametables.Init()
 			}
 		}
 
@@ -283,11 +283,11 @@ func (r *Mmc1) Init(rom []byte) error {
 	case 0x0:
 		fmt.Println("Horizontal mirroring")
 		ppu.Mirroring = MirroringHorizontal
-        ppu.Nametables.Init()
+		ppu.Nametables.Init()
 	case 0x1:
 		fmt.Println("Vertical mirroring")
 		ppu.Mirroring = MirroringVertical
-        ppu.Nametables.Init()
+		ppu.Nametables.Init()
 	}
 
 	r.Data = rom[16:]
@@ -322,11 +322,11 @@ func (r *Unrom) Init(rom []byte) error {
 	case 0x0:
 		fmt.Println("Horizontal mirroring")
 		ppu.Mirroring = MirroringHorizontal
-        ppu.Nametables.Init()
+		ppu.Nametables.Init()
 	case 0x1:
 		fmt.Println("Vertical mirroring")
 		ppu.Mirroring = MirroringVertical
-        ppu.Nametables.Init()
+		ppu.Nametables.Init()
 	}
 
 	// ROM data dests at byte 16
@@ -335,7 +335,7 @@ func (r *Unrom) Init(rom []byte) error {
 
 	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
 
-    bankCount := (len(r.Data) / 0x4000)
+	bankCount := (len(r.Data) / 0x4000)
 	for i := 0; i < bankCount; i++ {
 		// Move 16kb chunk to 16kb bank
 		bank := make([]Word, 0x4000)
