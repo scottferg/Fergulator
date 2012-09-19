@@ -702,11 +702,11 @@ func (p *Ppu) evaluateScanlineSprites() {
 
 	for i, y := range p.SpriteData.YCoordinates {
 		// if p.Scanline - int(y)+1  >= 0 && p.Scanline - int(y)+1 < 8 {
-		if int(y) > p.Scanline-8 && int(y)+7 < p.Scanline+8 {
+		if int(y) > (p.Scanline-1)-8 && int(y)+7 < (p.Scanline-1)+8 {
 			attrValue := p.Attributes[i] & 0x3
 			t := p.SpriteData.Tiles[i]
 
-			c := p.Scanline - int(y)
+			c := (p.Scanline - 1) - int(y)
 			if p.SpriteSize&0x01 != 0x0 {
 				// 8x16 Sprite
 				s := p.sprPatternTableAddress(int(t))
@@ -714,7 +714,15 @@ func (p *Ppu) evaluateScanlineSprites() {
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
-					int(p.YCoordinates[i])+c,
+					int(p.YCoordinates[i])+c+1,
+					p.sprPaletteEntry(uint(attrValue)),
+					&p.Attributes[i], i == 0)
+				s = p.sprPatternTableAddress(int(t+1))
+				tile = p.Vram[s : s+16]
+
+				p.decodePatternTile([]Word{tile[c], tile[c+8]},
+					int(p.XCoordinates[i]),
+					int(p.YCoordinates[i])+c+9,
 					p.sprPaletteEntry(uint(attrValue)),
 					&p.Attributes[i], i == 0)
 			} else {
@@ -724,7 +732,7 @@ func (p *Ppu) evaluateScanlineSprites() {
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
-					int(p.YCoordinates[i])+c,
+					int(p.YCoordinates[i])+c+1,
 					p.sprPaletteEntry(uint(attrValue)),
 					&p.Attributes[i], i == 0)
 			}
