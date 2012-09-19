@@ -8,7 +8,7 @@ import (
 
 type Mapper interface {
 	WriteRamBank(bank, dest int)
-	WriteVramBank(dest int, length int, offset int)
+	WriteVramBank(bank, dest int)
 	Write(v Word, a int)
 	Init(rom []byte) error
 }
@@ -29,12 +29,14 @@ type Rom struct {
 	RomSelectionReg1  int
 	RomBankSelect     int
 
-	RomBanks [][]Word
+	RomBanks  [][]Word
+	VromBanks [][]Word
 }
 
 type Nrom Rom
 type Mmc1 Rom
 type Unrom Rom
+type Cnrom Rom
 
 // TODO: HOLY SHIT
 
@@ -44,9 +46,9 @@ func (r *Nrom) WriteRamBank(bank, dest int) {
 	}
 }
 
-func (r *Nrom) WriteVramBank(dest int, length int, offset int) {
-	for i := dest; i < length; i++ {
-		ppu.Vram[i] = Word(r.Data[i+offset])
+func (r *Nrom) WriteVramBank(bank, dest int) {
+	for i := 0; i < 0x2000; i++ {
+		ppu.Vram[i+dest] = r.VromBanks[bank][i]
 	}
 }
 
@@ -56,9 +58,9 @@ func (r *Mmc1) WriteRamBank(bank, dest int) {
 	}
 }
 
-func (r *Mmc1) WriteVramBank(dest int, length int, offset int) {
-	for i := dest; i < length; i++ {
-		ppu.Vram[i] = Word(r.Data[i+offset])
+func (r *Mmc1) WriteVramBank(bank, dest int) {
+	for i := 0; i < 0x2000; i++ {
+		ppu.Vram[i+dest] = r.VromBanks[bank][i]
 	}
 }
 
@@ -68,9 +70,21 @@ func (r *Unrom) WriteRamBank(bank, dest int) {
 	}
 }
 
-func (r *Unrom) WriteVramBank(dest int, length int, bank int) {
-	for i := dest; i < length; i++ {
-		ppu.Vram[i] = Word(r.Data[i+bank])
+func (r *Unrom) WriteVramBank(bank, dest int) {
+	for i := 0; i < 0x2000; i++ {
+		ppu.Vram[i+dest] = r.VromBanks[bank][i]
+	}
+}
+
+func (r *Cnrom) WriteRamBank(bank, dest int) {
+	for i := 0; i < 0x4000; i++ {
+		Ram[i+dest] = r.RomBanks[bank][i]
+	}
+}
+
+func (r *Cnrom) WriteVramBank(bank, dest int) {
+	for i := 0; i < 0x2000; i++ {
+		ppu.Vram[i+dest] = r.VromBanks[bank][i]
 	}
 }
 
@@ -101,8 +115,6 @@ func (r *Nrom) Init(rom []byte) error {
 	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
 	r.RomBanks = make([][]Word, (len(r.Data) / 0x4000))
 
-	fmt.Printf("Length of banks: %d\n", (len(r.Data) / 0x4000))
-
 	bankCount := (len(r.Data) / 0x4000)
 	for i := 0; i < bankCount; i++ {
 		// Move 16kb chunk to 16kb bank
@@ -114,18 +126,33 @@ func (r *Nrom) Init(rom []byte) error {
 		r.RomBanks[i] = bank
 	}
 
+	// Everything after PRG-ROM
+	chrRom := r.Data[0x4000*len(r.RomBanks):]
+
+	vramBankCount := (len(chrRom) / 0x2000)
+	r.VromBanks = make([][]Word, vramBankCount)
+	for i := 0; i < vramBankCount; i++ {
+		// Move 16kb chunk to 16kb bank
+		bank := make([]Word, 0x2000)
+		for x := 0; x < 0x2000; x++ {
+			bank[x] = Word(chrRom[(0x2000*i)+x])
+		}
+
+		r.VromBanks[i] = bank
+	}
+
 	switch r.PrgBankCount {
 	case 0x01:
 		r.WriteRamBank(0, 0x8000)
 		r.WriteRamBank(0, 0xC000)
 
 		if r.ChrRomCount != 0 {
-			r.WriteVramBank(0x0000, 0x2000, 0x4000)
+			r.WriteVramBank(0, 0x0)
 		}
 	case 0x02:
 		r.WriteRamBank(0, 0x8000)
 		r.WriteRamBank(1, 0xC000)
-		r.WriteVramBank(0x0000, 0x2000, 0x8000)
+		r.WriteVramBank(0, 0x0)
 	}
 
 	return nil
@@ -352,13 +379,79 @@ func (r *Unrom) Init(rom []byte) error {
 	r.WriteRamBank(7, 0xC000)
 
 	fmt.Printf("VROM: %d\n", r.ChrRomCount)
-	// r.WriteVramBank(0x0000, 0x2000, 0x8000)
 
 	return nil
 }
 
 func (r *Unrom) Write(v Word, a int) {
 	r.WriteRamBank(int(v), 0x8000)
+}
+
+func (r *Cnrom) Init(rom []byte) error {
+	r.PrgBankCount = int(rom[4])
+	r.ChrRomCount = int(rom[5])
+
+	switch rom[6] & 0x1 {
+	case 0x0:
+		fmt.Println("Horizontal mirroring")
+		ppu.Mirroring = MirroringHorizontal
+		ppu.Nametables.Init()
+	case 0x1:
+		fmt.Println("Vertical mirroring")
+		ppu.Mirroring = MirroringVertical
+		ppu.Nametables.Init()
+	}
+
+	// ROM data dests at byte 16
+	r.Data = rom[16:]
+
+	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
+
+	r.RomBanks = make([][]Word, r.PrgBankCount)
+	for i := 0; i < r.PrgBankCount; i++ {
+		// Move 16kb chunk to 16kb bank
+		bank := make([]Word, 0x4000)
+		for x := 0; x < 0x4000; x++ {
+			bank[x] = Word(r.Data[(0x4000*i)+x])
+		}
+
+		r.RomBanks[i] = bank
+	}
+
+	// Everything after PRG-ROM
+	chrRom := r.Data[0x4000*len(r.RomBanks):]
+
+	vramBankCount := (len(chrRom) / 0x2000)
+	r.VromBanks = make([][]Word, vramBankCount)
+	for i := 0; i < vramBankCount; i++ {
+		// Move 16kb chunk to 16kb bank
+		bank := make([]Word, 0x2000)
+		for x := 0; x < 0x2000; x++ {
+			bank[x] = Word(chrRom[(0x2000*i)+x])
+		}
+
+		r.VromBanks[i] = bank
+	}
+
+	// Write the first ROM bank
+	r.WriteRamBank(0, 0x8000)
+	// and the last ROM bank
+
+	if r.PrgBankCount > 1 {
+		r.WriteRamBank(1, 0xC000)
+	} else {
+		r.WriteRamBank(0, 0xC000)
+	}
+
+	r.WriteVramBank(0, 0x0)
+
+	fmt.Printf("VROM: %d\n", r.ChrRomCount)
+
+	return nil
+}
+
+func (r *Cnrom) Write(v Word, a int) {
+	r.WriteVramBank(int(v&0x3), 0x0)
 }
 
 func LoadRom(rom []byte) (r Mapper, e error) {
@@ -388,6 +481,9 @@ func LoadRom(rom []byte) (r Mapper, e error) {
 	case 0x02:
 		// Unrom
 		r = new(Unrom)
+	case 0x03:
+		// Cnrom
+		r = new(Cnrom)
 	default:
 		// Unsupported
 		return r, errors.New(fmt.Sprintf("Unsupported memory mapper: 0x%X", mapper))
