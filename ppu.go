@@ -78,7 +78,6 @@ type Ppu struct {
 	AttributeLocation [0x400]uint
 	AttributeShift    [0x400]uint
 	Mirroring         int
-	TilerowCounter    int
 
 	Palettebuffer []Pixel
 	Framebuffer   []int
@@ -626,7 +625,7 @@ func (p *Ppu) renderTileRow() {
 	// one per loop and shift the other back out
 	// xcoord := p.VramAddress & 0x1F
 
-    p.TilerowCounter = p.Scanline % 8
+    tilerowCounter = p.Scanline % 8
 
 	fetchTileAttributes := func() (int, Word) {
 		attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
@@ -651,16 +650,16 @@ func (p *Ppu) renderTileRow() {
 	t, attr := fetchTileAttributes()
 	tile := p.Vram[t : t+16]
 	// Move first tile into shift registers
-	p.LowBitShift = uint16(tile[p.TilerowCounter])
-	p.HighBitShift = uint16(tile[p.TilerowCounter+8])
+	p.LowBitShift = uint16(tile[tilerowCounter])
+	p.HighBitShift = uint16(tile[tilerowCounter+8])
 
 	t, attrBuf := fetchTileAttributes()
 	tile = p.Vram[t : t+16]
 	// Get second tile, move the pixels into the right side of
 	// shift registers
 	// Current tile to render is attrBuf
-	p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[p.TilerowCounter])
-	p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
+	p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[tilerowCounter])
+	p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[tilerowCounter+8])
 
 	for x := 0; x < 32; x++ {
 		var palette int
@@ -694,8 +693,8 @@ func (p *Ppu) renderTileRow() {
 		tile = p.Vram[t : t+16]
 
 		// Shift the first tile out, bring the new tile in
-		p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[p.TilerowCounter])
-		p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
+		p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[tilerowCounter])
+		p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[tilerowCounter+8])
 	}
 }
 
