@@ -218,6 +218,12 @@ func (p *Ppu) Step() {
 				p.RenderNametables()
 				p.Debug <- p.Framebuffer
 			} else {
+                // TODO: This should happen per scanline
+                if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
+                    for i := 0; i < 240; i++ {
+                        p.evaluateScanlineSprites(i)
+                    }
+                }
 				p.raster()
 			}
 
@@ -242,8 +248,9 @@ func (p *Ppu) Step() {
 				p.updateEndScanlineRegisters()
 			}
 
-			if p.ShowSprites {
-				p.evaluateScanlineSprites()
+            // TODO: Shouldn't have to do this
+			if p.ShowSprites && (p.SpriteSize&0x1 == 0) {
+				p.evaluateScanlineSprites(p.Scanline)
 			}
 
 			p.Scanline++
@@ -505,14 +512,12 @@ func (p *Ppu) incrementVramAddress() {
 func (p *Ppu) sprPatternTableAddress(i int) int {
 	if p.SpriteSize&0x01 != 0x0 {
 		// 8x16 Sprites
-		var bank int
 		if i&0x01 != 0 {
-			bank = 0x1000
+            return 0x1000 | ((int(i) >> 1) * 0x20)
 		} else {
-			bank = 0x0000
+            return ((int(i) >> 1) * 0x20)
 		}
 
-		return bank + ((int(i) >> 1) * 0x20)
 	}
 
 	// 8x8 Sprites
@@ -697,16 +702,16 @@ func (p *Ppu) renderTileRow() {
 	}
 }
 
-func (p *Ppu) evaluateScanlineSprites() {
+func (p *Ppu) evaluateScanlineSprites(line int) {
 	spriteCount := 0
 
 	for i, y := range p.SpriteData.YCoordinates {
 		// if p.Scanline - int(y)+1  >= 0 && p.Scanline - int(y)+1 < 8 {
-		if int(y) > (p.Scanline-1)-8 && int(y)+7 < (p.Scanline-1)+8 {
+		if int(y) > (line-1)-8 && int(y)+7 < (line-1)+8 {
 			attrValue := p.Attributes[i] & 0x3
 			t := p.SpriteData.Tiles[i]
 
-			c := (p.Scanline - 1) - int(y)
+			c := (line - 1) - int(y)
 			if p.SpriteSize&0x01 != 0x0 {
 				// 8x16 Sprite
 				s := p.sprPatternTableAddress(int(t))
@@ -717,8 +722,8 @@ func (p *Ppu) evaluateScanlineSprites() {
 					int(p.YCoordinates[i])+c+1,
 					p.sprPaletteEntry(uint(attrValue)),
 					&p.Attributes[i], i == 0)
-				s = p.sprPatternTableAddress(int(t+1))
-				tile = p.Vram[s : s+16]
+
+				tile = p.Vram[s+16 : s+32]
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
