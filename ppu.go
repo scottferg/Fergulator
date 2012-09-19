@@ -98,7 +98,7 @@ type Ppu struct {
 
 func (p *Ppu) Init() (chan []int, chan []int) {
 	p.WriteLatch = true
-	p.Output = make(chan []int, 50)
+	p.Output = make(chan []int)
 	p.Debug = make(chan []int)
 
 	p.Cycle = 0
