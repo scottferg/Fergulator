@@ -98,7 +98,7 @@ type Ppu struct {
 
 func (p *Ppu) Init() (chan []int, chan []int) {
 	p.WriteLatch = true
-	p.Output = make(chan []int)
+	p.Output = make(chan []int, 50)
 	p.Debug = make(chan []int)
 
 	p.Cycle = 0
@@ -590,6 +590,7 @@ func (p *Ppu) renderNametable(table, xoff, yoff int) {
 
 	// Generates each tile and applies the palette
 	for i := a; i < a+0x3C0; i++ {
+        /*
 		attrAddr := 0x23C0 | (i & 0xC00) | int(p.AttributeLocation[i&0x3FF])
 		shift := p.AttributeShift[i&0x3FF]
 		attr := ((p.Vram[attrAddr] >> shift) & 0x03) << 2
@@ -605,6 +606,7 @@ func (p *Ppu) renderNametable(table, xoff, yoff int) {
 				nil,
 				false)
 		}
+        */
 
 		x += 8
 
@@ -660,26 +662,26 @@ func (p *Ppu) renderTileRow() {
 	p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[p.TilerowCounter+8])
 
 	for x := 0; x < 32; x++ {
-		var palette []Word
+		var palette int
 
 		var b uint
 		for b = 0; b < 8; b++ {
 			fbRow := p.Scanline*256 + ((x * 8) + int(b))
 
+			pixel := (p.LowBitShift >> (15 - b - uint(p.FineX))) & 0x01
+			pixel += ((p.HighBitShift >> (15 - b - uint(p.FineX)) & 0x01) << 1)
+
 			// If we're grabbing the pixel from the high
 			// part of the shift register, use the buffered
 			// palette, not the current one
 			if (15 - b - uint(p.FineX)) < 8 {
-				palette = p.bgPaletteEntry(attrBuf)
+				palette = p.bgPaletteEntry(attrBuf, pixel)
 			} else {
-				palette = p.bgPaletteEntry(attr)
+				palette = p.bgPaletteEntry(attr, pixel)
 			}
 
-			pixel := (p.LowBitShift >> (15 - b - uint(p.FineX))) & 0x01
-			pixel += ((p.HighBitShift >> (15 - b - uint(p.FineX)) & 0x01) << 1)
-
 			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[int(palette[pixel])],
+				PaletteRgb[palette],
 				int(pixel),
 			}
 		}
@@ -810,36 +812,20 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 	}
 }
 
-func (p *Ppu) bgPaletteEntry(a Word) (pal []Word) {
+func (p *Ppu) bgPaletteEntry(a Word, pix uint16) (pal int) {
+    if pix == 0x0 {
+        return int(p.PaletteRam[0x00])
+    }
+
 	switch a {
 	case 0x0:
-		pal = []Word{
-			p.PaletteRam[0x00],
-			p.PaletteRam[0x01],
-			p.PaletteRam[0x02],
-			p.PaletteRam[0x03],
-		}
+        return int(p.PaletteRam[0x00 + pix])
 	case 0x4:
-		pal = []Word{
-			p.PaletteRam[0x00],
-			p.PaletteRam[0x05],
-			p.PaletteRam[0x06],
-			p.PaletteRam[0x07],
-		}
+        return int(p.PaletteRam[0x04 + pix])
 	case 0x8:
-		pal = []Word{
-			p.PaletteRam[0x00],
-			p.PaletteRam[0x09],
-			p.PaletteRam[0x0A],
-			p.PaletteRam[0x0B],
-		}
+        return int(p.PaletteRam[0x08 + pix])
 	case 0xC:
-		pal = []Word{
-			p.PaletteRam[0x00],
-			p.PaletteRam[0x0D],
-			p.PaletteRam[0x0E],
-			p.PaletteRam[0x0F],
-		}
+        return int(p.PaletteRam[0x0C + pix])
 	}
 
 	return
