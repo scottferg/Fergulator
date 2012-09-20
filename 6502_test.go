@@ -2,9 +2,7 @@ package main
 
 import (
 	"encoding/hex"
-	"fmt"
 	"io/ioutil"
-	"strconv"
 	"strings"
 	"testing"
 )
@@ -64,9 +62,6 @@ func TestGoldLog(test *testing.T) {
 		y, _ := hex.DecodeString(strings.Split(registers[2], ":")[1])
 		p, _ := hex.DecodeString(strings.Split(registers[3], ":")[1])
 		sp, _ := hex.DecodeString(strings.Split(registers[4], ":")[1])
-        cyc, _ := strconv.Atoi(strings.TrimSpace(log[i][78:81]))
-
-        fmt.Printf("Cycle: %d\n", cyc)
 
 		expectedState := CpuState{
 			A:  int(a[0]),
@@ -74,7 +69,6 @@ func TestGoldLog(test *testing.T) {
 			Y:  int(y[0]),
 			P:  int(p[0]),
 			S:  int(sp[0]),
-            C:  cyc,
 			Op: (int(high) << 8) + int(low),
 		}
 
@@ -111,9 +105,5 @@ func verifyCpuState(pc int, c *Cpu, e CpuState, test *testing.T) {
 
 	if c.StackPointer != Word(e.S) {
 		test.Errorf("PC: 0x%X Stack pointer was 0x%X, was expecting 0x%X\n", pc, c.StackPointer, e.S)
-	}
-
-	if ppu.Cycle != e.C {
-		test.Errorf("PC: 0x%X PPU Cycle was %d, was expecting %d\n", pc, ppu.Cycle, e.C)
 	}
 }

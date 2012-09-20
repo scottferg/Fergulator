@@ -9,7 +9,7 @@ var (
 )
 
 func verifyValue(a int, v Word, test *testing.T) {
-	if p.Vram[a] != v {
+	if p.Nametables.readNametableData(a) != v {
 		test.Errorf("0x%X was 0x%X, expected 0x%X\n", a, p.Vram[0x2000], v)
 	}
 }
@@ -19,6 +19,7 @@ func TestVerticalNametableMirroring(test *testing.T) {
 	p.Init()
 
 	p.Mirroring = MirroringVertical
+    p.Nametables.Init()
 
 	p.VramAddress = 0x2000
 	p.WriteData(0x11)
@@ -78,6 +79,7 @@ func TestHorizontalNametableMirroring(test *testing.T) {
 	p.Init()
 
 	p.Mirroring = MirroringHorizontal
+    ppu.Nametables.Init()
 
 	p.VramAddress = 0x2000
 	p.WriteData(0x11)
