@@ -1,2 +1,0 @@
-DAsm NEStress.asm -f3 -v3
-Join Header_Mapper0 a.out Tanks.CHR AS NEStress.NES

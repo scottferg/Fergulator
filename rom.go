@@ -219,11 +219,9 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 			if r.VromSwitchingSize == 0 {
 				// Swap 8k VROM
 				if r.RomSelectionReg0 == 0 {
-					fmt.Printf("CHR Count: %d\n", r.ChrRomCount)
-					fmt.Printf("Mod: %d\n", (v&0xF)%r.ChrRomCount)
+                    r.WriteVramBank(v & 0xF, 0x0)
 				} else {
-					fmt.Printf("CHR Count: %d\n", r.ChrRomCount)
-					fmt.Printf("Div: %d\n", int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF))
+                    r.WriteVramBank(int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF), 0x0000)
 				}
 			} else {
 				// Swap 4k VROM

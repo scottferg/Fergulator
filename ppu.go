@@ -194,6 +194,7 @@ func (p *Ppu) raster() {
 		var color int
 		color = p.Palettebuffer[i].Color
 		p.Framebuffer[(y*256)+x] = color
+		p.Palettebuffer[i].Value = 0
 	}
 
 	p.Output <- p.Framebuffer
@@ -276,26 +277,52 @@ func (p *Ppu) Step() {
 }
 
 func (p *Ppu) updateEndScanlineRegisters() {
-	// Scanline has ended
-	if p.VramAddress&0x7000 == 0x7000 {
-		tmp := p.VramAddress & 0x3E0
-		p.VramAddress = p.VramAddress & 0xFFF
-		switch tmp {
-		case 0x3A0:
-			p.VramAddress = p.VramAddress ^ 0xBA0
-		case 0x3E0:
-			p.VramAddress = p.VramAddress ^ 0x3E0
-		default:
-			p.VramAddress = p.VramAddress + 0x20
-		}
+
+	/*******************************************************
+	  TODO: Some documentatino implies that the X increment
+	  should occur 34 times per scanline. These may not be
+	  necessary.
+	 ***********************************************************/
+
+	// Flip bit 10 on wraparound
+	if p.VramAddress&0x1F == 0x1F {
+		// If rendering is enabled, at the end of a scanline
+		// copy bits 10 and 4-0 from VRAM latch into VRAMADDR
+		p.VramAddress ^= 0x41F
 	} else {
-		// Increment the fine-Y
-		p.VramAddress = p.VramAddress + 0x1000
+		p.VramAddress++
+	}
+
+	// Flip bit 10 on wraparound
+	if p.VramAddress&0x1F == 0x1F {
+		// If rendering is enabled, at the end of a scanline
+		// copy bits 10 and 4-0 from VRAM latch into VRAMADDR
+		p.VramAddress ^= 0x41F
+	} else {
+		p.VramAddress++
 	}
 
 	if p.ShowBackground || p.ShowSprites {
-		p.VramAddress = p.VramAddress & 0xFBE0
-		p.VramAddress = p.VramAddress | (p.VramLatch & 0x41F)
+		// Scanline has ended
+		if p.VramAddress&0x7000 == 0x7000 {
+			tmp := p.VramAddress & 0x3E0
+			p.VramAddress &= 0xFFF
+
+			switch tmp {
+			case 0x3A0:
+				p.VramAddress ^= 0xBA0
+			case 0x3E0:
+				p.VramAddress ^= 0x3E0
+			default:
+				p.VramAddress += 0x20
+			}
+
+		} else {
+			// Increment the fine-Y
+			p.VramAddress += 0x1000
+		}
+
+		p.VramAddress = (p.VramAddress & 0x7BE0) | (p.VramLatch & 0x41F)
 	}
 }
 
@@ -537,7 +564,8 @@ func (p *Ppu) bgPatternTableAddress(i Word) int {
 		a = 0x0
 	}
 
-	return int(i)*0x10 + a
+	return (int(i) << 4) | a
+	// return (int(i) << 4) | (p.VramAddress >> 12) | a
 }
 
 func (p *Ppu) selectNametable(t int) (a int) {
@@ -588,23 +616,23 @@ func (p *Ppu) renderNametable(table, xoff, yoff int) {
 
 	// Generates each tile and applies the palette
 	for i := a; i < a+0x3C0; i++ {
-        /*
-		attrAddr := 0x23C0 | (i & 0xC00) | int(p.AttributeLocation[i&0x3FF])
-		shift := p.AttributeShift[i&0x3FF]
-		attr := ((p.Vram[attrAddr] >> shift) & 0x03) << 2
+		/*
+			attrAddr := 0x23C0 | (i & 0xC00) | int(p.AttributeLocation[i&0x3FF])
+			shift := p.AttributeShift[i&0x3FF]
+			attr := ((p.Vram[attrAddr] >> shift) & 0x03) << 2
 
-		t := p.bgPatternTableAddress(p.Vram[i])
-		tile := p.Vram[t : t+16]
+			t := p.bgPatternTableAddress(p.Vram[i])
+			tile := p.Vram[t : t+16]
 
-		for c := 0; c < 8; c++ {
-			p.decodePatternTile([]Word{tile[c], tile[c+8]},
-				x+xoff,
-				y+yoff+c,
-				p.bgPaletteEntry(attr),
-				nil,
-				false)
-		}
-        */
+			for c := 0; c < 8; c++ {
+				p.decodePatternTile([]Word{tile[c], tile[c+8]},
+					x+xoff,
+					y+yoff+c,
+					p.bgPaletteEntry(attr),
+					nil,
+					false)
+			}
+		*/
 
 		x += 8
 
@@ -625,7 +653,7 @@ func (p *Ppu) renderTileRow() {
 	// one per loop and shift the other back out
 	// xcoord := p.VramAddress & 0x1F
 
-    tilerowCounter = p.Scanline % 8
+	tilerowCounter := p.Scanline % 8
 
 	fetchTileAttributes := func() (int, Word) {
 		attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
@@ -639,7 +667,7 @@ func (p *Ppu) renderTileRow() {
 		if p.VramAddress&0x1F == 0x1F {
 			// If rendering is enabled, at the end of a scanline
 			// copy bits 10 and 4-0 from VRAM latch into VRAMADDR
-			p.VramAddress = p.VramAddress ^ 0x41F
+			p.VramAddress ^= 0x41F
 		} else {
 			p.VramAddress++
 		}
@@ -708,6 +736,13 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 			t := p.SpriteData.Tiles[i]
 
 			c := (line - 1) - int(y)
+
+			// If vertical flip is set
+			ycoord := int(p.YCoordinates[i]) + c + 1
+			if (p.Attributes[i]>>7)&0x1 == 0x1 {
+				ycoord = int(p.YCoordinates[i]) + (8 - c)
+			}
+
 			if p.SpriteSize&0x01 != 0x0 {
 				// 8x16 Sprite
 				s := p.sprPatternTableAddress(int(t))
@@ -715,7 +750,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
-					int(p.YCoordinates[i])+c+1,
+					ycoord,
 					p.sprPaletteEntry(uint(attrValue)),
 					&p.Attributes[i], i == 0)
 
@@ -724,7 +759,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
-					int(p.YCoordinates[i])+c+9,
+					ycoord+8,
 					p.sprPaletteEntry(uint(attrValue)),
 					&p.Attributes[i], i == 0)
 			} else {
@@ -734,7 +769,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
-					int(p.YCoordinates[i])+c+1,
+					ycoord,
 					p.sprPaletteEntry(uint(attrValue)),
 					&p.Attributes[i], i == 0)
 			}
@@ -753,20 +788,17 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 	var b uint
 	for b = 0; b < 8; b++ {
 		var xcoord int
-		if attr != nil && (*attr>>6)&0x1 != 0 {
+		if (*attr>>6)&0x1 != 0 {
 			xcoord = x + int(b)
 		} else {
 			xcoord = x + int(7-b)
 		}
 
-		var ycoord int
-		if attr != nil && (*attr>>7)&0x1 != 0 {
-			ycoord = y + int(8-b)
-		} else {
-			ycoord = y
-		}
+        if (*attr>>7)&0x1 == 0x1 {
+            // fmt.Printf("Y: %d\n", y)
+        }
 
-		fbRow := ycoord*256 + xcoord
+		fbRow := y*256 + xcoord
 
 		// Store the bit 0/1
 		pixel := (t[0] >> b) & 0x01
@@ -780,46 +812,43 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 		// Set the color of the pixel in the buffer
 		//
 		if fbRow < 0xF000 && !trans {
-			if attr != nil {
-				priority := (*attr >> 5) & 0x1
+            priority := (*attr >> 5) & 0x1
 
-				if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
-					// Pixel is already rendered and priority
-					// 1 means show behind background
-					// continue
-				}
-			}
+			if p.Palettebuffer[fbRow].Value != 0 && spZero {
+                // Since we render background first, if we're placing an opaque
+                // pixel here and the existing pixel is opaque, we've hit
+                // Sprite 0 
+				p.setStatus(StatusSprite0Hit)
+			} 
+            
+            if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
+                // Pixel is already rendered and priority
+                // 1 means show behind background
+                continue
+            }
 
 			p.Palettebuffer[fbRow] = Pixel{
 				PaletteRgb[int(pal[pixel])],
 				int(pixel),
-			}
-
-			// Since we render sprites first, if we're placing an opaque
-			// pixel here and the existing pixel is opaque, we've hit
-			// Sprite 0 
-			if p.Palettebuffer[fbRow].Value != 0 && spZero {
-				p.setStatus(StatusSprite0Hit)
-				// p.Framebuffer[fbRow] = 0x00FF00
 			}
 		}
 	}
 }
 
 func (p *Ppu) bgPaletteEntry(a Word, pix uint16) (pal int) {
-    if pix == 0x0 {
-        return int(p.PaletteRam[0x00])
-    }
+	if pix == 0x0 {
+		return int(p.PaletteRam[0x00])
+	}
 
 	switch a {
 	case 0x0:
-        return int(p.PaletteRam[0x00 + pix])
+		return int(p.PaletteRam[0x00+pix])
 	case 0x4:
-        return int(p.PaletteRam[0x04 + pix])
+		return int(p.PaletteRam[0x04+pix])
 	case 0x8:
-        return int(p.PaletteRam[0x08 + pix])
+		return int(p.PaletteRam[0x08+pix])
 	case 0xC:
-        return int(p.PaletteRam[0x0C + pix])
+		return int(p.PaletteRam[0x0C+pix])
 	}
 
 	return
