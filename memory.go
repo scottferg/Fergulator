@@ -57,6 +57,9 @@ func (m *Memory) Write(address interface{}, val Word) error {
 			ppu.PpuRegWrite(val, a)
 		} else if a == 0x4016 {
 			controller.Write(val)
+		} else if a == 0x4017 {
+			// controller.WritePad2(val)
+            m[a] = 0
 		} else if a >= 0x8000 && a <= 0xFFFF {
 			// MMC1
 			rom.Write(val, a)

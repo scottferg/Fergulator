@@ -27,6 +27,10 @@ func setResetVector() {
 	ProgramCounter = (int(high) << 8) + int(low)
 }
 
+func SaveState() {
+    fmt.Println("Saving state")
+}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Please specify a ROM file")

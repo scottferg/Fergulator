@@ -288,7 +288,7 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 			// 32k 
 			bank = baseBank + (v & 0xF)
 			// Load bank
-            r.WriteRamBank(bank, 0x8000, Size32k)
+            r.WriteRamBank(bank * 2, 0x8000, Size32k)
 		} else {
             // 16k
 			bank = (baseBank * 2) + (v & 0xF)
