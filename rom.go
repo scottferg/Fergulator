@@ -10,7 +10,7 @@ const (
 	Size4k  = 0x1000
 	Size8k  = 0x2000
 	Size16k = 0x4000
-    Size32k = 0x8000
+	Size32k = 0x8000
 )
 
 type Mapper interface {
@@ -21,9 +21,10 @@ type Mapper interface {
 }
 
 type Rom struct {
-	PrgBankCount int
-	ChrRomCount  int
-	Data         []byte
+	PrgBankCount  int
+	ChrRomCount   int
+	BatteryBacked bool
+	Data          []byte
 
 	// TODO: MMC1
 	Buffer            int
@@ -60,18 +61,18 @@ func (r *Nrom) WriteVramBank(bank, dest, size int) {
 }
 
 func (r *Mmc1) WriteRamBank(bank, dest, size int) {
-    limit := 1
-    if size > Size16k {
-        limit = size / Size16k
-    }
+	limit := 1
+	if size > Size16k {
+		limit = size / Size16k
+	}
 
-    for x := 0; x < limit; x++ {
-        for i := 0; i < Size16k; i++ {
-            Ram[i+dest] = r.RomBanks[bank][i]
-        }
+	for x := 0; x < limit; x++ {
+		for i := 0; i < Size16k; i++ {
+			Ram[i+dest] = r.RomBanks[bank][i]
+		}
 
-        bank += 1
-    }
+		bank += 1
+	}
 }
 
 func (r *Mmc1) WriteVramBank(bank, dest, size int) {
@@ -124,6 +125,10 @@ func (r *Nrom) Init(rom []byte) error {
 		ppu.Mirroring = MirroringVertical
 		ppu.Nametables.Init()
 	}
+
+    if (rom[6] >> 0x1) & 0x1 == 0x1 {
+        r.BatteryBacked = true
+    }
 
 	// ROM data dests at byte 16
 	r.Data = rom[16:]
@@ -244,7 +249,7 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 				if r.RomSelectionReg0 == 0 {
 					r.WriteVramBank(v&0xF, 0x0, Size4k)
 				} else {
-                    fmt.Printf("Bank: %d\n", int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF))
+					fmt.Printf("Bank: %d\n", int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF))
 					r.WriteVramBank(int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF), 0x0, Size4k)
 				}
 			}
@@ -257,9 +262,9 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 			// Select VROM bank at 0x1000
 			if r.VromSwitchingSize == 1 {
 				if r.RomSelectionReg1 == 0 {
-                    r.WriteRamBank(v&0xF, 0x1000, Size4k)
+					r.WriteRamBank(v&0xF, 0x1000, Size4k)
 				} else {
-                    r.WriteRamBank(int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF), 0x1000, Size4k)
+					r.WriteRamBank(int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF), 0x1000, Size4k)
 				}
 			}
 		}
@@ -288,14 +293,14 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 			// 32k 
 			bank = baseBank + (v & 0xF)
 			// Load bank
-            r.WriteRamBank(bank * 2, 0x8000, Size32k)
+			r.WriteRamBank(bank*2, 0x8000, Size32k)
 		} else {
-            // 16k
+			// 16k
 			bank = (baseBank * 2) + (v & 0xF)
 			if r.PrgSwitchingArea == 0 {
-                r.WriteRamBank(bank, 0xC000, Size16k)
+				r.WriteRamBank(bank, 0xC000, Size16k)
 			} else {
-                r.WriteRamBank(bank, 0x8000, Size16k)
+				r.WriteRamBank(bank, 0x8000, Size16k)
 			}
 		}
 	}
@@ -328,6 +333,10 @@ func (r *Mmc1) Init(rom []byte) error {
 		ppu.Mirroring = MirroringVertical
 		ppu.Nametables.Init()
 	}
+
+    if (rom[6] >> 0x1) & 0x1 == 0x1 {
+        r.BatteryBacked = true
+    }
 
 	r.Data = rom[16:]
 
@@ -362,12 +371,12 @@ func (r *Mmc1) Init(rom []byte) error {
 	// Write the first ROM bank
 	r.WriteRamBank(0, 0x8000, Size16k)
 	// and the last ROM bank
-	r.WriteRamBank(r.PrgBankCount - 1, 0xC000, Size16k)
+	r.WriteRamBank(r.PrgBankCount-1, 0xC000, Size16k)
 
-    if r.ChrRomCount > 0 {
-        r.WriteVramBank(0, 0x0, Size4k)
-        r.WriteVramBank(1, 0x1000, Size4k)
-    }
+	if r.ChrRomCount > 0 {
+		r.WriteVramBank(0, 0x0, Size4k)
+		r.WriteVramBank(1, 0x1000, Size4k)
+	}
 
 	return nil
 }
@@ -386,6 +395,10 @@ func (r *Unrom) Init(rom []byte) error {
 		ppu.Mirroring = MirroringVertical
 		ppu.Nametables.Init()
 	}
+
+    if (rom[6] >> 0x1) & 0x1 == 0x1 {
+        r.BatteryBacked = true
+    }
 
 	// ROM data dests at byte 16
 	r.Data = rom[16:]
@@ -432,6 +445,10 @@ func (r *Cnrom) Init(rom []byte) error {
 		ppu.Mirroring = MirroringVertical
 		ppu.Nametables.Init()
 	}
+
+    if (rom[6] >> 0x1) & 0x1 == 0x1 {
+        r.BatteryBacked = true
+    }
 
 	// ROM data dests at byte 16
 	r.Data = rom[16:]

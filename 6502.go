@@ -1479,7 +1479,7 @@ func (c *Cpu) Step() int {
 		c.CycleCount = 4
 		c.Bit(c.absoluteAddress())
 	default:
-		panic(fmt.Sprintf("Invalid opcode: 0x%X", opcode))
+		panic(fmt.Sprintf("Invalid opcode at 0x%X: 0x%X", ProgramCounter, opcode))
 	}
 
 	c.Timestamp = (c.CycleCount * 15)

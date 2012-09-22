@@ -64,7 +64,11 @@ func (m *Memory) Write(address interface{}, val Word) error {
 			// MMC1
 			rom.Write(val, a)
 			return nil
-		}
+		} else if a >= 0x6000 && a < 0x8000 {
+            // TODO: Save to a file
+            // fmt.Println("Writing to battery RAM!")
+            m[a] = val
+        }
 
 		return nil
 	}
