@@ -564,8 +564,7 @@ func (p *Ppu) bgPatternTableAddress(i Word) int {
 		a = 0x0
 	}
 
-	return (int(i) << 4) | a
-	// return (int(i) << 4) | (p.VramAddress >> 12) | a
+	return (int(i) << 4) | (p.VramAddress >> 12) | a
 }
 
 func (p *Ppu) selectNametable(t int) (a int) {
@@ -647,15 +646,9 @@ func (p *Ppu) renderTileRow() {
 	// Generates each tile, one scanline at a time
 	// and applies the palette
 
-	// 32 total for 32 tiles, 8 pixels of each
-
 	// Load first two tiles into shift registers at start, then load
 	// one per loop and shift the other back out
-	// xcoord := p.VramAddress & 0x1F
-
-	tilerowCounter := p.Scanline % 8
-
-	fetchTileAttributes := func() (int, Word) {
+	fetchTileAttributes := func() (uint16, uint16, Word) {
 		attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
 		shift := p.AttributeShift[p.VramAddress&0x3FF]
 		attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
@@ -672,22 +665,19 @@ func (p *Ppu) renderTileRow() {
 			p.VramAddress++
 		}
 
-		return t, attr
+		return uint16(p.Vram[t]), uint16(p.Vram[t+8]), attr
 	}
 
-	t, attr := fetchTileAttributes()
-	tile := p.Vram[t : t+16]
 	// Move first tile into shift registers
-	p.LowBitShift = uint16(tile[tilerowCounter])
-	p.HighBitShift = uint16(tile[tilerowCounter+8])
+    low, high, attr := fetchTileAttributes()
+	p.LowBitShift, p.HighBitShift = low, high
 
-	t, attrBuf := fetchTileAttributes()
-	tile = p.Vram[t : t+16]
+	low, high, attrBuf := fetchTileAttributes()
 	// Get second tile, move the pixels into the right side of
 	// shift registers
 	// Current tile to render is attrBuf
-	p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[tilerowCounter])
-	p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[tilerowCounter+8])
+	p.LowBitShift = (p.LowBitShift << 8) | low
+	p.HighBitShift = (p.HighBitShift << 8) | high
 
 	for x := 0; x < 32; x++ {
 		var palette int
@@ -717,12 +707,11 @@ func (p *Ppu) renderTileRow() {
 		// xcoord = p.VramAddress & 0x1F
 		attr = attrBuf
 
-		t, attrBuf = fetchTileAttributes()
-		tile = p.Vram[t : t+16]
-
 		// Shift the first tile out, bring the new tile in
-		p.LowBitShift = (p.LowBitShift << 8) | uint16(tile[tilerowCounter])
-		p.HighBitShift = (p.HighBitShift << 8) | uint16(tile[tilerowCounter+8])
+		low, high, attrBuf = fetchTileAttributes()
+
+        p.LowBitShift = (p.LowBitShift << 8) | low
+        p.HighBitShift = (p.HighBitShift << 8) | high
 	}
 }
 
