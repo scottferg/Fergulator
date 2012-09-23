@@ -10,10 +10,6 @@ const (
 	StatusSprite0Hit
 	StatusVblankStarted
 
-	MirroringVertical
-	MirroringHorizontal
-	MirroringSingleScreen
-
 	Pal  = 70
 	Ntsc = 20
 )
@@ -77,16 +73,11 @@ type Ppu struct {
 	PaletteRam        [0x20]Word
 	AttributeLocation [0x400]uint
 	AttributeShift    [0x400]uint
-	Mirroring         int
 
 	Palettebuffer []Pixel
 	Framebuffer   []int
 
-	DebugMode  bool
-	DebugCount int
-
 	Output      chan []int
-	Debug       chan []int
 	Cycle       int
 	Scanline    int
 	Timestamp   int
@@ -98,15 +89,12 @@ type Ppu struct {
 func (p *Ppu) Init() (chan []int, chan []int) {
 	p.WriteLatch = true
 	p.Output = make(chan []int)
-	p.Debug = make(chan []int)
 
 	p.Cycle = 0
 	p.Scanline = -1
 	p.FrameCount = 0
 
 	p.VblankTime = 20 * 341 * 5 // NTSC
-
-	p.Nametables.Init()
 
 	for i, _ := range p.Vram {
 		p.Vram[i] = 0x00
@@ -125,7 +113,7 @@ func (p *Ppu) Init() (chan []int, chan []int) {
 	p.Palettebuffer = make([]Pixel, 0xF000)
 	p.Framebuffer = make([]int, 0xF000)
 
-	return p.Output, p.Debug
+	return p.Output, nil
 }
 
 func (p *Ppu) PpuRegRead(a int) (Word, error) {
@@ -213,18 +201,13 @@ func (p *Ppu) Step() {
 				cpu.RequestInterrupt(InterruptNmi)
 			}
 
-			if p.DebugMode {
-				p.RenderNametables()
-				p.Debug <- p.Framebuffer
-			} else {
-				// TODO: This should happen per scanline
-				if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
-					for i := 0; i < 240; i++ {
-						p.evaluateScanlineSprites(i)
-					}
-				}
-				p.raster()
-			}
+            // TODO: This should happen per scanline
+            if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
+                for i := 0; i < 240; i++ {
+                    p.evaluateScanlineSprites(i)
+                }
+            }
+            p.raster()
 
 			p.Cycle++
 		}
@@ -571,81 +554,6 @@ func (p *Ppu) bgPatternTableAddress(i Word) int {
 	}
 
 	return (int(i) << 4) | (p.VramAddress >> 12) | a
-}
-
-func (p *Ppu) selectNametable(t int) (a int) {
-	switch p.Mirroring {
-	case MirroringHorizontal:
-		switch t {
-		case 0:
-			a = 0x2000
-		case 1:
-			a = 0x2800
-		case 2:
-			a = 0x2400
-		case 3:
-			a = 0x2C00
-		}
-	case MirroringVertical:
-		switch t {
-		case 0:
-			a = 0x2000
-		case 1:
-			a = 0x2400
-		case 2:
-			a = 0x2800
-		case 3:
-			a = 0x2C00
-		}
-	}
-
-	return
-}
-
-func (p *Ppu) RenderNametables() {
-	/*
-		p.renderNametable(0, 0, 0)
-			p.renderNametable(2, 0, 240)
-			p.renderNametable(3, 256, 240)
-	*/
-	p.renderNametable(1, 256, 0)
-
-	p.Debug <- p.Framebuffer
-}
-
-func (p *Ppu) renderNametable(table, xoff, yoff int) {
-	a := p.selectNametable(table)
-
-	x := 0
-	y := 0
-
-	// Generates each tile and applies the palette
-	for i := a; i < a+0x3C0; i++ {
-		/*
-			attrAddr := 0x23C0 | (i & 0xC00) | int(p.AttributeLocation[i&0x3FF])
-			shift := p.AttributeShift[i&0x3FF]
-			attr := ((p.Vram[attrAddr] >> shift) & 0x03) << 2
-
-			t := p.bgPatternTableAddress(p.Vram[i])
-			tile := p.Vram[t : t+16]
-
-			for c := 0; c < 8; c++ {
-				p.decodePatternTile([]Word{tile[c], tile[c+8]},
-					x+xoff,
-					y+yoff+c,
-					p.bgPaletteEntry(attr),
-					nil,
-					false)
-			}
-		*/
-
-		x += 8
-
-		if x >= 255 {
-			x = 0
-			y += 8
-		}
-	}
 }
 
 func (p *Ppu) renderTileRow() {
