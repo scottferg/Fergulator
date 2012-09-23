@@ -87,6 +87,11 @@ func JoypadListen() {
 					if e.Type == sdl.KEYDOWN {
 						cpu.RequestInterrupt(InterruptReset)
 					}
+				case sdl.K_l:
+					if e.Type == sdl.KEYDOWN {
+						// Trigger reset interrupt
+                        LoadState()
+					}
 				case sdl.K_s:
 					if e.Type == sdl.KEYDOWN {
 						// Trigger reset interrupt
