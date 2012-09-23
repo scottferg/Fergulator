@@ -33,8 +33,6 @@ func TestGoldLog(test *testing.T) {
 			test.Error(err.Error())
 			return
 		}
-
-		rom.Init(contents)
 	}
 
 	logfile, err := ioutil.ReadFile("test_roms/nestest.log")

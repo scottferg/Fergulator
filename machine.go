@@ -48,7 +48,6 @@ func main() {
 			return
 		}
 
-		rom.Init(contents)
 		setResetVector()
 	} else {
 		fmt.Println(err.Error())

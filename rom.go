@@ -14,19 +14,31 @@ const (
 )
 
 type Mapper interface {
-	WriteRamBank(bank, dest, size int)
-	WriteVramBank(bank, dest, size int)
 	Write(v Word, a int)
-	Init(rom []byte) error
 }
 
 type Rom struct {
+	RomBanks  [][]Word
+	VromBanks [][]Word
+
+	PrgBankCount  int
+	ChrRomCount   int
+	BatteryBacked bool
+	Data          []byte
+}
+
+type Unrom Rom
+type Cnrom Rom
+
+type Mmc1 struct {
+	RomBanks  [][]Word
+	VromBanks [][]Word
+
 	PrgBankCount  int
 	ChrRomCount   int
 	BatteryBacked bool
 	Data          []byte
 
-	// TODO: MMC1
 	Buffer            int
 	BufferCounter     uint
 	Mirroring         int
@@ -36,190 +48,75 @@ type Rom struct {
 	RomSelectionReg0  int
 	RomSelectionReg1  int
 	RomBankSelect     int
-
-	RomBanks  [][]Word
-	VromBanks [][]Word
 }
 
-type Nrom Rom
-type Mmc1 Rom
-type Unrom Rom
-type Cnrom Rom
-
-// TODO: HOLY SHIT
-
-func (r *Nrom) WriteRamBank(bank, dest, size int) {
+func WriteRamBank(rom [][]Word, bank, dest, size int) {
 	for i := 0; i < size; i++ {
-		Ram[i+dest] = r.RomBanks[bank][i]
+		Ram[i+dest] = rom[bank][i]
 	}
 }
 
-func (r *Nrom) WriteVramBank(bank, dest, size int) {
+func WriteVramBank(rom [][]Word, bank, dest, size int) {
 	for i := 0; i < size; i++ {
-		ppu.Vram[i+dest] = r.VromBanks[bank][i]
+		ppu.Vram[i+dest] = rom[bank][i]
 	}
 }
 
-func (r *Mmc1) WriteRamBank(bank, dest, size int) {
-	limit := 1
-	if size > Size16k {
-		limit = size / Size16k
-	}
-
-	for x := 0; x < limit; x++ {
-		for i := 0; i < Size16k; i++ {
-			Ram[i+dest] = r.RomBanks[bank][i]
-		}
-
-		bank += 1
-	}
-}
-
-func (r *Mmc1) WriteVramBank(bank, dest, size int) {
-	for i := 0; i < size; i++ {
-		ppu.Vram[i+dest] = r.VromBanks[bank][i]
-	}
-}
-
-func (r *Unrom) WriteRamBank(bank, dest, size int) {
-	for i := 0; i < size; i++ {
-		Ram[i+dest] = r.RomBanks[bank][i]
-	}
-}
-
-func (r *Unrom) WriteVramBank(bank, dest, size int) {
-	for i := 0; i < size; i++ {
-		ppu.Vram[i+dest] = r.VromBanks[bank][i]
-	}
-}
-
-func (r *Cnrom) WriteRamBank(bank, dest, size int) {
-	for i := 0; i < size; i++ {
-		Ram[i+dest] = r.RomBanks[bank][i]
-	}
-}
-
-func (r *Cnrom) WriteVramBank(bank, dest, size int) {
-	for i := 0; i < size; i++ {
-		ppu.Vram[i+dest] = r.VromBanks[bank][i]
-	}
-}
-
-// ----------------------------------------
-
-func (r *Nrom) Write(v Word, a int) {
+func (m *Rom) Write(v Word, a int) {
 	// Nothing to do
 }
 
-func (r *Nrom) Init(rom []byte) error {
-	r.PrgBankCount = int(rom[4])
-	r.ChrRomCount = int(rom[5])
-
-	switch rom[6] & 0x1 {
-	case 0x0:
-		fmt.Println("Horizontal mirroring")
-		ppu.Mirroring = MirroringHorizontal
-		ppu.Nametables.Init()
-	case 0x1:
-		fmt.Println("Vertical mirroring")
-		ppu.Mirroring = MirroringVertical
-		ppu.Nametables.Init()
-	}
-
-    if (rom[6] >> 0x1) & 0x1 == 0x1 {
-        r.BatteryBacked = true
-    }
-
-	// ROM data dests at byte 16
-	r.Data = rom[16:]
-
-	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
-	r.RomBanks = make([][]Word, (len(r.Data) / 0x4000))
-
-	bankCount := (len(r.Data) / 0x4000)
-	for i := 0; i < bankCount; i++ {
-		// Move 16kb chunk to 16kb bank
-		bank := make([]Word, 0x4000)
-		for x := 0; x < 0x4000; x++ {
-			bank[x] = Word(r.Data[(0x4000*i)+x])
-		}
-
-		r.RomBanks[i] = bank
-	}
-
-	// Everything after PRG-ROM
-	chrRom := r.Data[0x4000*len(r.RomBanks):]
-
-	vramBankCount := (len(chrRom) / 0x2000)
-	r.VromBanks = make([][]Word, vramBankCount)
-	for i := 0; i < vramBankCount; i++ {
-		// Move 16kb chunk to 16kb bank
-		bank := make([]Word, 0x2000)
-		for x := 0; x < 0x2000; x++ {
-			bank[x] = Word(chrRom[(0x2000*i)+x])
-		}
-
-		r.VromBanks[i] = bank
-	}
-
-	switch r.PrgBankCount {
-	case 0x01:
-		r.WriteRamBank(0, 0x8000, Size16k)
-		r.WriteRamBank(0, 0xC000, Size16k)
-
-		if r.ChrRomCount != 0 {
-			r.WriteVramBank(0, 0x0, Size8k)
-		}
-	case 0x02:
-		r.WriteRamBank(0, 0x8000, Size16k)
-		r.WriteRamBank(1, 0xC000, Size16k)
-		r.WriteVramBank(0, 0x0, Size8k)
-	}
-
-	return nil
+func (m *Unrom) Write(v Word, a int) {
+	WriteRamBank(m.RomBanks, int(v), 0x8000, Size16k)
 }
 
-func (r *Mmc1) Write(v Word, a int) {
+func (m *Cnrom) Write(v Word, a int) {
+	WriteVramBank(m.VromBanks, int(v&0x3), 0x0, Size8k)
+}
+
+func (m *Mmc1) Write(v Word, a int) {
 	// If reset bit is set
 	if v&0x80 != 0 {
-		r.BufferCounter = 0
-		r.Buffer = 0
+		m.BufferCounter = 0
+		m.Buffer = 0
 
 		// Reset it
-		if r.RegisterNumber(a) == 0 {
-			r.PrgSwitchingArea = 1
-			r.PrgSwitchingSize = 1
+		if m.RegisterNumber(a) == 0 {
+			fmt.Println("Resetting MMC")
+			m.PrgSwitchingArea = 1
+			m.PrgSwitchingSize = 1
 		}
 	} else {
 		// Buffer the write
-		r.Buffer = (r.Buffer & (0xFF - (0x1 << r.BufferCounter))) | ((int(v) & 0x1) << r.BufferCounter)
-		r.BufferCounter++
+		m.Buffer = (m.Buffer & (0xFF - (0x1 << m.BufferCounter))) | ((int(v) & 0x1) << m.BufferCounter)
+		m.BufferCounter++
 
 		// If the buffer is filled
-		if r.BufferCounter == 0x5 {
-			r.SetRegister(r.RegisterNumber(a), r.Buffer)
+		if m.BufferCounter == 0x5 {
+			m.SetRegister(m.RegisterNumber(a), m.Buffer)
 
 			// Reset buffer
-			r.BufferCounter = 0
-			r.Buffer = 0
+			m.BufferCounter = 0
+			m.Buffer = 0
 		}
 	}
 }
 
-func (r *Mmc1) SetRegister(reg int, v int) {
+func (m *Mmc1) SetRegister(reg int, v int) {
+	fmt.Printf("Register: 0x%X Value: 0x%X\n", reg, v)
 	switch reg {
 	case 0:
 		// Control register
 		tmp := v & 0x3
-		if tmp != r.Mirroring {
+		if tmp != m.Mirroring {
 			// Set mirroring
-			r.Mirroring = tmp
-			if (r.Mirroring & 0x2) == 0 {
+			m.Mirroring = tmp
+			if (m.Mirroring & 0x2) == 0 {
 				// TODO: Single screen mirroring
 				ppu.Mirroring = MirroringSingleScreen
 				ppu.Nametables.Init()
 				fmt.Println("Single screen mirroring!")
-			} else if (r.Mirroring & 0x1) != 0 {
+			} else if (m.Mirroring & 0x1) != 0 {
 				ppu.Mirroring = MirroringHorizontal
 				ppu.Nametables.Init()
 			} else {
@@ -228,43 +125,43 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 			}
 		}
 
-		r.PrgSwitchingArea = (v >> 0x2) & 0x1
-		r.PrgSwitchingSize = (v >> 0x3) & 0x1
-		r.VromSwitchingSize = (v >> 0x4) & 0x1
+		m.PrgSwitchingArea = (v >> 0x2) & 0x1
+		m.PrgSwitchingSize = (v >> 0x3) & 0x1
+		m.VromSwitchingSize = (v >> 0x4) & 0x1
 	case 1:
 		// CHR Bank 0
-		r.RomSelectionReg0 = (v >> 0x4) & 0x1
+		m.RomSelectionReg0 = (v >> 0x4) & 0x1
 
-		if r.ChrRomCount > 0 {
+		if m.ChrRomCount > 0 {
 			// Select VROM at 0x0000
-			if r.VromSwitchingSize == 0 {
+			if m.VromSwitchingSize == 0 {
 				// Swap 8k VROM
-				if r.RomSelectionReg0 == 0 {
-					r.WriteVramBank(v&0xF, 0x0, Size8k)
+				if m.RomSelectionReg0 == 0 {
+					WriteVramBank(m.VromBanks, v&0xF, 0x0, Size8k)
 				} else {
-					r.WriteVramBank(int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF), 0x0000, Size8k)
+					WriteVramBank(m.VromBanks, int(math.Floor(float64(m.ChrRomCount/2)))+(v&0xF), 0x0000, Size8k)
 				}
 			} else {
 				// Swap 4k VROM
-				if r.RomSelectionReg0 == 0 {
-					r.WriteVramBank(v&0xF, 0x0, Size4k)
+				if m.RomSelectionReg0 == 0 {
+					WriteVramBank(m.VromBanks, v&0xF, 0x0, Size4k)
 				} else {
-					fmt.Printf("Bank: %d\n", int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF))
-					r.WriteVramBank(int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF), 0x0, Size4k)
+					fmt.Printf("Bank: %d\n", int(math.Floor(float64(m.ChrRomCount/2)))+(v&0xF))
+					WriteVramBank(m.VromBanks, int(math.Floor(float64(m.ChrRomCount/2)))+(v&0xF), 0x0, Size4k)
 				}
 			}
 		}
 	case 2:
 		// CHR Bank 1
-		r.RomSelectionReg1 = (v >> 0x4) & 0x1
+		m.RomSelectionReg1 = (v >> 0x4) & 0x1
 
-		if r.ChrRomCount > 0 {
+		if m.ChrRomCount > 0 {
 			// Select VROM bank at 0x1000
-			if r.VromSwitchingSize == 1 {
-				if r.RomSelectionReg1 == 0 {
-					r.WriteRamBank(v&0xF, 0x1000, Size4k)
+			if m.VromSwitchingSize == 1 {
+				if m.RomSelectionReg1 == 0 {
+					WriteRamBank(m.RomBanks, v&0xF, 0x1000, Size4k)
 				} else {
-					r.WriteRamBank(int(math.Floor(float64(r.ChrRomCount/2)))+(v&0xF), 0x1000, Size4k)
+					WriteRamBank(m.RomBanks, int(math.Floor(float64(m.ChrRomCount/2)))+(v&0xF), 0x1000, Size4k)
 				}
 			}
 		}
@@ -274,39 +171,45 @@ func (r *Mmc1) SetRegister(reg int, v int) {
 
 		var bank int
 
-		if r.PrgBankCount >= 32 {
+		if m.PrgBankCount >= 32 {
 			// 1024kb Cartridge
-			if r.VromSwitchingSize == 0 {
-				if r.RomSelectionReg0 == 1 {
+			if m.VromSwitchingSize == 0 {
+				if m.RomSelectionReg0 == 1 {
 					baseBank = 16
 				}
 			} else {
-				baseBank = (r.RomSelectionReg0 | (r.RomSelectionReg1 << 0x1)) << 0x3
+				baseBank = (m.RomSelectionReg0 | (m.RomSelectionReg1 << 0x1)) << 0x3
 			}
-		} else if r.PrgBankCount >= 16 {
-			if r.RomSelectionReg0 == 1 {
+		} else if m.PrgBankCount >= 16 {
+			if m.RomSelectionReg0 == 1 {
 				baseBank = 8
 			}
 		}
 
-		if r.PrgSwitchingSize == 0 {
+		fmt.Printf("Base bank: %d\n", baseBank)
+		if m.PrgSwitchingSize == 0 {
+			fmt.Println("32k ROM load")
 			// 32k 
 			bank = baseBank + (v & 0xF)
 			// Load bank
-			r.WriteRamBank(bank*2, 0x8000, Size32k)
+			WriteRamBank(m.RomBanks, bank, 0x8000, Size16k)
+			WriteRamBank(m.RomBanks, bank+1, 0xC000, Size16k)
 		} else {
 			// 16k
-			bank = (baseBank * 2) + (v & 0xF)
-			if r.PrgSwitchingArea == 0 {
-				r.WriteRamBank(bank, 0xC000, Size16k)
+			bank = baseBank*2 + (v & 0xF)
+			if m.PrgSwitchingArea == 0 {
+				fmt.Printf("Upper 16k ROM load: %d\n", bank)
+				WriteRamBank(m.RomBanks, bank, 0xC000, Size16k)
 			} else {
-				r.WriteRamBank(bank, 0x8000, Size16k)
+				fmt.Printf("Lower 16k ROM load: %d\n", bank)
+				WriteRamBank(m.RomBanks, bank, 0x8000, Size16k)
+				fmt.Printf("Value: 0x%X\n", m.RomBanks[bank][0])
 			}
 		}
 	}
 }
 
-func (r *Mmc1) RegisterNumber(a int) int {
+func (m *Mmc1) RegisterNumber(a int) int {
 	switch {
 	case a >= 0x8000 && a <= 0x9FFF:
 		return 0
@@ -319,7 +222,17 @@ func (r *Mmc1) RegisterNumber(a int) int {
 	return 3
 }
 
-func (r *Mmc1) Init(rom []byte) error {
+func LoadRom(rom []byte) (m Mapper, e error) {
+	r := new(Rom)
+
+	if string(rom[0:3]) != "NES" {
+		return m, errors.New("Invalid ROM file")
+
+		if rom[3] != 0x1a {
+			return m, errors.New("Invalid ROM file")
+		}
+	}
+
 	r.PrgBankCount = int(rom[4])
 	r.ChrRomCount = int(rom[5])
 
@@ -334,9 +247,9 @@ func (r *Mmc1) Init(rom []byte) error {
 		ppu.Nametables.Init()
 	}
 
-    if (rom[6] >> 0x1) & 0x1 == 0x1 {
-        r.BatteryBacked = true
-    }
+	if (rom[6]>>0x1)&0x1 == 0x1 {
+		r.BatteryBacked = true
+	}
 
 	r.Data = rom[16:]
 
@@ -369,148 +282,23 @@ func (r *Mmc1) Init(rom []byte) error {
 	}
 
 	// Write the first ROM bank
-	r.WriteRamBank(0, 0x8000, Size16k)
-	// and the last ROM bank
-	r.WriteRamBank(r.PrgBankCount-1, 0xC000, Size16k)
-
-	if r.ChrRomCount > 0 {
-		r.WriteVramBank(0, 0x0, Size4k)
-		r.WriteVramBank(1, 0x1000, Size4k)
-	}
-
-	return nil
-}
-
-func (r *Unrom) Init(rom []byte) error {
-	r.PrgBankCount = int(rom[4])
-	r.ChrRomCount = int(rom[5])
-
-	switch rom[6] & 0x1 {
-	case 0x0:
-		fmt.Println("Horizontal mirroring")
-		ppu.Mirroring = MirroringHorizontal
-		ppu.Nametables.Init()
-	case 0x1:
-		fmt.Println("Vertical mirroring")
-		ppu.Mirroring = MirroringVertical
-		ppu.Nametables.Init()
-	}
-
-    if (rom[6] >> 0x1) & 0x1 == 0x1 {
-        r.BatteryBacked = true
-    }
-
-	// ROM data dests at byte 16
-	r.Data = rom[16:]
-	r.RomBanks = make([][]Word, (len(r.Data) / 0x4000))
-
-	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
-
-	bankCount := (len(r.Data) / 0x4000)
-	for i := 0; i < bankCount; i++ {
-		// Move 16kb chunk to 16kb bank
-		bank := make([]Word, 0x4000)
-		for x := 0; x < 0x4000; x++ {
-			bank[x] = Word(r.Data[(0x4000*i)+x])
-		}
-
-		r.RomBanks[i] = bank
-	}
-
-	// Write the first ROM bank
-	r.WriteRamBank(0, 0x8000, Size16k)
-	// and the last ROM bank
-	r.WriteRamBank(7, 0xC000, Size16k)
-
-	fmt.Printf("VROM: %d\n", r.ChrRomCount)
-
-	return nil
-}
-
-func (r *Unrom) Write(v Word, a int) {
-	r.WriteRamBank(int(v), 0x8000, Size16k)
-}
-
-func (r *Cnrom) Init(rom []byte) error {
-	r.PrgBankCount = int(rom[4])
-	r.ChrRomCount = int(rom[5])
-
-	switch rom[6] & 0x1 {
-	case 0x0:
-		fmt.Println("Horizontal mirroring")
-		ppu.Mirroring = MirroringHorizontal
-		ppu.Nametables.Init()
-	case 0x1:
-		fmt.Println("Vertical mirroring")
-		ppu.Mirroring = MirroringVertical
-		ppu.Nametables.Init()
-	}
-
-    if (rom[6] >> 0x1) & 0x1 == 0x1 {
-        r.BatteryBacked = true
-    }
-
-	// ROM data dests at byte 16
-	r.Data = rom[16:]
-
-	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
-
-	r.RomBanks = make([][]Word, r.PrgBankCount)
-	for i := 0; i < r.PrgBankCount; i++ {
-		// Move 16kb chunk to 16kb bank
-		bank := make([]Word, 0x4000)
-		for x := 0; x < 0x4000; x++ {
-			bank[x] = Word(r.Data[(0x4000*i)+x])
-		}
-
-		r.RomBanks[i] = bank
-	}
-
-	// Everything after PRG-ROM
-	chrRom := r.Data[0x4000*len(r.RomBanks):]
-
-	vramBankCount := (len(chrRom) / 0x2000)
-	r.VromBanks = make([][]Word, vramBankCount)
-	for i := 0; i < vramBankCount; i++ {
-		// Move 16kb chunk to 16kb bank
-		bank := make([]Word, 0x2000)
-		for x := 0; x < 0x2000; x++ {
-			bank[x] = Word(chrRom[(0x2000*i)+x])
-		}
-
-		r.VromBanks[i] = bank
-	}
-
-	// Write the first ROM bank
-	r.WriteRamBank(0, 0x8000, Size16k)
-	// and the last ROM bank
+	WriteRamBank(r.RomBanks, 0, 0x8000, Size16k)
 
 	if r.PrgBankCount > 1 {
-		r.WriteRamBank(1, 0xC000, Size16k)
+		// and the last ROM bank
+		WriteRamBank(r.RomBanks, r.PrgBankCount-1, 0xC000, Size16k)
 	} else {
-		r.WriteRamBank(0, 0xC000, Size16k)
+		// Or write the first ROM bank to the upper region
+		WriteRamBank(r.RomBanks, 0, 0xC000, Size16k)
 	}
 
-	r.WriteVramBank(0, 0x0, Size8k)
-
-	fmt.Printf("VROM: %d\n", r.ChrRomCount)
-
-	return nil
-}
-
-func (r *Cnrom) Write(v Word, a int) {
-	r.WriteVramBank(int(v&0x3), 0x0, Size8k)
-}
-
-func LoadRom(rom []byte) (r Mapper, e error) {
-	if string(rom[0:3]) != "NES" {
-		return r, errors.New("Invalid ROM file")
-
-		if rom[3] != 0x1a {
-			return r, errors.New("Invalid ROM file")
-		}
+    // If we have CHR-ROM, load the first two banks
+    // into VRAM region 0x0000-0x1000
+	if r.ChrRomCount > 0 {
+        WriteVramBank(r.VromBanks, 0, 0x0, Size8k)
 	}
 
+	// Check mapper, get the proper type
 	mapper := (Word(rom[6])>>4 | (Word(rom[7]) & 0xF0))
 	fmt.Printf("Mapper: 0x%X\n", mapper)
 	switch mapper {
@@ -520,21 +308,42 @@ func LoadRom(rom []byte) (r Mapper, e error) {
 		fallthrough
 	case 0x41:
 		// NROM
-		r = new(Nrom)
+		return r, nil
 	case 0x01:
 		// MMC1
-		r = new(Mmc1)
+		m = &Mmc1{
+			RomBanks:      r.RomBanks,
+			VromBanks:     r.VromBanks,
+			PrgBankCount:  r.PrgBankCount,
+			ChrRomCount:   r.ChrRomCount,
+			BatteryBacked: r.BatteryBacked,
+			Data:          r.Data,
+		}
 	case 0x42:
 		fallthrough
 	case 0x02:
 		// Unrom
-		r = new(Unrom)
+		m = &Unrom{
+			RomBanks:      r.RomBanks,
+			VromBanks:     r.VromBanks,
+			PrgBankCount:  r.PrgBankCount,
+			ChrRomCount:   r.ChrRomCount,
+			BatteryBacked: r.BatteryBacked,
+			Data:          r.Data,
+		}
 	case 0x03:
 		// Cnrom
-		r = new(Cnrom)
+		m = &Cnrom{
+			RomBanks:      r.RomBanks,
+			VromBanks:     r.VromBanks,
+			PrgBankCount:  r.PrgBankCount,
+			ChrRomCount:   r.ChrRomCount,
+			BatteryBacked: r.BatteryBacked,
+			Data:          r.Data,
+		}
 	default:
 		// Unsupported
-		return r, errors.New(fmt.Sprintf("Unsupported memory mapper: 0x%X", mapper))
+		return m, errors.New(fmt.Sprintf("Unsupported memory mapper: 0x%X", mapper))
 	}
 
 	return

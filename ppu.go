@@ -202,7 +202,7 @@ func (p *Ppu) raster() {
 
 func (p *Ppu) Step() {
 	switch {
-	case p.Scanline == 240:
+	case p.Scanline == 241:
 		if p.Cycle == 1 {
 			// We're in VBlank
 			p.setStatus(StatusVblankStarted)
@@ -230,8 +230,8 @@ func (p *Ppu) Step() {
 		}
 	case p.Scanline == 261: // End of vblank
 		if p.Cycle == 341 {
-			p.clearStatus(StatusSprite0Hit)
-			p.clearStatus(StatusSpriteOverflow)
+			// Clear VBlank flag
+			p.clearStatus(StatusVblankStarted)
 
 			p.Scanline = -1
 			p.Cycle = 0
@@ -239,12 +239,9 @@ func (p *Ppu) Step() {
 			return
 		}
 	case p.Scanline < 240 && p.Scanline > -1:
-		if p.Cycle == 341 {
-			p.Cycle = 0
-
+		if p.Cycle == 254 {
 			if p.ShowBackground {
 				p.renderTileRow()
-				p.updateEndScanlineRegisters()
 			}
 
 			// TODO: Shouldn't have to do this
@@ -252,13 +249,19 @@ func (p *Ppu) Step() {
 				p.evaluateScanlineSprites(p.Scanline)
 			}
 
+		} else if p.Cycle == 256 {
+			if p.ShowBackground {
+				p.updateEndScanlineRegisters()
+			}
+		} else if p.Cycle == 341 {
+			p.Cycle = 0
 			p.Scanline++
 			return
 		}
 	case p.Scanline == -1:
 		if p.Cycle == 1 {
-			// Clear VBlank flag
-			p.clearStatus(StatusVblankStarted)
+			p.clearStatus(StatusSprite0Hit)
+			p.clearStatus(StatusSpriteOverflow)
 		} else if p.Cycle == 304 {
 			// Copy scroll latch into VRAMADDR register
 			if p.ShowBackground || p.ShowSprites {
@@ -302,28 +305,31 @@ func (p *Ppu) updateEndScanlineRegisters() {
 		p.VramAddress++
 	}
 
-	if p.ShowBackground || p.ShowSprites {
-		// Scanline has ended
-		if p.VramAddress&0x7000 == 0x7000 {
-			tmp := p.VramAddress & 0x3E0
-			p.VramAddress &= 0xFFF
+	// Scanline has ended
+	if p.VramAddress&0x7000 == 0x7000 {
+		tmp := p.VramAddress & 0x3E0
+		p.VramAddress &= 0xFFF
 
-			switch tmp {
-			case 0x3A0:
-				p.VramAddress ^= 0xBA0
-			case 0x3E0:
-				p.VramAddress ^= 0x3E0
-			default:
-				p.VramAddress += 0x20
-			}
-
-		} else {
-			// Increment the fine-Y
-			p.VramAddress += 0x1000
+		switch tmp {
+		case 0x3A0:
+			p.VramAddress ^= 0xBA0
+		case 0x3E0:
+			p.VramAddress ^= 0x3E0
+		default:
+			p.VramAddress += 0x20
 		}
 
-		p.VramAddress = (p.VramAddress & 0x7BE0) | (p.VramLatch & 0x41F)
+	} else {
+		// Increment the fine-Y
+		p.VramAddress += 0x1000
 	}
+
+	if p.ShowBackground && p.ShowSprites {
+		// fmt.Printf("Nametable before: %d ", (p.VramAddress&0xC00)>>10)
+		p.VramAddress = (p.VramAddress & 0x7BE0) | (p.VramLatch & 0x41F)
+		// fmt.Printf("Nametable after: %d\n", (p.VramAddress&0xC00)>>10)
+	}
+
 }
 
 // $2000
@@ -669,7 +675,7 @@ func (p *Ppu) renderTileRow() {
 	}
 
 	// Move first tile into shift registers
-    low, high, attr := fetchTileAttributes()
+	low, high, attr := fetchTileAttributes()
 	p.LowBitShift, p.HighBitShift = low, high
 
 	low, high, attrBuf := fetchTileAttributes()
@@ -710,8 +716,8 @@ func (p *Ppu) renderTileRow() {
 		// Shift the first tile out, bring the new tile in
 		low, high, attrBuf = fetchTileAttributes()
 
-        p.LowBitShift = (p.LowBitShift << 8) | low
-        p.HighBitShift = (p.HighBitShift << 8) | high
+		p.LowBitShift = (p.LowBitShift << 8) | low
+		p.HighBitShift = (p.HighBitShift << 8) | high
 	}
 }
 
@@ -783,9 +789,9 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			xcoord = x + int(7-b)
 		}
 
-        if (*attr>>7)&0x1 == 0x1 {
-            // fmt.Printf("Y: %d\n", y)
-        }
+		if (*attr>>7)&0x1 == 0x1 {
+			// fmt.Printf("Y: %d\n", y)
+		}
 
 		fbRow := y*256 + xcoord
 
@@ -801,20 +807,20 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 		// Set the color of the pixel in the buffer
 		//
 		if fbRow < 0xF000 && !trans {
-            priority := (*attr >> 5) & 0x1
+			priority := (*attr >> 5) & 0x1
 
 			if p.Palettebuffer[fbRow].Value != 0 && spZero {
-                // Since we render background first, if we're placing an opaque
-                // pixel here and the existing pixel is opaque, we've hit
-                // Sprite 0 
+				// Since we render background first, if we're placing an opaque
+				// pixel here and the existing pixel is opaque, we've hit
+				// Sprite 0 
 				p.setStatus(StatusSprite0Hit)
-			} 
-            
-            if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
-                // Pixel is already rendered and priority
-                // 1 means show behind background
-                continue
-            }
+			}
+
+			if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
+				// Pixel is already rendered and priority
+				// 1 means show behind background
+				continue
+			}
 
 			p.Palettebuffer[fbRow] = Pixel{
 				PaletteRgb[int(pal[pixel])],
