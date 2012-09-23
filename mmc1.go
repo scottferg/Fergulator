@@ -30,7 +30,7 @@ func (m *Mmc1) Write(v Word, a int) {
 	if v&0x80 != 0 {
         fmt.Println("Resetting MMC")
 		m.BufferCounter = 0
-		m.Buffer = 0
+		m.Buffer = 0x0
 
         m.PrgSwapBank = BankLower
         m.PrgBankSize = Size16k
@@ -107,15 +107,18 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			return
 		}
 
+        fmt.Printf("CHR Bank 0 -> ")
 		// Select VROM at 0x0000
 		switch m.ChrBankSize {
 		case Size8k:
 			// Swap 8k VROM (in 8k mode, ignore first bit D0)
 			bank := (v >> 0x1) & 0xF
+            fmt.Printf("8k CHR write to: %d\n", bank)
 			WriteVramBank(m.VromBanks, bank, 0x0, Size8k)
 		case Size4k:
 			// Swap 4k VROM
 			bank := v & 0x1F
+            fmt.Printf("4k CHR write to: %d\n", bank)
 			WriteVramBank(m.VromBanks, bank, 0x0, Size4k)
 		}
 		// CHR Bank 1
@@ -124,10 +127,13 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			return
 		}
 
+        fmt.Printf("Value: 0x%X\n", v)
+        fmt.Printf("CHR Bank 1 -> ")
 		// Select VROM bank at 0x1000, ignored in
 		// 8k switching mode
 		if m.ChrBankSize == Size4k {
-			bank := v & 0x1F
+			bank := (v & 0x1F)
+            fmt.Printf("4k CHR write to: %d\n", bank)
 			WriteRamBank(m.RomBanks, bank, 0x1000, Size4k)
 		}
 		// PRG Bank

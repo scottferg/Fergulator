@@ -47,7 +47,7 @@ func (m *Rom) Write(v Word, a int) {
 }
 
 func (m *Unrom) Write(v Word, a int) {
-	WriteRamBank(m.RomBanks, int(v), 0x8000, Size16k)
+	WriteRamBank(m.RomBanks, int(v&0x7), 0x8000, Size16k)
 }
 
 func (m *Cnrom) Write(v Word, a int) {
@@ -68,6 +68,9 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	r.PrgBankCount = int(rom[4])
 	r.ChrRomCount = int(rom[5])
 
+	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
+	fmt.Printf("CHR-ROM Count: %d\n", r.ChrRomCount)
+
 	switch rom[6] & 0x1 {
 	case 0x0:
 		fmt.Println("Horizontal mirroring")
@@ -83,8 +86,6 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	r.Data = rom[16:]
 
-	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
-	fmt.Printf("CHR-ROM Count: %d\n", r.ChrRomCount)
 	r.RomBanks = make([][]Word, r.PrgBankCount)
 	for i := 0; i < r.PrgBankCount; i++ {
 		// Move 16kb chunk to 16kb bank
@@ -99,9 +100,8 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	// Everything after PRG-ROM
 	chrRom := r.Data[0x4000*len(r.RomBanks):]
 
-	vramBankCount := (len(chrRom) / 0x2000)
-	r.VromBanks = make([][]Word, vramBankCount)
-	for i := 0; i < vramBankCount; i++ {
+	r.VromBanks = make([][]Word, r.ChrRomCount)
+	for i := 0; i < r.ChrRomCount; i++ {
 		// Move 16kb chunk to 16kb bank
 		bank := make([]Word, 0x2000)
 		for x := 0; x < 0x2000; x++ {
@@ -122,10 +122,15 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 		WriteRamBank(r.RomBanks, 0, 0xC000, Size16k)
 	}
 
-    // If we have CHR-ROM, load the first two banks
-    // into VRAM region 0x0000-0x1000
+	// If we have CHR-ROM, load the first two banks
+	// into VRAM region 0x0000-0x1000
 	if r.ChrRomCount > 0 {
-        WriteVramBank(r.VromBanks, 0, 0x0, Size8k)
+		if r.ChrRomCount == 1 {
+			WriteVramBank(r.VromBanks, 0, 0x0000, Size8k)
+		} else {
+			WriteVramBank(r.VromBanks, 0, 0x0000, Size4k)
+			WriteVramBank(r.VromBanks, 1, 0x1000, Size4k)
+		}
 	}
 
 	// Check mapper, get the proper type
