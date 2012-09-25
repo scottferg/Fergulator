@@ -612,8 +612,9 @@ func (p *Ppu) renderTileRow() {
 				palette = p.bgPaletteEntry(attr, pixel)
 			}
 
+            // fmt.Printf("Palette index: %d\n", palette)
 			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[palette],
+				PaletteRgb[palette % 64],
 				int(pixel),
 			}
 		}
@@ -731,7 +732,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			}
 
 			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[int(pal[pixel])],
+				PaletteRgb[int(pal[pixel]) % 64],
 				int(pixel),
 			}
 		}

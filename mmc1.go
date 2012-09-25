@@ -28,12 +28,12 @@ type Mmc1 struct {
 func (m *Mmc1) Write(v Word, a int) {
 	// If reset bit is set
 	if v&0x80 != 0 {
-        fmt.Println("Resetting MMC")
+		fmt.Println("Resetting MMC")
 		m.BufferCounter = 0
 		m.Buffer = 0x0
 
-        m.PrgSwapBank = BankLower
-        m.PrgBankSize = Size16k
+		m.PrgSwapBank = BankLower
+		m.PrgBankSize = Size16k
 	} else {
 		// Buffer the write
 		m.Buffer = (m.Buffer & (0xFF - (0x1 << m.BufferCounter))) | ((int(v) & 0x1) << m.BufferCounter)
@@ -54,95 +54,105 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 	switch reg {
 	// Control register
 	case 0:
-		fmt.Printf("Mapper: MMC1\n  Mirroring: ")
 		// Set mirroring
 		switch v & 0x3 {
 		case 0x0:
 			ppu.Nametables.SetMirroring(MirroringSingleUpper)
-			fmt.Println("Single Upper")
 		case 0x1:
 			ppu.Nametables.SetMirroring(MirroringSingleLower)
-			fmt.Println("Single Lower")
 		case 0x2:
 			ppu.Nametables.SetMirroring(MirroringVertical)
-			fmt.Println("Vertical")
 		case 0x3:
 			ppu.Nametables.SetMirroring(MirroringHorizontal)
-			fmt.Println("Horizontal")
 		}
 
-        switch (v >> 0x2) & 0x3 {
-        case 0x0:
-            fallthrough
-        case 0x1:
-            m.PrgBankSize = Size32k
+		switch (v >> 0x2) & 0x3 {
+		case 0x0:
+			fallthrough
+		case 0x1:
+			m.PrgBankSize = Size32k
 			m.PrgSwapBank = BankLower
-            fmt.Printf("  PRG Swap Bank: Lower\n")
-            fmt.Printf("  PRG Bank Size: 32k\n")
-        case 0x2:
-            m.PrgBankSize = Size16k
+		case 0x2:
+			m.PrgBankSize = Size16k
 			m.PrgSwapBank = BankUpper
-            fmt.Printf("  PRG Swap Bank: Upper\n")
-            fmt.Printf("  PRG Bank Size: 16k\n")
-        case 0x3:
-            m.PrgBankSize = Size16k
+		case 0x3:
+			m.PrgBankSize = Size16k
 			m.PrgSwapBank = BankLower
-            fmt.Printf("  PRG Swap Bank: Lower\n")
-            fmt.Printf("  PRG Bank Size: 16k\n")
-        }
+		}
 
-		fmt.Printf("  CHR Bank Size: ")
 		// Set CHR bank size
 		switch (v >> 0x4) & 0x1 {
 		case 0x0:
 			m.ChrBankSize = Size8k
-			fmt.Println("8k")
 		case 0x1:
 			m.ChrBankSize = Size4k
-			fmt.Println("4k")
 		}
-		// CHR Bank 0
 	case 1:
+		// CHR Bank 0
 		if m.ChrRomCount == 0 {
 			return
 		}
 
-        fmt.Printf("CHR Bank 0 -> ")
+        fmt.Printf("CHR 0 -> ")
 		// Select VROM at 0x0000
 		switch m.ChrBankSize {
 		case Size8k:
 			// Swap 8k VROM (in 8k mode, ignore first bit D0)
-			bank := (v >> 0x1) & 0xF
-            fmt.Printf("8k CHR write to: %d\n", bank)
-			WriteVramBank(m.VromBanks, bank, 0x0, Size8k)
+            var bank int
+
+			if v&0x10 == 0x10 {
+                fmt.Printf("Big bank -> ")
+				bank = (len(m.VromBanks) / 2) + (v & 0xF)
+			} else {
+				bank = v & 0xF
+			}
+
+			fmt.Printf("8k write from bank: %d\n", bank)
+			WriteVramBank(m.VromBanks, bank*2, 0x0, Size4k)
+			WriteVramBank(m.VromBanks, (bank*2)+1, 0x0, Size4k)
 		case Size4k:
 			// Swap 4k VROM
-			bank := v & 0x1F
-            fmt.Printf("4k CHR write to: %d\n", bank)
-			WriteVramBank(m.VromBanks, bank, 0x0, Size4k)
+            var bank int 
+
+			if v&0x10 == 0x10 {
+                fmt.Printf("Big bank -> ")
+				bank = (len(m.VromBanks) / 2) + (v & 0xF)
+			} else {
+				bank = v & 0x1F
+			}
+
+			fmt.Printf("4k write from bank: %d\n", (v & 0xF))
+			WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
 		}
-		// CHR Bank 1
 	case 2:
+		// CHR Bank 1
 		if m.ChrRomCount == 0 {
 			return
 		}
 
-        fmt.Printf("Value: 0x%X\n", v)
-        fmt.Printf("CHR Bank 1 -> ")
+        fmt.Printf("CHR 1 -> ")
 		// Select VROM bank at 0x1000, ignored in
 		// 8k switching mode
 		if m.ChrBankSize == Size4k {
-			bank := (v & 0x1F)
-            fmt.Printf("4k CHR write to: %d\n", bank)
-			WriteRamBank(m.RomBanks, bank, 0x1000, Size4k)
+            var bank int 
+
+			if v&0x10 == 0x10 {
+                fmt.Printf("Big bank -> ")
+				bank = (len(m.VromBanks) / 2) + (v & 0xF)
+			} else {
+				bank = v & 0x1F
+			}
+
+			fmt.Printf("4k write from bank: %d\n", bank)
+			WriteRamBank(m.VromBanks, bank, 0x1000, Size4k)
 		}
-		// PRG Bank
 	case 3:
+		// PRG Bank
 		switch m.PrgBankSize {
 		case Size32k:
 			// Swap 32k ROM (in 32k mode, ignore first bit D0)
 			bank := ((v >> 0x1) & 0x7) * 2
-			fmt.Printf("32k write to: %d\n", bank/2)
+			fmt.Printf("32k write from bank: %d\n", bank)
 
 			WriteRamBank(m.RomBanks, bank, 0x8000, Size16k)
 			WriteRamBank(m.RomBanks, bank+1, 0xC000, Size16k)
