@@ -112,7 +112,13 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 		switch m.ChrBankSize {
 		case Size8k:
 			// Swap 8k VROM (in 8k mode, ignore first bit D0)
-			bank := (v >> 0x1) & 0xF
+            var bank int 
+
+            if v & 0x10 == 0x10 {
+                bank = (len(m.VromBanks) / 2) + (v & 0xF)
+            } else {
+                bank = v & 0xF
+            }
             fmt.Printf("8k CHR write to: %d\n", bank)
 			WriteVramBank(m.VromBanks, bank, 0x0, Size8k)
 		case Size4k:
@@ -120,7 +126,7 @@ func (m *Mmc1) SetRegister(reg int, v int) {
             var bank int 
 
             if v & 0x10 == 0x10 {
-                bank = (m.ChrRomCount / 2) + (v & 0xF)
+                bank = (len(m.VromBanks) / 2) + (v & 0xF)
             } else {
                 bank = v & 0xF
             }
@@ -138,9 +144,15 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 		// Select VROM bank at 0x1000, ignored in
 		// 8k switching mode
 		if m.ChrBankSize == Size4k {
-			bank := (v & 0x1F)
+            var bank int 
+
+            if v & 0x10 == 0x10 {
+                bank = (len(m.VromBanks) / 2) + (v & 0xF)
+            } else {
+                bank = v & 0xF
+            }
             fmt.Printf("4k CHR write to: %d\n", bank)
-			WriteRamBank(m.RomBanks, bank, 0x1000, Size4k)
+			WriteVramBank(m.VromBanks, bank, 0x1000, Size4k)
 		}
 		// PRG Bank
 	case 3:

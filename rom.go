@@ -100,8 +100,8 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	// Everything after PRG-ROM
 	chrRom := r.Data[0x4000*len(r.RomBanks):]
 
-	r.VromBanks = make([][]Word, r.ChrRomCount)
-	for i := 0; i < r.ChrRomCount; i++ {
+	r.VromBanks = make([][]Word, r.ChrRomCount*2)
+	for i := 0; i < r.ChrRomCount*2; i++ {
 		// Move 16kb chunk to 16kb bank
 		bank := make([]Word, 0x1000)
 		for x := 0; x < 0x1000; x++ {
