@@ -100,12 +100,12 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	// Everything after PRG-ROM
 	chrRom := r.Data[0x4000*len(r.RomBanks):]
 
-	r.VromBanks = make([][]Word, r.ChrRomCount*2)
-	for i := 0; i < r.ChrRomCount*2; i++ {
+	r.VromBanks = make([][]Word, r.ChrRomCount)
+	for i := 0; i < r.ChrRomCount; i++ {
 		// Move 16kb chunk to 16kb bank
-		bank := make([]Word, 0x1000)
-		for x := 0; x < 0x1000; x++ {
-			bank[x] = Word(chrRom[(0x1000*i)+x])
+		bank := make([]Word, 0x2000)
+		for x := 0; x < 0x2000; x++ {
+			bank[x] = Word(chrRom[(0x2000*i)+x])
 		}
 
 		r.VromBanks[i] = bank
@@ -126,11 +126,10 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	// into VRAM region 0x0000-0x1000
 	if r.ChrRomCount > 0 {
 		if r.ChrRomCount == 1 {
-			WriteVramBank(r.VromBanks, 0, 0x0000, Size4k)
-			WriteVramBank(r.VromBanks, 1, 0x1000, Size4k)
+			WriteVramBank(r.VromBanks, 0, 0x0000, Size8k)
 		} else {
 			WriteVramBank(r.VromBanks, 0, 0x0000, Size4k)
-			WriteVramBank(r.VromBanks, r.ChrRomCount-1, 0x1000, Size4k)
+			WriteVramBank(r.VromBanks, 1, 0x1000, Size4k)
 		}
 	}
 
