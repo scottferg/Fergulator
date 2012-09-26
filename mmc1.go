@@ -117,7 +117,13 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			WriteVramBank(m.VromBanks, bank, 0x0, Size8k)
 		case Size4k:
 			// Swap 4k VROM
-			bank := v & 0x1F
+            var bank int 
+
+            if v & 0x10 == 0x10 {
+                bank = (m.ChrRomCount / 2) + (v & 0xF)
+            } else {
+                bank = v & 0xF
+            }
             fmt.Printf("4k CHR write to: %d\n", bank)
 			WriteVramBank(m.VromBanks, bank, 0x0, Size4k)
 		}

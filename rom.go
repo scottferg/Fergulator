@@ -103,9 +103,9 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	r.VromBanks = make([][]Word, r.ChrRomCount)
 	for i := 0; i < r.ChrRomCount; i++ {
 		// Move 16kb chunk to 16kb bank
-		bank := make([]Word, 0x2000)
-		for x := 0; x < 0x2000; x++ {
-			bank[x] = Word(chrRom[(0x2000*i)+x])
+		bank := make([]Word, 0x1000)
+		for x := 0; x < 0x1000; x++ {
+			bank[x] = Word(chrRom[(0x1000*i)+x])
 		}
 
 		r.VromBanks[i] = bank
