@@ -126,10 +126,11 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	// into VRAM region 0x0000-0x1000
 	if r.ChrRomCount > 0 {
 		if r.ChrRomCount == 1 {
-			WriteVramBank(r.VromBanks, 0, 0x0000, Size8k)
+			WriteVramBank(r.VromBanks, 0, 0x0000, Size4k)
+            WriteVramBank(r.VromBanks, 1, 0x1000, Size4k)
 		} else {
 			WriteVramBank(r.VromBanks, 0, 0x0000, Size4k)
-			WriteVramBank(r.VromBanks, 1, 0x1000, Size4k)
+			WriteVramBank(r.VromBanks, len(r.VromBanks) - 1, 0x1000, Size4k)
 		}
 	}
 
