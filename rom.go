@@ -32,6 +32,9 @@ type Cnrom Rom
 
 func WriteRamBank(rom [][]Word, bank, dest, size int) {
 	for i := 0; i < size; i++ {
+        if (i+dest) == 0xC000 {
+            fmt.Printf("Upper write from bank: %d\n", bank)
+        }
 		Ram[i+dest] = rom[bank][i]
 	}
 }
@@ -116,6 +119,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	if r.PrgBankCount > 1 {
 		// and the last ROM bank
+        fmt.Printf("Writing bank %d to 0xC000, base value: 0x%X\n", r.PrgBankCount-1, r.RomBanks[r.PrgBankCount-1][0])
 		WriteRamBank(r.RomBanks, r.PrgBankCount-1, 0xC000, Size16k)
 	} else {
 		// Or write the first ROM bank to the upper region
@@ -154,6 +158,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 			ChrRomCount:   r.ChrRomCount,
 			BatteryBacked: r.BatteryBacked,
 			Data:          r.Data,
+            PrgSwapBank:   BankLower,
 		}
 	case 0x42:
 		fallthrough

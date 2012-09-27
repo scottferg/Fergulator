@@ -47,16 +47,17 @@ func (m *Memory) Write(address interface{}, val Word) error {
 			return nil
 		}
 
-		m[a] = val
-
 		if a <= 0x2007 && a >= 0x2000 {
 			//ppu.Run(cpu.Timestamp * 3)
 			ppu.PpuRegWrite(val, a)
+            m[a] = val
 		} else if a == 0x4014 {
 			//ppu.Run(cpu.Timestamp * 3)
 			ppu.PpuRegWrite(val, a)
+            m[a] = val
 		} else if a == 0x4016 {
 			controller.Write(val)
+            m[a] = val
 		} else if a == 0x4017 {
 			// controller.WritePad2(val)
             m[a] = 0
@@ -66,6 +67,8 @@ func (m *Memory) Write(address interface{}, val Word) error {
 			return nil
 		} else if a >= 0x6000 && a < 0x8000 {
             // TODO: Save to a file
+            m[a] = val
+        } else {
             m[a] = val
         }
 

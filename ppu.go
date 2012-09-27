@@ -201,13 +201,13 @@ func (p *Ppu) Step() {
 				cpu.RequestInterrupt(InterruptNmi)
 			}
 
-            // TODO: This should happen per scanline
-            if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
-                for i := 0; i < 240; i++ {
-                    p.evaluateScanlineSprites(i)
-                }
-            }
-            p.raster()
+			// TODO: This should happen per scanline
+			if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
+				for i := 0; i < 240; i++ {
+					p.evaluateScanlineSprites(i)
+				}
+			}
+			p.raster()
 
 			p.Cycle++
 		}
@@ -613,7 +613,7 @@ func (p *Ppu) renderTileRow() {
 			}
 
 			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[palette % 64],
+				PaletteRgb[palette%64],
 				int(pixel),
 			}
 		}
@@ -731,7 +731,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			}
 
 			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[int(pal[pixel]) % 64],
+				PaletteRgb[int(pal[pixel])%64],
 				int(pixel),
 			}
 		}
