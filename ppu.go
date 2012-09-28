@@ -567,6 +567,7 @@ func (p *Ppu) renderTileRow() {
 		shift := p.AttributeShift[p.VramAddress&0x3FF]
 		attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
 
+        // fmt.Printf("Nametable: %d\n", (p.VramAddress&0xC00)>>10)
 		index := p.Nametables.readNametableData(p.VramAddress)
 		t := p.bgPatternTableAddress(index)
 

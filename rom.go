@@ -32,9 +32,6 @@ type Cnrom Rom
 
 func WriteRamBank(rom [][]Word, bank, dest, size int) {
 	for i := 0; i < size; i++ {
-        if (i+dest) == 0xC000 {
-            fmt.Printf("Upper write from bank: %d\n", bank)
-        }
 		Ram[i+dest] = rom[bank][i]
 	}
 }
