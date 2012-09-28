@@ -288,31 +288,28 @@ func (p *Ppu) updateEndScanlineRegisters() {
 		p.VramAddress++
 	}
 
-	// Scanline has ended
-	if p.VramAddress&0x7000 == 0x7000 {
-		tmp := p.VramAddress & 0x3E0
-		p.VramAddress &= 0xFFF
+	if p.ShowBackground || p.ShowSprites {
+		// Scanline has ended
+		if p.VramAddress&0x7000 == 0x7000 {
+			tmp := p.VramAddress & 0x3E0
+			p.VramAddress &= 0xFFF
 
-		switch tmp {
-		case 0x3A0:
-			p.VramAddress ^= 0xBA0
-		case 0x3E0:
-			p.VramAddress ^= 0x3E0
-		default:
-			p.VramAddress += 0x20
+			switch tmp {
+			case 0x3A0:
+				p.VramAddress ^= 0xBA0
+			case 0x3E0:
+				p.VramAddress ^= 0x3E0
+			default:
+				p.VramAddress += 0x20
+			}
+
+		} else {
+			// Increment the fine-Y
+			p.VramAddress += 0x1000
 		}
 
-	} else {
-		// Increment the fine-Y
-		p.VramAddress += 0x1000
-	}
-
-	if p.ShowBackground && p.ShowSprites {
-		// fmt.Printf("Nametable before: %d ", (p.VramAddress&0xC00)>>10)
 		p.VramAddress = (p.VramAddress & 0x7BE0) | (p.VramLatch & 0x41F)
-		// fmt.Printf("Nametable after: %d\n", (p.VramAddress&0xC00)>>10)
 	}
-
 }
 
 // $2000
@@ -567,7 +564,7 @@ func (p *Ppu) renderTileRow() {
 		shift := p.AttributeShift[p.VramAddress&0x3FF]
 		attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
 
-        // fmt.Printf("Nametable: %d\n", (p.VramAddress&0xC00)>>10)
+		// fmt.Printf("Nametable: %d\n", (p.VramAddress&0xC00)>>10)
 		index := p.Nametables.readNametableData(p.VramAddress)
 		t := p.bgPatternTableAddress(index)
 
