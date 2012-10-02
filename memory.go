@@ -1,5 +1,9 @@
 package main
 
+import (
+    "fmt"
+)
+
 type Word uint8
 
 type Memory [0x10000]Word
@@ -35,24 +39,26 @@ func (m *Memory) Init() {
 	}
 }
 
+func (m *Memory) ReadMirroredRam(a int) Word {
+    offset := a % 0x8
+    return m[0x2000 + offset]
+}
+
 func (m *Memory) WriteMirroredRam(v Word, a int) {
-	for i := 0; i < 0x2FFB; i += 8 {
-		m[0x2002+i] = v
-	}
+    offset := a % 0x8
+    m[0x2000 + offset] = v
 }
 
 func (m *Memory) Write(address interface{}, val Word) error {
 	if a, err := fitAddressSize(address); err == nil {
-		if a == 0x2002 {
-			return nil
-		}
+        if a >= 0x2008 && a < 0x4000 {
+            fmt.Printf("Address write: 0x%X\n", a)
+        }
 
-		if a <= 0x2007 && a >= 0x2000 {
-			//ppu.Run(cpu.Timestamp * 3)
+		if a >= 0x2000 && a <= 0x2007 {
 			ppu.PpuRegWrite(val, a)
-            m[a] = val
+            // m.WriteMirroredRam(val, a)
 		} else if a == 0x4014 {
-			//ppu.Run(cpu.Timestamp * 3)
 			ppu.PpuRegWrite(val, a)
             m[a] = val
 		} else if a == 0x4016 {
@@ -81,11 +87,10 @@ func (m *Memory) Write(address interface{}, val Word) error {
 func (m *Memory) Read(address interface{}) (Word, error) {
 	a, _ := fitAddressSize(address)
 
-	if a == 0x200A {
-		return m[0x2002], nil
-	}
-
-	if a <= 0x2007 && a >= 0x2000 {
+    if a >= 0x2008 && a < 0x4000 {
+        offset := a % 0x8
+		return ppu.PpuRegRead(0x2000 + offset)
+    } else if a <= 0x2007 && a >= 0x2000 {
 		//ppu.Run(cpu.Timestamp)
 		return ppu.PpuRegRead(a)
 	} else if a == 0x4016 {
