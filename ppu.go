@@ -84,6 +84,8 @@ type Ppu struct {
 	VblankTime  int
 	FrameCount  int
 	FrameCycles int
+
+    CycleCount int
 }
 
 func (p *Ppu) Init() (chan []int, chan []int) {
@@ -190,7 +192,7 @@ func (p *Ppu) raster() {
 
 func (p *Ppu) Step() {
 	switch {
-	case p.Scanline == 241:
+	case p.Scanline == 240:
 		if p.Cycle == 1 {
 			// We're in VBlank
 			p.setStatus(StatusVblankStarted)
@@ -208,16 +210,14 @@ func (p *Ppu) Step() {
 				}
 			}
 			p.raster()
-
-			p.Cycle++
 		}
-	case p.Scanline == 261: // End of vblank
+	case p.Scanline == 260: // End of vblank
 		if p.Cycle == 341 {
 			// Clear VBlank flag
 			p.clearStatus(StatusVblankStarted)
 
 			p.Scanline = -1
-			p.Cycle = 0
+			p.Cycle = 1
 			p.FrameCount++
 			return
 		}
@@ -231,15 +231,10 @@ func (p *Ppu) Step() {
 			if p.ShowSprites && (p.SpriteSize&0x1 == 0) {
 				p.evaluateScanlineSprites(p.Scanline)
 			}
-
 		} else if p.Cycle == 256 {
 			if p.ShowBackground {
 				p.updateEndScanlineRegisters()
 			}
-		} else if p.Cycle == 341 {
-			p.Cycle = 0
-			p.Scanline++
-			return
 		}
 	case p.Scanline == -1:
 		if p.Cycle == 1 {
