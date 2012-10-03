@@ -85,7 +85,8 @@ type Ppu struct {
 	FrameCount  int
 	FrameCycles int
 
-    CycleCount int
+    SuppressNmi bool
+    SuppressVbl bool
 }
 
 func (p *Ppu) Init() (chan []int, chan []int) {
@@ -194,11 +195,13 @@ func (p *Ppu) Step() {
 	switch {
 	case p.Scanline == 240:
 		if p.Cycle == 1 {
-			// We're in VBlank
-			p.setStatus(StatusVblankStarted)
+            if !p.SuppressVbl {
+                // We're in VBlank
+                p.setStatus(StatusVblankStarted)
+            }
 
 			// $2000.7 enables/disables NMIs
-			if p.NmiOnVblank == 0x1 {
+			if p.NmiOnVblank == 0x1 && !p.SuppressNmi {
 				// Request NMI
 				cpu.RequestInterrupt(InterruptNmi)
 			}
@@ -394,9 +397,17 @@ func (p *Ppu) ReadStatus() (s Word, e error) {
 	p.WriteLatch = true
 	s = Ram[0x2002]
 
-	// Clear VBlank flag
-	p.clearStatus(StatusVblankStarted)
-	p.VramLatch = 0
+    if p.Cycle == 1 && p.Scanline == 240 {
+        s &= 0x7F
+        p.SuppressNmi = true
+        p.SuppressVbl = true
+    } else {
+        p.SuppressNmi = false
+        p.SuppressVbl = false
+        // Clear VBlank flag
+        p.clearStatus(StatusVblankStarted)
+        p.VramLatch = 0
+    }
 
 	return
 }
