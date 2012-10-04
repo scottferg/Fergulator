@@ -146,7 +146,7 @@ func (c *Cpu) testAndSetZero(value Word) {
 }
 
 func (c *Cpu) testAndSetCarryAddition(result int) {
-	if result > 0xff {
+	if result > 0xFF {
 		c.setCarry()
 		return
 	}
@@ -163,18 +163,12 @@ func (c *Cpu) testAndSetCarrySubtraction(result int) {
 	c.setCarry()
 }
 
-func (c *Cpu) testAndSetOverflowAddition(a Word, b Word) {
-	if (a & 0x80) == (b & 0x80) {
-		switch {
-		case int(a+b) > 127:
-			fallthrough
-		case int(a+b) < -128:
-			c.setOverflow()
-			return
-		}
-	}
-
-	c.clearOverflow()
+func (c *Cpu) testAndSetOverflowAddition(a Word, b Word, r Word) {
+    if ((a ^ b) & 0x80 == 0x0) && ((a ^ r) & 0x80 == 0x80) {
+        c.setOverflow()
+    } else {
+        c.clearOverflow()
+    }
 }
 
 func (c *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
@@ -312,16 +306,14 @@ func (c *Cpu) Adc(location int) {
 
 	cached := c.A
 
-	c.A = c.A + val
-
-	if c.getCarry() {
-		c.A++
-	}
+	c.A = cached + val + (c.P&0x01)
 
 	c.testAndSetNegative(c.A)
 	c.testAndSetZero(c.A)
-	c.testAndSetOverflowAddition(cached, val)
+    c.testAndSetOverflowAddition(cached, val, cpu.A)
 	c.testAndSetCarryAddition(int(cached) + int(val) + int(c.P&0x01))
+
+    c.A = c.A & 0xFF
 }
 
 func (c *Cpu) Lda(location int) {
@@ -629,7 +621,7 @@ func (c *Cpu) Sbc(location int) {
 	c.testAndSetOverflowSubtraction(cache, val)
 	c.testAndSetCarrySubtraction(int(cache) - int(val) - (1 - int(c.P&0x01)))
 
-	c.A = c.A & 0xff
+	c.A = c.A & 0xFF
 }
 
 func (c *Cpu) Clc() {

@@ -204,7 +204,7 @@ func (p *Ppu) Step() {
 			if p.NmiOnVblank == 0x1 && !p.SuppressNmi {
 				// Request NMI
 				cpu.RequestInterrupt(InterruptNmi)
-			}
+            }
 
 			// TODO: This should happen per scanline
 			if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
@@ -406,7 +406,6 @@ func (p *Ppu) ReadStatus() (s Word, e error) {
         p.SuppressVbl = false
         // Clear VBlank flag
         p.clearStatus(StatusVblankStarted)
-        //p.VramLatch = 0
     }
 
 	return
@@ -721,7 +720,8 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 		if fbRow < 0xF000 && !trans {
 			priority := (*attr >> 5) & 0x1
 
-			if p.Palettebuffer[fbRow].Value != 0 && spZero {
+            hit := (Ram[0x2002] & 0x40 == 0x40)
+			if p.Palettebuffer[fbRow].Value != 0 && spZero && !hit {
 				// Since we render background first, if we're placing an opaque
 				// pixel here and the existing pixel is opaque, we've hit
 				// Sprite 0 
