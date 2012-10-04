@@ -663,9 +663,10 @@ func (c *Cpu) And(location int) {
 func (c *Cpu) Ora(location int) {
 	val, _ := Ram.Read(location)
 	c.A = c.A | val
+    c.A &= 0xFF
 
-	c.testAndSetNegative(val)
-	c.testAndSetZero(val)
+	c.testAndSetNegative(c.A)
+	c.testAndSetZero(c.A)
 }
 
 func (c *Cpu) Eor(location int) {
