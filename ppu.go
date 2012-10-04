@@ -216,9 +216,6 @@ func (p *Ppu) Step() {
 		}
 	case p.Scanline == 260: // End of vblank
 		if p.Cycle == 341 {
-			// Clear VBlank flag
-			p.clearStatus(StatusVblankStarted)
-
 			p.Scanline = -1
 			p.Cycle = 1
 			p.FrameCount++
@@ -241,6 +238,9 @@ func (p *Ppu) Step() {
 		}
 	case p.Scanline == -1:
 		if p.Cycle == 1 {
+			// Clear VBlank flag
+			p.clearStatus(StatusVblankStarted)
+
 			p.clearStatus(StatusSprite0Hit)
 			p.clearStatus(StatusSpriteOverflow)
 		} else if p.Cycle == 304 {
@@ -406,7 +406,7 @@ func (p *Ppu) ReadStatus() (s Word, e error) {
         p.SuppressVbl = false
         // Clear VBlank flag
         p.clearStatus(StatusVblankStarted)
-        p.VramLatch = 0
+        //p.VramLatch = 0
     }
 
 	return
