@@ -1,7 +1,7 @@
 Fergulator
 ==========
 
-This is an NES emulator, written in Go. It's fairly new, so not all games run yet and not all features are implemented. Details are below.
+This is an NES emulator, written in Go. It's fairly new and very much a work in progress, so not all games run yet and not all features are implemented. Details are below.
 
 ## To build on Linux
 
@@ -39,14 +39,13 @@ This is an NES emulator, written in Go. It's fairly new, so not all games run ye
 * CNROM
 * MMC1
 
-## Tested games that run flawlessly or near flawlessly
+## Tested games that run well or are playable
 
 * Super Mario Bros
 * Contra
 * Bionic Commando
 * Blaster Master
 * Double Dragon
-* Final Fantasy
 * Legend of Zelda
 * Metroid
 * Tetris
