@@ -19,18 +19,18 @@ NES emulator, written in Go
 
 ## Run the emulator
 
-        $ ./nes path/to/game.nes
+        $ ./Fergulator path/to/game.nes
 
 ## Controls
 
-        A - Z
-        B - X
-        Start - Enter
-        Select - Right Shift
-        Up/Down/Left/Right - Arrows
+        *A* - Z
+        *B* - X
+        *Start* - Enter
+        *Select* - Right Shift
+        *Up/Down/Left/Right* - Arrows
 
-        Save State - S
-        Load State - L
+        *Save State* - S
+        *Load State* - L
 
 ## Supported Mappers
 
