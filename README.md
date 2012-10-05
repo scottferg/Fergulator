@@ -1,7 +1,7 @@
 Fergulator
 ==========
 
-NES emulator, written in Go
+This is an NES emulator, written in Go. It's fairly new, so not all games run yet and not all features are implemented. Details are below.
 
 ## To build on Linux
 
@@ -70,3 +70,14 @@ NES emulator, written in Go
 * Mega Man 2
 * Metal Gear
 * Prince of Persia
+
+## What isn't working
+
+* Sound
+* Second controller
+
+## Next planned mappers
+
+* MMC3
+* MMC5
+* MMC2
