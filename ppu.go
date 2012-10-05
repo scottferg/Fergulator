@@ -646,14 +646,20 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 			c := (line - 1) - int(y)
 
-			// If vertical flip is set
-			ycoord := int(p.YCoordinates[i]) + c + 1
+            // TODO: Hack to fix random sprite appearing in upper
+            // left. It should be cropped by overscan.
+            if p.XCoordinates[i] == 0 && p.YCoordinates[i] == 0 {
+                continue
+            }
+
+            var ycoord int
 
 			yflip := (p.Attributes[i]>>7)&0x1 == 0x1
-
 			if yflip {
 				ycoord = int(p.YCoordinates[i]) + (7 - c)
-			}
+			} else {
+			    ycoord = int(p.YCoordinates[i]) + c + 1
+            }
 
 			if p.SpriteSize&0x01 != 0x0 {
 				// 8x16 Sprite
