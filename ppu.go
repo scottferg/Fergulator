@@ -612,6 +612,12 @@ func (p *Ppu) renderTileRow() {
 				palette = p.bgPaletteEntry(attr, pixel)
 			}
 
+			if p.Palettebuffer[fbRow].Value != 0 {
+				// Pixel is already rendered and priority
+				// 1 means show behind background
+				continue
+			}
+
 			p.Palettebuffer[fbRow] = Pixel{
 				PaletteRgb[palette%64],
 				int(pixel),
@@ -646,7 +652,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
             yflip := (p.Attributes[i]>>7)&0x1 == 0x1
 
 			if yflip {
-				ycoord = int(p.YCoordinates[i]) + (7 - c) + 1
+				ycoord = int(p.YCoordinates[i]) + (7 - c)
 			}
 
 			if p.SpriteSize&0x01 != 0x0 {

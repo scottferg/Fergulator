@@ -23,6 +23,7 @@ type Mmc1 struct {
 	PrgSwapBank   int
 	PrgBankSize   int
 	ChrBankSize   int
+    Mirroring     int
 }
 
 func (m *Mmc1) Write(v Word, a int) {
@@ -55,22 +56,27 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 	switch reg {
 	// Control register
 	case 0:
-		//fmt.Printf("Mapper: MMC1\n  Mirroring: ")
 		// Set mirroring
-		switch v & 0x3 {
-		case 0x0:
-			ppu.Nametables.SetMirroring(MirroringSingleUpper)
-			//fmt.Println("Single Upper")
-		case 0x1:
-			ppu.Nametables.SetMirroring(MirroringSingleLower)
-			//fmt.Println("Single Lower")
-		case 0x2:
-			ppu.Nametables.SetMirroring(MirroringVertical)
-			//fmt.Println("Vertical")
-		case 0x3:
-			ppu.Nametables.SetMirroring(MirroringHorizontal)
-			//fmt.Println("Horizontal")
-		}
+        tmp := v & 0x3
+
+        if m.Mirroring != tmp {
+            fmt.Printf("Mapper: MMC1\n  Mirroring: ")
+            m.Mirroring = tmp
+            switch m.Mirroring {
+            case 0x0:
+                ppu.Nametables.SetMirroring(MirroringSingleUpper)
+                fmt.Println("Single Upper")
+            case 0x1:
+                ppu.Nametables.SetMirroring(MirroringSingleLower)
+                fmt.Println("Single Lower")
+            case 0x2:
+                ppu.Nametables.SetMirroring(MirroringVertical)
+                fmt.Println("Vertical")
+            case 0x3:
+                ppu.Nametables.SetMirroring(MirroringHorizontal)
+                fmt.Println("Horizontal")
+            }
+        }
 
         switch (v >> 0x2) & 0x3 {
         case 0x0:

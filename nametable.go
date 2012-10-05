@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 const (
 	MirroringVertical = iota
 	MirroringHorizontal
@@ -8,22 +12,24 @@ const (
 )
 
 type Nametable struct {
-	Mirroring         int
+	Mirroring     int
 	LogicalTables [4]*[0x400]Word
 	Nametable0    [0x400]Word
 	Nametable1    [0x400]Word
 }
 
 func (n *Nametable) SetMirroring(m int) {
-    n.Mirroring = m
+	n.Mirroring = m
 
 	switch n.Mirroring {
 	case MirroringHorizontal:
+		fmt.Println("Nametable -> setting Horizontal")
 		n.LogicalTables[0] = &n.Nametable0
 		n.LogicalTables[1] = &n.Nametable0
 		n.LogicalTables[2] = &n.Nametable1
 		n.LogicalTables[3] = &n.Nametable1
 	case MirroringVertical:
+		fmt.Println("Nametable -> setting Vertical")
 		n.LogicalTables[0] = &n.Nametable0
 		n.LogicalTables[1] = &n.Nametable1
 		n.LogicalTables[2] = &n.Nametable0

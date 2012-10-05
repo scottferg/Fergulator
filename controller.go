@@ -12,9 +12,9 @@ type Controller struct {
 
 func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word) {
 	switch k.Keysym.Sym {
-	case sdl.K_x: // B
-		c.ButtonState[0] = v
 	case sdl.K_z: // A
+		c.ButtonState[0] = v
+	case sdl.K_x: // B
 		c.ButtonState[1] = v
 	case sdl.K_RSHIFT: // Select
 		c.ButtonState[2] = v
