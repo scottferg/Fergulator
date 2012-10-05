@@ -13,7 +13,7 @@ This is an NES emulator, written in Go. It's fairly new, so not all games run ye
 ## To build on OSX
 
         $ brew install sdl sdl_image sdl_sound sdl_gfx sdl_mixer sdl_ttf
-        $ export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get -u github.com/0xe2-0x9a-0x9b/Go-SDL/...
+        $ export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get -u github.com/0xe2-0x9a-0x9b/Go-SDL/sdl
         $ go test
         $ go build
 
