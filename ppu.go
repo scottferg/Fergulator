@@ -646,7 +646,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
             yflip := (p.Attributes[i]>>7)&0x1 == 0x1
 
 			if yflip {
-				ycoord = int(p.YCoordinates[i]) + (7 - c)
+				ycoord = int(p.YCoordinates[i]) + (7 - c) + 1
 			}
 
 			if p.SpriteSize&0x01 != 0x0 {
