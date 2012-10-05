@@ -23,14 +23,14 @@ NES emulator, written in Go
 
 ## Controls
 
-        *A* - Z
-        *B* - X
-        *Start* - Enter
-        *Select* - Right Shift
-        *Up/Down/Left/Right* - Arrows
+        A - Z
+        B - X
+        Start - Enter
+        Select - Right Shift
+        Up/Down/Left/Right - Arrows
 
-        *Save State* - S
-        *Load State* - L
+        Save State - S
+        Load State - L
 
 ## Supported Mappers
 
