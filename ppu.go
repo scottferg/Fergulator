@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math"
 )
 
@@ -85,8 +84,8 @@ type Ppu struct {
 	FrameCount  int
 	FrameCycles int
 
-    SuppressNmi bool
-    SuppressVbl bool
+	SuppressNmi bool
+	SuppressVbl bool
 }
 
 func (p *Ppu) Init() (chan []int, chan []int) {
@@ -172,7 +171,7 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 		p.PaletteRam[0x18] = p.PaletteRam[0x8]
 		p.PaletteRam[0x1C] = p.PaletteRam[0xC]
 	} else {
-		p.Vram[a-0x1000] = v
+		p.Nametables.writeNametableData(a-0x1000, v)
 	}
 }
 
@@ -195,16 +194,16 @@ func (p *Ppu) Step() {
 	switch {
 	case p.Scanline == 240:
 		if p.Cycle == 1 {
-            if !p.SuppressVbl {
-                // We're in VBlank
-                p.setStatus(StatusVblankStarted)
-            }
+			if !p.SuppressVbl {
+				// We're in VBlank
+				p.setStatus(StatusVblankStarted)
+			}
 
 			// $2000.7 enables/disables NMIs
 			if p.NmiOnVblank == 0x1 && !p.SuppressNmi {
 				// Request NMI
 				cpu.RequestInterrupt(InterruptNmi)
-            }
+			}
 
 			// TODO: This should happen per scanline
 			if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
@@ -335,7 +334,7 @@ func (p *Ppu) WriteControl(v Word) {
 	p.SpriteSize = (v >> 5) & 0x01
 	p.NmiOnVblank = (v >> 7) & 0x01
 
-	p.VramLatch = (p.VramLatch & 0x73FF) | ((int(v) & 0x03) << 10)
+	p.VramLatch = (p.VramLatch & 0xF3FF) | ((int(v) & 0x03) << 10)
 }
 
 // $2001
@@ -397,16 +396,16 @@ func (p *Ppu) ReadStatus() (s Word, e error) {
 	p.WriteLatch = true
 	s = Ram[0x2002]
 
-    if p.Cycle == 1 && p.Scanline == 240 {
-        s &= 0x7F
-        p.SuppressNmi = true
-        p.SuppressVbl = true
-    } else {
-        p.SuppressNmi = false
-        p.SuppressVbl = false
-        // Clear VBlank flag
-        p.clearStatus(StatusVblankStarted)
-    }
+	if p.Cycle == 1 && p.Scanline == 240 {
+		s &= 0x7F
+		p.SuppressNmi = true
+		p.SuppressVbl = true
+	} else {
+		p.SuppressNmi = false
+		p.SuppressVbl = false
+		// Clear VBlank flag
+		p.clearStatus(StatusVblankStarted)
+	}
 
 	return
 }
@@ -458,7 +457,6 @@ func (p *Ppu) updateBufferedSpriteMem(a int, v Word) {
 
 // $2004
 func (p *Ppu) ReadOamData() (Word, error) {
-	fmt.Println("Reading OAM")
 	return p.SpriteRam[p.SpriteRamAddress], nil
 }
 
@@ -569,7 +567,6 @@ func (p *Ppu) renderTileRow() {
 		shift := p.AttributeShift[p.VramAddress&0x3FF]
 		attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
 
-		// fmt.Printf("Nametable: %d\n", (p.VramAddress&0xC00)>>10)
 		index := p.Nametables.readNametableData(p.VramAddress)
 		t := p.bgPatternTableAddress(index)
 
@@ -645,14 +642,23 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 			// If vertical flip is set
 			ycoord := int(p.YCoordinates[i]) + c + 1
-			if (p.Attributes[i]>>7)&0x1 == 0x1 {
-				ycoord = int(p.YCoordinates[i]) + (8 - c)
+            
+            yflip := (p.Attributes[i]>>7)&0x1 == 0x1
+
+			if yflip {
+				ycoord = int(p.YCoordinates[i]) + (7 - c)
 			}
 
 			if p.SpriteSize&0x01 != 0x0 {
 				// 8x16 Sprite
 				s := p.sprPatternTableAddress(int(t))
-				tile := p.Vram[s : s+16]
+                var tile []Word
+
+                if yflip {
+                    tile = p.Vram[s+16 : s+32]
+                } else {
+                    tile = p.Vram[s : s+16]
+                }
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
@@ -661,7 +667,11 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 					&p.Attributes[i], i == 0)
 
 				// Next tile
-				tile = p.Vram[s+16 : s+32]
+                if yflip {
+                    tile = p.Vram[s : s+16]
+                } else {
+                    tile = p.Vram[s+16 : s+32]
+                }
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
@@ -720,7 +730,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 		if fbRow < 0xF000 && !trans {
 			priority := (*attr >> 5) & 0x1
 
-            hit := (Ram[0x2002] & 0x40 == 0x40)
+			hit := (Ram[0x2002]&0x40 == 0x40)
 			if p.Palettebuffer[fbRow].Value != 0 && spZero && !hit {
 				// Since we render background first, if we're placing an opaque
 				// pixel here and the existing pixel is opaque, we've hit
