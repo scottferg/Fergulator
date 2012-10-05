@@ -19,7 +19,7 @@ NES emulator, written in Go
 
 ## Run the emulator
 
-        $ ./nes path/to/game.nes
+        $ ./Fergulator path/to/game.nes
 
 ## Controls
 
