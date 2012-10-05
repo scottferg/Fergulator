@@ -5,14 +5,14 @@ This is an NES emulator, written in Go. It's fairly new, so not all games run ye
 
 ## To build on Linux
 
-        $ sudo apt-get install libsdl1.2-dev libsdl-gfx1.2-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-sound1.2-dev libsdl-ttf2.0-dev
-        $ go get -u github.com/0xe2-0x9a-0x9b/Go-SDL/...
+        $ sudo apt-get install libsdl1.2-dev libsdl-gfx1.2-dev libsdl-image1.2-dev
+        $ go get -u github.com/0xe2-0x9a-0x9b/Go-SDL/sdl
         $ go test
         $ go build
 
 ## To build on OSX
 
-        $ brew install sdl sdl_image sdl_sound sdl_gfx sdl_mixer sdl_ttf
+        $ brew install sdl sdl_image sdl_gfx
         $ export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get -u github.com/0xe2-0x9a-0x9b/Go-SDL/sdl
         $ go test
         $ go build
@@ -75,6 +75,8 @@ This is an NES emulator, written in Go. It's fairly new, so not all games run ye
 
 * Sound
 * Second controller
+* Scrolling and palettes on a number of MMC1 games
+* Save states for some MMC1 games
 
 ## Next planned mappers
 
