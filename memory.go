@@ -1,7 +1,7 @@
 package main
 
 import (
-    "fmt"
+	"fmt"
 )
 
 type Word uint8
@@ -40,43 +40,43 @@ func (m *Memory) Init() {
 }
 
 func (m *Memory) ReadMirroredRam(a int) Word {
-    offset := a % 0x8
-    return m[0x2000 + offset]
+	offset := a % 0x8
+	return m[0x2000+offset]
 }
 
 func (m *Memory) WriteMirroredRam(v Word, a int) {
-    offset := a % 0x8
-    m[0x2000 + offset] = v
+	offset := a % 0x8
+	m[0x2000+offset] = v
 }
 
 func (m *Memory) Write(address interface{}, val Word) error {
 	if a, err := fitAddressSize(address); err == nil {
-        if a >= 0x2008 && a < 0x4000 {
-            fmt.Printf("Address write: 0x%X\n", a)
-        }
+		if a >= 0x2008 && a < 0x4000 {
+			fmt.Printf("Address write: 0x%X\n", a)
+		}
 
 		if a >= 0x2000 && a <= 0x2007 {
 			ppu.PpuRegWrite(val, a)
-            // m.WriteMirroredRam(val, a)
+			// m.WriteMirroredRam(val, a)
 		} else if a == 0x4014 {
 			ppu.PpuRegWrite(val, a)
-            m[a] = val
+			m[a] = val
 		} else if a == 0x4016 {
 			controller.Write(val)
-            m[a] = val
+			m[a] = val
 		} else if a == 0x4017 {
 			// controller.WritePad2(val)
-            m[a] = 0
+			m[a] = 0
 		} else if a >= 0x8000 && a <= 0xFFFF {
 			// MMC1
 			rom.Write(val, a)
 			return nil
 		} else if a >= 0x6000 && a < 0x8000 {
-            // TODO: Save to a file
-            m[a] = val
-        } else {
-            m[a] = val
-        }
+			// TODO: Save to a file
+			m[a] = val
+		} else {
+			m[a] = val
+		}
 
 		return nil
 	}
@@ -87,10 +87,10 @@ func (m *Memory) Write(address interface{}, val Word) error {
 func (m *Memory) Read(address interface{}) (Word, error) {
 	a, _ := fitAddressSize(address)
 
-    if a >= 0x2008 && a < 0x4000 {
-        offset := a % 0x8
+	if a >= 0x2008 && a < 0x4000 {
+		offset := a % 0x8
 		return ppu.PpuRegRead(0x2000 + offset)
-    } else if a <= 0x2007 && a >= 0x2000 {
+	} else if a <= 0x2007 && a >= 0x2000 {
 		//ppu.Run(cpu.Timestamp)
 		return ppu.PpuRegRead(a)
 	} else if a == 0x4016 {

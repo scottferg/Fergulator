@@ -116,7 +116,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	if r.PrgBankCount > 1 {
 		// and the last ROM bank
-        fmt.Printf("Writing bank %d to 0xC000, base value: 0x%X\n", r.PrgBankCount-1, r.RomBanks[r.PrgBankCount-1][0])
+		fmt.Printf("Writing bank %d to 0xC000, base value: 0x%X\n", r.PrgBankCount-1, r.RomBanks[r.PrgBankCount-1][0])
 		WriteRamBank(r.RomBanks, r.PrgBankCount-1, 0xC000, Size16k)
 	} else {
 		// Or write the first ROM bank to the upper region
@@ -128,10 +128,10 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	if r.ChrRomCount > 0 {
 		if r.ChrRomCount == 1 {
 			WriteVramBank(r.VromBanks, 0, 0x0000, Size4k)
-            WriteVramBank(r.VromBanks, 1, 0x1000, Size4k)
+			WriteVramBank(r.VromBanks, 1, 0x1000, Size4k)
 		} else {
 			WriteVramBank(r.VromBanks, 0, 0x0000, Size4k)
-			WriteVramBank(r.VromBanks, len(r.VromBanks) - 1, 0x1000, Size4k)
+			WriteVramBank(r.VromBanks, len(r.VromBanks)-1, 0x1000, Size4k)
 		}
 	}
 
@@ -155,7 +155,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 			ChrRomCount:   r.ChrRomCount,
 			BatteryBacked: r.BatteryBacked,
 			Data:          r.Data,
-            PrgSwapBank:   BankLower,
+			PrgSwapBank:   BankLower,
 		}
 	case 0x42:
 		fallthrough

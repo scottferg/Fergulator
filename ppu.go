@@ -648,8 +648,8 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 			// If vertical flip is set
 			ycoord := int(p.YCoordinates[i]) + c + 1
-            
-            yflip := (p.Attributes[i]>>7)&0x1 == 0x1
+
+			yflip := (p.Attributes[i]>>7)&0x1 == 0x1
 
 			if yflip {
 				ycoord = int(p.YCoordinates[i]) + (7 - c)
@@ -658,13 +658,13 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 			if p.SpriteSize&0x01 != 0x0 {
 				// 8x16 Sprite
 				s := p.sprPatternTableAddress(int(t))
-                var tile []Word
+				var tile []Word
 
-                if yflip {
-                    tile = p.Vram[s+16 : s+32]
-                } else {
-                    tile = p.Vram[s : s+16]
-                }
+				if yflip {
+					tile = p.Vram[s+16 : s+32]
+				} else {
+					tile = p.Vram[s : s+16]
+				}
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
@@ -673,11 +673,11 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 					&p.Attributes[i], i == 0)
 
 				// Next tile
-                if yflip {
-                    tile = p.Vram[s : s+16]
-                } else {
-                    tile = p.Vram[s+16 : s+32]
-                }
+				if yflip {
+					tile = p.Vram[s : s+16]
+				} else {
+					tile = p.Vram[s+16 : s+32]
+				}
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),

@@ -164,11 +164,11 @@ func (c *Cpu) testAndSetCarrySubtraction(result int) {
 }
 
 func (c *Cpu) testAndSetOverflowAddition(a Word, b Word, r Word) {
-    if ((a ^ b) & 0x80 == 0x0) && ((a ^ r) & 0x80 == 0x80) {
-        c.setOverflow()
-    } else {
-        c.clearOverflow()
-    }
+	if ((a^b)&0x80 == 0x0) && ((a^r)&0x80 == 0x80) {
+		c.setOverflow()
+	} else {
+		c.clearOverflow()
+	}
 }
 
 func (c *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
@@ -306,14 +306,14 @@ func (c *Cpu) Adc(location int) {
 
 	cached := c.A
 
-	c.A = cached + val + (c.P&0x01)
+	c.A = cached + val + (c.P & 0x01)
 
 	c.testAndSetNegative(c.A)
 	c.testAndSetZero(c.A)
-    c.testAndSetOverflowAddition(cached, val, cpu.A)
+	c.testAndSetOverflowAddition(cached, val, cpu.A)
 	c.testAndSetCarryAddition(int(cached) + int(val) + int(c.P&0x01))
 
-    c.A = c.A & 0xFF
+	c.A = c.A & 0xFF
 }
 
 func (c *Cpu) Lda(location int) {
@@ -663,7 +663,7 @@ func (c *Cpu) And(location int) {
 func (c *Cpu) Ora(location int) {
 	val, _ := Ram.Read(location)
 	c.A = c.A | val
-    c.A &= 0xFF
+	c.A &= 0xFF
 
 	c.testAndSetNegative(c.A)
 	c.testAndSetZero(c.A)
