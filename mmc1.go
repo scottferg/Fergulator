@@ -13,10 +13,10 @@ type Mmc1 struct {
 	RomBanks  [][]Word
 	VromBanks [][]Word
 
-	PrgBankCount  int
-	ChrRomCount   int
-	BatteryBacked bool
-	Data          []byte
+	PrgBankCount int
+	ChrRomCount  int
+	Battery      bool
+	Data         []byte
 
 	Buffer        int
 	BufferCounter uint
@@ -48,6 +48,10 @@ func (m *Mmc1) Write(v Word, a int) {
 			m.Buffer = 0
 		}
 	}
+}
+
+func (m *Mmc1) BatteryBacked() bool {
+	return m.Battery
 }
 
 func (m *Mmc1) SetRegister(reg int, v int) {

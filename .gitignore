@@ -23,4 +23,5 @@ _testmain.go
 *.swp
 games/*
 *.state
+*.battery
 .DS_Store

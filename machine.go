@@ -21,8 +21,9 @@ var (
 	video      Video
 	controller Controller
 
-	gamename string
-	game     string
+	gamename       string
+	saveStateFile  string
+	batteryRamFile string
 )
 
 func setResetVector() {
@@ -35,7 +36,7 @@ func setResetVector() {
 func LoadState() {
 	fmt.Println("Loading state")
 
-	state, err := ioutil.ReadFile(game)
+	state, err := ioutil.ReadFile(saveStateFile)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -136,9 +137,38 @@ func SaveState() {
 		buf.WriteByte(byte(v))
 	}
 
-	if err := ioutil.WriteFile(game, buf.Bytes(), 0644); err != nil {
+	if err := ioutil.WriteFile(saveStateFile, buf.Bytes(), 0644); err != nil {
 		panic(err.Error())
 	}
+}
+
+func loadBatteryRam() {
+	fmt.Println("Loading battery RAM")
+
+	batteryRam, err := ioutil.ReadFile(batteryRamFile)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	for i, v := range batteryRam[:0x2000] {
+		Ram[0x6000+i] = Word(v)
+	}
+}
+
+func saveBatteryFile() {
+	buf := new(bytes.Buffer)
+
+	// Battery/Work RAM
+	for _, v := range Ram[0x6000:0x7FFF] {
+		buf.WriteByte(byte(v))
+	}
+
+	if err := ioutil.WriteFile(batteryRamFile, buf.Bytes(), 0644); err != nil {
+		panic(err.Error())
+	}
+
+	fmt.Println("Battery RAM saved to disk")
 }
 
 func main() {
@@ -153,6 +183,7 @@ func main() {
 	controller.Init()
 
 	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
+
 		if rom, err = LoadRom(contents); err != nil {
 			fmt.Println(err.Error())
 			return
@@ -161,7 +192,13 @@ func main() {
 		// Set the game name for save states
 		path := strings.Split(os.Args[1], "/")
 		gamename = strings.Split(path[len(path)-1], ".")[0]
-		game = fmt.Sprintf(".%s.state", gamename)
+		saveStateFile = fmt.Sprintf(".%s.state", gamename)
+		batteryRamFile = fmt.Sprintf(".%s.battery", gamename)
+
+		if rom.BatteryBacked() {
+			loadBatteryRam()
+			defer saveBatteryFile()
+		}
 
 		setResetVector()
 	} else {

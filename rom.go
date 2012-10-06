@@ -14,6 +14,7 @@ const (
 
 type Mapper interface {
 	Write(v Word, a int)
+	BatteryBacked() bool
 }
 
 // Nrom
@@ -21,10 +22,10 @@ type Rom struct {
 	RomBanks  [][]Word
 	VromBanks [][]Word
 
-	PrgBankCount  int
-	ChrRomCount   int
-	BatteryBacked bool
-	Data          []byte
+	PrgBankCount int
+	ChrRomCount  int
+	Battery      bool
+	Data         []byte
 }
 
 type Unrom Rom
@@ -46,13 +47,25 @@ func (m *Rom) Write(v Word, a int) {
 	// Nothing to do
 }
 
+func (m *Rom) BatteryBacked() bool {
+	return m.Battery
+}
+
 func (m *Unrom) Write(v Word, a int) {
 	WriteRamBank(m.RomBanks, int(v&0x7), 0x8000, Size16k)
 }
 
+func (m *Unrom) BatteryBacked() bool {
+	return m.Battery
+}
+
 func (m *Cnrom) Write(v Word, a int) {
-    bank := int(v&0x3)
+	bank := int(v & 0x3)
 	WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
+}
+
+func (m *Cnrom) BatteryBacked() bool {
+	return m.Battery
 }
 
 func LoadRom(rom []byte) (m Mapper, e error) {
@@ -69,20 +82,23 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	r.PrgBankCount = int(rom[4])
 	r.ChrRomCount = int(rom[5])
 
-	fmt.Printf("PRG-ROM Count: %d\n", r.PrgBankCount)
-	fmt.Printf("CHR-ROM Count: %d\n", r.ChrRomCount)
+	fmt.Printf("-----------------\nROM:\n  ")
 
+	fmt.Printf("PRG-ROM banks: %d\n  ", r.PrgBankCount)
+	fmt.Printf("CHR-ROM banks: %d\n  ", r.ChrRomCount)
+
+	fmt.Printf("Mirroring: ")
 	switch rom[6] & 0x1 {
 	case 0x0:
-		fmt.Println("Horizontal mirroring")
+		fmt.Printf("Horizontal\n  ")
 		ppu.Nametables.SetMirroring(MirroringHorizontal)
 	case 0x1:
-		fmt.Println("Vertical mirroring")
+		fmt.Printf("Vertical\n  ")
 		ppu.Nametables.SetMirroring(MirroringVertical)
 	}
 
 	if (rom[6]>>0x1)&0x1 == 0x1 {
-		r.BatteryBacked = true
+		r.Battery = true
 	}
 
 	r.Data = rom[16:]
@@ -117,7 +133,6 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	if r.PrgBankCount > 1 {
 		// and the last ROM bank
-		fmt.Printf("Writing bank %d to 0xC000, base value: 0x%X\n", r.PrgBankCount-1, r.RomBanks[r.PrgBankCount-1][0])
 		WriteRamBank(r.RomBanks, r.PrgBankCount-1, 0xC000, Size16k)
 	} else {
 		// Or write the first ROM bank to the upper region
@@ -138,7 +153,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	// Check mapper, get the proper type
 	mapper := (Word(rom[6])>>4 | (Word(rom[7]) & 0xF0))
-	fmt.Printf("Mapper: 0x%X\n", mapper)
+	fmt.Printf("Mapper: ")
 	switch mapper {
 	case 0x00:
 		fallthrough
@@ -146,44 +161,51 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 		fallthrough
 	case 0x41:
 		// NROM
+		fmt.Printf("NROM\n")
 		return r, nil
 	case 0x01:
 		// MMC1
+		fmt.Printf("MMC1\n")
 		m = &Mmc1{
-			RomBanks:      r.RomBanks,
-			VromBanks:     r.VromBanks,
-			PrgBankCount:  r.PrgBankCount,
-			ChrRomCount:   r.ChrRomCount,
-			BatteryBacked: r.BatteryBacked,
-			Data:          r.Data,
-			PrgSwapBank:   BankLower,
+			RomBanks:     r.RomBanks,
+			VromBanks:    r.VromBanks,
+			PrgBankCount: r.PrgBankCount,
+			ChrRomCount:  r.ChrRomCount,
+			Battery:      r.Battery,
+			Data:         r.Data,
+			PrgSwapBank:  BankLower,
 		}
 	case 0x42:
 		fallthrough
 	case 0x02:
 		// Unrom
+		fmt.Printf("UNROM\n")
 		m = &Unrom{
-			RomBanks:      r.RomBanks,
-			VromBanks:     r.VromBanks,
-			PrgBankCount:  r.PrgBankCount,
-			ChrRomCount:   r.ChrRomCount,
-			BatteryBacked: r.BatteryBacked,
-			Data:          r.Data,
+			RomBanks:     r.RomBanks,
+			VromBanks:    r.VromBanks,
+			PrgBankCount: r.PrgBankCount,
+			ChrRomCount:  r.ChrRomCount,
+			Battery:      r.Battery,
+			Data:         r.Data,
 		}
 	case 0x03:
 		// Cnrom
+		fmt.Printf("CNROM\n")
 		m = &Cnrom{
-			RomBanks:      r.RomBanks,
-			VromBanks:     r.VromBanks,
-			PrgBankCount:  r.PrgBankCount,
-			ChrRomCount:   r.ChrRomCount,
-			BatteryBacked: r.BatteryBacked,
-			Data:          r.Data,
+			RomBanks:     r.RomBanks,
+			VromBanks:    r.VromBanks,
+			PrgBankCount: r.PrgBankCount,
+			ChrRomCount:  r.ChrRomCount,
+			Battery:      r.Battery,
+			Data:         r.Data,
 		}
 	default:
 		// Unsupported
+		fmt.Printf("Unsupported\n")
 		return m, errors.New(fmt.Sprintf("Unsupported memory mapper: 0x%X", mapper))
 	}
+
+	fmt.Printf("-----------------\n")
 
 	return
 }
