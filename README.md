@@ -50,6 +50,8 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Blaster Master
 * Double Dragon
 * Final Fantasy
+* Tecmo Bowl
+* Ninja Gaiden
 * Legend of Zelda
 * Metroid
 * Tetris
