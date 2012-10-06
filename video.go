@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 	"log"
-	"math"
 	"time"
 )
 
@@ -32,33 +31,24 @@ func (v *Video) Init(t <-chan []int, d <-chan []int, n string) {
 }
 
 func (v *Video) Render() {
+	buf := (*[512 * 480]int)(v.screen.Pixels)[:]
 	for {
 		select {
-		case d := <-v.debug:
-			copy((*[512 * 480]int)(v.screen.Pixels)[:], d)
-			v.screen.Flip()
-			// 60hz
-			// time.Sleep(16000000 * time.Nanosecond)
-			// time.Sleep(12000000 * time.Nanosecond)
 		case val := <-v.tick:
-			bigscreen := make([]int, 512*480)
 			for i := len(val) - 1; i >= 0; i-- {
-				y := int(math.Floor(float64(i / 256)))
+				y := i >> 8
 				x := i - (y * 256)
 
 				y *= 2
 				x *= 2
 
-				bigscreen[(y*512)+x] = val[i]
-				bigscreen[((y+1)*512)+x] = val[i]
-				bigscreen[(y*512)+(x+1)] = val[i]
-				bigscreen[((y+1)*512)+(x+1)] = val[i]
+				buf[(y*512)+x] = val[i]
+				buf[((y+1)*512)+x] = val[i]
+				buf[(y*512)+(x+1)] = val[i]
+				buf[((y+1)*512)+(x+1)] = val[i]
 			}
 
-			copy((*[512 * 480]int)(v.screen.Pixels)[:], bigscreen)
 			v.screen.Flip()
-			// 60hz
-			// time.Sleep(16000000 * time.Nanosecond)
 			time.Sleep(4000000 * time.Nanosecond)
 		}
 	}
