@@ -724,6 +724,12 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			xcoord = x + int(7-b)
 		}
 
+        // Don't wrap around if we're past the edge of the
+        // screen
+        if xcoord > 255 {
+            continue
+        }
+
 		fbRow := y*256 + xcoord
 
 		// Store the bit 0/1
