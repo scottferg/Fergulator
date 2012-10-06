@@ -51,7 +51,8 @@ func (m *Unrom) Write(v Word, a int) {
 }
 
 func (m *Cnrom) Write(v Word, a int) {
-	WriteVramBank(m.VromBanks, int(v&0x3), 0x0, Size8k)
+    bank := int(v&0x3)
+	WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
 }
 
 func LoadRom(rom []byte) (m Mapper, e error) {
