@@ -497,11 +497,20 @@ func (p *Ppu) WriteData(v Word) {
 func (p *Ppu) ReadData() (r Word, err error) {
 	// Reads from $2007 are buffered with a
 	// 1-byte delay
-	if p.VramAddress < 0x3F00 {
+	if p.VramAddress >= 0x2000 && p.VramAddress < 0x3000 {
+		r = p.VramDataBuffer
+		p.VramDataBuffer = p.Nametables.readNametableData(p.VramAddress)
+    } else if p.VramAddress < 0x3F00 {
 		r = p.VramDataBuffer
 		p.VramDataBuffer = p.Vram[p.VramAddress]
 	} else {
-		p.VramDataBuffer = p.Vram[p.VramAddress-0x1000]
+        bufferAddress := p.VramAddress-0x1000
+        switch {
+        case bufferAddress >= 0x2000 && bufferAddress < 0x3000:
+            p.VramDataBuffer = p.Nametables.readNametableData(bufferAddress)
+        default:
+            p.VramDataBuffer = p.Vram[bufferAddress]
+        }
 
         a := p.VramAddress
 		if a&0xF == 0 {
