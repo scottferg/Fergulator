@@ -76,6 +76,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Second controller
 * Scrolling and palettes on a number of MMC1 games
 * Save states for some MMC1 games
+* Some minor graphical glitches on screen boundary
 
 ## Next planned mappers
 
