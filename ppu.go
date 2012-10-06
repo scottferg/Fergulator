@@ -192,13 +192,6 @@ func (p *Ppu) Step() {
 				// Request NMI
 				cpu.RequestInterrupt(InterruptNmi)
 			}
-
-			// TODO: This should happen per scanline
-			if p.ShowSprites && (p.SpriteSize&0x1 == 0x1) {
-				for i := 0; i < 240; i++ {
-					p.evaluateScanlineSprites(i)
-				}
-			}
 			p.raster()
 		}
 	case p.Scanline == 260: // End of vblank
@@ -214,8 +207,7 @@ func (p *Ppu) Step() {
 				p.renderTileRow()
 			}
 
-			// TODO: Shouldn't have to do this
-			if p.ShowSprites && (p.SpriteSize&0x1 == 0) {
+			if p.ShowSprites {
 				p.evaluateScanlineSprites(p.Scanline)
 			}
 		} else if p.Cycle == 256 {
@@ -647,8 +639,12 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 	spriteCount := 0
 
 	for i, y := range p.SpriteData.YCoordinates {
-		// if p.Scanline - int(y)+1  >= 0 && p.Scanline - int(y)+1 < 8 {
-		if int(y) > (line-1)-8 && int(y)+7 < (line-1)+8 {
+        spriteHeight := 8
+        if p.SpriteSize&0x1 == 0x1 {
+            spriteHeight = 16
+        }
+
+		if int(y) > (line-1)-spriteHeight && int(y)+(spriteHeight-1) < (line-1)+spriteHeight {
 			attrValue := p.Attributes[i] & 0x3
 			t := p.SpriteData.Tiles[i]
 
@@ -664,7 +660,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 			yflip := (p.Attributes[i]>>7)&0x1 == 0x1
 			if yflip {
-				ycoord = int(p.YCoordinates[i]) + (7 - c)
+				ycoord = int(p.YCoordinates[i]) + ((spriteHeight-1) - c)
 			} else {
 				ycoord = int(p.YCoordinates[i]) + c + 1
 			}
@@ -674,30 +670,28 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 				s := p.sprPatternTableAddress(int(t))
 				var tile []Word
 
-				if yflip {
-					tile = p.Vram[s+16 : s+32]
-				} else {
-					tile = p.Vram[s : s+16]
-				}
+                top := p.Vram[s : s+16]
+                bottom := p.Vram[s+16 : s+32]
 
-				p.decodePatternTile([]Word{tile[c], tile[c+8]},
+                if c > 7 && yflip {
+                    tile = top
+                    ycoord += 8
+                } else if c < 8 && yflip {
+                    tile = bottom
+                    ycoord -= 8
+                } else if c > 7 {
+                    tile = bottom
+                } else {
+                    tile = top
+                }
+
+                sprite0 := i == 0
+
+				p.decodePatternTile([]Word{tile[c%8], tile[(c%8)+8]},
 					int(p.XCoordinates[i]),
 					ycoord,
 					p.sprPaletteEntry(uint(attrValue)),
-					&p.Attributes[i], i == 0)
-
-				// Next tile
-				if yflip {
-					tile = p.Vram[s : s+16]
-				} else {
-					tile = p.Vram[s+16 : s+32]
-				}
-
-				p.decodePatternTile([]Word{tile[c], tile[c+8]},
-					int(p.XCoordinates[i]),
-					ycoord+8,
-					p.sprPaletteEntry(uint(attrValue)),
-					&p.Attributes[i], i == 0)
+					&p.Attributes[i], sprite0)
 			} else {
 				// 8x8 Sprite
 				s := p.sprPatternTableAddress(int(t))
@@ -728,10 +722,6 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			xcoord = x + int(b)
 		} else {
 			xcoord = x + int(7-b)
-		}
-
-		if (*attr>>7)&0x1 == 0x1 {
-			// fmt.Printf("Y: %d\n", y)
 		}
 
 		fbRow := y*256 + xcoord

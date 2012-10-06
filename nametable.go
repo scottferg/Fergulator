@@ -42,15 +42,7 @@ func (n *Nametable) SetMirroring(m int) {
 }
 
 func (n *Nametable) writeNametableData(a int, v Word) {
-	if a >= 0x2000 && a < 0x2400 {
-		n.LogicalTables[0][a-0x2000] = v
-	} else if a >= 0x2400 && a < 0x2800 {
-		n.LogicalTables[1][a-0x2400] = v
-	} else if a >= 0x2800 && a < 0x2C00 {
-		n.LogicalTables[2][a-0x2800] = v
-	} else if a >= 0x2C00 && a < 0x3000 {
-		n.LogicalTables[3][a-0x2C00] = v
-	}
+    n.LogicalTables[(a&0xC00)>>10][a&0x3FF] = v
 }
 
 func (n *Nametable) readNametableData(a int) Word {
