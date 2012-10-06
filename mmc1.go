@@ -29,7 +29,6 @@ type Mmc1 struct {
 func (m *Mmc1) Write(v Word, a int) {
 	// If reset bit is set
 	if v&0x80 != 0 {
-		//fmt.Println("Resetting MMC")
 		m.BufferCounter = 0
 		m.Buffer = 0x0
 
@@ -52,7 +51,6 @@ func (m *Mmc1) Write(v Word, a int) {
 }
 
 func (m *Mmc1) SetRegister(reg int, v int) {
-	// fmt.Printf("Writing register %d: 0x%X\n", reg, v)
 	switch reg {
 	// Control register
 	case 0:
@@ -60,21 +58,16 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 		tmp := v & 0x3
 
 		if m.Mirroring != tmp {
-			fmt.Printf("Mapper: MMC1\n  Mirroring: ")
 			m.Mirroring = tmp
 			switch m.Mirroring {
 			case 0x0:
 				ppu.Nametables.SetMirroring(MirroringSingleUpper)
-				fmt.Println("Single Upper")
 			case 0x1:
 				ppu.Nametables.SetMirroring(MirroringSingleLower)
-				fmt.Println("Single Lower")
 			case 0x2:
 				ppu.Nametables.SetMirroring(MirroringVertical)
-				fmt.Println("Vertical")
 			case 0x3:
 				ppu.Nametables.SetMirroring(MirroringHorizontal)
-				fmt.Println("Horizontal")
 			}
 		}
 
@@ -84,29 +77,20 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 		case 0x1:
 			m.PrgBankSize = Size32k
 			m.PrgSwapBank = BankLower
-			//fmt.Printf("  PRG Swap Bank: Lower\n")
-			//fmt.Printf("  PRG Bank Size: 32k\n")
 		case 0x2:
 			m.PrgBankSize = Size16k
 			m.PrgSwapBank = BankUpper
-			//fmt.Printf("  PRG Swap Bank: Upper\n")
-			//fmt.Printf("  PRG Bank Size: 16k\n")
 		case 0x3:
 			m.PrgBankSize = Size16k
 			m.PrgSwapBank = BankLower
-			//fmt.Printf("  PRG Swap Bank: Lower\n")
-			//fmt.Printf("  PRG Bank Size: 16k\n")
 		}
 
-		//fmt.Printf("  CHR Bank Size: ")
 		// Set CHR bank size
 		switch (v >> 0x4) & 0x1 {
 		case 0x0:
 			m.ChrBankSize = Size8k
-			//fmt.Println("8k")
 		case 0x1:
 			m.ChrBankSize = Size4k
-			//fmt.Println("4k")
 		}
 		// CHR Bank 0
 	case 1:
@@ -114,14 +98,12 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			return
 		}
 
-		//fmt.Printf("CHR Bank 0 -> ")
 		// Select VROM at 0x0000
 		switch m.ChrBankSize {
 		case Size8k:
 			// Swap 8k VROM (in 8k mode, ignore first bit D0)
 			bank := v & 0xF
 
-			//fmt.Printf("8k CHR write to: %d\n", bank)
 			WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
 			WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
 		case Size4k:
@@ -133,7 +115,6 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			} else {
 				bank = v & 0xF
 			}
-			//fmt.Printf("4k CHR write to: %d\n", bank)
 			WriteVramBank(m.VromBanks, bank, 0x0, Size4k)
 		}
 		// CHR Bank 1
@@ -142,8 +123,6 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			return
 		}
 
-		//fmt.Printf("Value: 0x%X\n", v)
-		//fmt.Printf("CHR Bank 1 -> ")
 		// Select VROM bank at 0x1000, ignored in
 		// 8k switching mode
 		if m.ChrBankSize == Size4k {
@@ -154,7 +133,6 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			} else {
 				bank = v & 0xF
 			}
-			//fmt.Printf("4k CHR write to: %d\n", bank)
 			WriteVramBank(m.VromBanks, bank, 0x1000, Size4k)
 		}
 		// PRG Bank
@@ -178,10 +156,8 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			bank := v & 0xF
 
 			if m.PrgSwapBank == BankUpper {
-				// fmt.Printf("16k PRG UPPER write to: %d\n", bank)
 				WriteRamBank(m.RomBanks, bank, 0xC000, Size16k)
 			} else {
-				// fmt.Printf("16k PRG LOWER write to: %d\n", bank)
 				WriteRamBank(m.RomBanks, bank, 0x8000, Size16k)
 			}
 		}
