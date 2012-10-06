@@ -322,7 +322,7 @@ func (p *Ppu) WriteControl(v Word) {
 	p.SpriteSize = (v >> 5) & 0x01
 	p.NmiOnVblank = (v >> 7) & 0x01
 
-	p.VramLatch = (p.VramLatch & 0xF3FF) | ((int(v) & 0x03) << 10)
+	p.VramLatch = (p.VramLatch & 0xF3FF) | (int(p.BaseNametableAddress) << 10)
 }
 
 // $2001
