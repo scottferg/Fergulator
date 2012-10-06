@@ -157,19 +157,10 @@ func (p *Ppu) PpuRegWrite(v Word, a int) {
 // Writes to mirrored regions of VRAM
 func (p *Ppu) writeMirroredVram(a int, v Word) {
 	if a >= 0x3F00 {
-		base := a & 0x1F // 0b11111
-
-		if base == 0x0 || base == 0x10 {
-			p.PaletteRam[0x10] = v
-			p.PaletteRam[0x00] = v
-		} else {
-			p.PaletteRam[base] = v
+		if a&0xF == 0 {
+			a = 0
 		}
-
-		p.PaletteRam[0x10] = p.PaletteRam[0x0]
-		p.PaletteRam[0x14] = p.PaletteRam[0x4]
-		p.PaletteRam[0x18] = p.PaletteRam[0x8]
-		p.PaletteRam[0x1C] = p.PaletteRam[0xC]
+		p.PaletteRam[a&0x1F] = v
 	} else {
 		p.Nametables.writeNametableData(a-0x1000, v)
 	}
@@ -503,15 +494,26 @@ func (p *Ppu) WriteData(v Word) {
 }
 
 // $2007
-func (p *Ppu) ReadData() (Word, error) {
+func (p *Ppu) ReadData() (r Word, err error) {
 	// Reads from $2007 are buffered with a
 	// 1-byte delay
-	tmp := p.VramDataBuffer
-	p.VramDataBuffer = p.Vram[p.VramAddress]
+	if p.VramAddress < 0x3F00 {
+		r = p.VramDataBuffer
+		p.VramDataBuffer = p.Vram[p.VramAddress]
+	} else {
+		p.VramDataBuffer = p.Vram[p.VramAddress-0x1000]
+
+        a := p.VramAddress
+		if a&0xF == 0 {
+			a = 0
+		}
+
+		r = p.PaletteRam[a&0x1F]
+	}
 
 	p.incrementVramAddress()
 
-	return tmp, nil
+	return
 }
 
 func (p *Ppu) incrementVramAddress() {
