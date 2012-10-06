@@ -31,7 +31,7 @@ func (v *Video) Init(t <-chan []int, d <-chan []int, n string) {
 }
 
 func (v *Video) Render() {
-	buf := (*[512 * 480]int)(v.screen.Pixels)[:]
+	buf := (*[512 * 480]int32)(v.screen.Pixels)[:]
 	for {
 		select {
 		case val := <-v.tick:
@@ -42,10 +42,10 @@ func (v *Video) Render() {
 				y *= 2
 				x *= 2
 
-				buf[(y*512)+x] = val[i]
-				buf[((y+1)*512)+x] = val[i]
-				buf[(y*512)+(x+1)] = val[i]
-				buf[((y+1)*512)+(x+1)] = val[i]
+				buf[(y*512)+x] = int32(val[i])
+				buf[((y+1)*512)+x] = int32(val[i])
+				buf[(y*512)+(x+1)] = int32(val[i])
+				buf[((y+1)*512)+(x+1)] = int32(val[i])
 			}
 
 			v.screen.Flip()
