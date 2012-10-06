@@ -16,13 +16,13 @@ func verifyMirroredValue(a int, v Word, test *testing.T) {
 
 func TestVerticalToHorizontal(test *testing.T) {
 	rom = &Mmc1{
-		RomBanks:      make([][]Word, 16),
-		VromBanks:     make([][]Word, 16),
-		PrgBankCount:  8,
-		ChrRomCount:   8,
-		BatteryBacked: false,
-		Data:          make([]byte, 32),
-		PrgSwapBank:   BankLower,
+		RomBanks:     make([][]Word, 16),
+		VromBanks:    make([][]Word, 16),
+		PrgBankCount: 8,
+		ChrRomCount:  8,
+		Battery:      false,
+		Data:         make([]byte, 32),
+		PrgSwapBank:  BankLower,
 	}
 
 	ppu.Init()
@@ -99,13 +99,13 @@ func TestVerticalToHorizontal(test *testing.T) {
 
 func TestHorizontalToVertical(test *testing.T) {
 	rom = &Mmc1{
-		RomBanks:      make([][]Word, 16),
-		VromBanks:     make([][]Word, 16),
-		PrgBankCount:  8,
-		ChrRomCount:   8,
-		BatteryBacked: false,
-		Data:          make([]byte, 32),
-		PrgSwapBank:   BankLower,
+		RomBanks:     make([][]Word, 16),
+		VromBanks:    make([][]Word, 16),
+		PrgBankCount: 8,
+		ChrRomCount:  8,
+		Battery:      false,
+		Data:         make([]byte, 32),
+		PrgSwapBank:  BankLower,
 	}
 
 	ppu.Init()
