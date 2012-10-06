@@ -46,6 +46,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Bionic Commando
 * Blaster Master
 * Double Dragon
+* Final Fantasy
 * Legend of Zelda
 * Metroid
 * Tetris
