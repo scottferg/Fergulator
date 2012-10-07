@@ -41,6 +41,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * UNROM
 * CNROM
 * MMC1
+* MMC3
 
 ## Tested games that run well or are playable
 
