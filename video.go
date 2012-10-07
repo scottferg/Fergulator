@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
+	"github.com/0xe2-0x9a-0x9b/Go-SDL/gfx"
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 	"log"
-	"time"
 )
 
 type Video struct {
-	screen *sdl.Surface
-	tick   <-chan []int
-	debug  <-chan []int
+	screen     *sdl.Surface
+	fpsmanager *gfx.FPSmanager
+	tick       <-chan []int
+	debug      <-chan []int
 }
 
 func (v *Video) Init(t <-chan []int, d <-chan []int, n string) {
@@ -25,6 +26,9 @@ func (v *Video) Init(t <-chan []int, d <-chan []int, n string) {
 	}
 
 	sdl.WM_SetCaption(fmt.Sprintf("Fergulator - %s", n), "")
+
+	v.fpsmanager = gfx.NewFramerate()
+	v.fpsmanager.SetFramerate(60)
 
 	v.tick = t
 	v.debug = d
@@ -49,7 +53,7 @@ func (v *Video) Render() {
 			}
 
 			v.screen.Flip()
-			time.Sleep(4000000 * time.Nanosecond)
+			v.fpsmanager.FramerateDelay()
 		}
 	}
 }
