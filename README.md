@@ -75,6 +75,11 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Mega Man 2
 * Metal Gear
 * Prince of Persia
+* A Boy and His Blob
+* Snake Rattle 'n' Roll
+* Bart vs. The Space Mutants
+* Kid Icarus
+* Mighty Bomb Jack
 
 ## What isn't working
 

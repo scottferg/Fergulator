@@ -28,7 +28,7 @@ func (v *Video) Init(t <-chan []int, d <-chan []int, n string) {
 	sdl.WM_SetCaption(fmt.Sprintf("Fergulator - %s", n), "")
 
 	v.fpsmanager = gfx.NewFramerate()
-	v.fpsmanager.SetFramerate(60)
+	v.fpsmanager.SetFramerate(70)
 
 	v.tick = t
 	v.debug = d
