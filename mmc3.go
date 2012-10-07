@@ -155,10 +155,10 @@ func (m *Mmc3) BankData(v int) {
     loadHardBanks := func() {
 		if m.AddressChanged {
             if m.PrgBankMode == PrgBankSwapModeLow {
-                fmt.Println("Changed address high")
+                //fmt.Println("Changed address high")
                 m.Write8kRamBank((m.PrgBankCount - 1) * 2, 0xC000)
             } else {
-                fmt.Println("Changed address low")
+                //fmt.Println("Changed address low")
                 m.Write8kRamBank((m.PrgBankCount - 1) * 2, 0x8000)
             }
 
@@ -253,14 +253,14 @@ func (m *Mmc3) BankData(v int) {
         loadHardBanks()
 
 		if m.PrgBankMode == PrgBankSwapModeLow {
-			fmt.Printf("0x%X: Low mode PRG switch on bank -> %d\n", ProgramCounter, v)
+			// fmt.Printf("0x%X: Low mode PRG switch on bank -> %d\n", ProgramCounter, v)
             m.Write8kRamBank(v, 0x8000)
 		} else {
-			fmt.Printf("0x%X: High mode PRG switch on bank -> %d\n", ProgramCounter, v)
+			// fmt.Printf("0x%X: High mode PRG switch on bank -> %d\n", ProgramCounter, v)
             m.Write8kRamBank(v, 0xC000)
 		}
 	case PrgBank8kA000:
-		fmt.Printf("0x%X: 8k 0xA000 PRG switch on bank -> %d\n", ProgramCounter, v)
+		// fmt.Printf("0x%X: 8k 0xA000 PRG switch on bank -> %d\n", ProgramCounter, v)
 		m.Write8kRamBank(v, 0xA000)
 
         loadHardBanks()
@@ -304,8 +304,8 @@ func (m *Mmc3) Write8kRamBank(bank, dest int) {
     b := (bank / 2) % m.PrgBankCount
     offset := (bank%2) * 0x2000
 
-    fmt.Printf("Updating bank at: 0x%X\n", dest)
-    fmt.Printf("Upper 8k offset: %d\n", offset)
+    //fmt.Printf("Updating bank at: 0x%X\n", dest)
+    //fmt.Printf("Upper 8k offset: %d\n", offset)
 
 	WriteOffsetRamBank(m.RomBanks, b, dest, Size8k, offset)
 }

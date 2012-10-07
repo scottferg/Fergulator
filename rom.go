@@ -34,20 +34,14 @@ type Cnrom Rom
 
 func WriteRamBank(rom [][]Word, bank, dest, size int) {
 	for i := 0; i < size; i++ {
-        if i+dest == 0xB59C {
-            fmt.Println("Write to target")
-        }
 		Ram[i+dest] = rom[bank][i]
 	}
 }
 
 // Used by MMC3 for selecting 8kb chunks of a PRG-ROM bank
 func WriteOffsetRamBank(rom [][]Word, bank, dest, size, offset int) {
-	for i := offset; i < size; i++ {
-        if i+dest == 0xB59C {
-            fmt.Println("Write to target")
-        }
-		Ram[i+dest] = rom[bank][i]
+	for i := 0; i < size; i++ {
+		Ram[i+dest] = rom[bank][i+offset]
 	}
 }
 
@@ -58,8 +52,8 @@ func WriteVramBank(rom [][]Word, bank, dest, size int) {
 }
 
 func WriteOffsetVramBank(rom [][]Word, bank, dest, size, offset int) {
-	for i := offset; i < size; i++ {
-		ppu.Vram[i+dest] = rom[bank][i]
+	for i := 0; i < size; i++ {
+		ppu.Vram[i+dest] = rom[bank][i+offset]
 	}
 }
 
