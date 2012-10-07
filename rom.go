@@ -60,8 +60,9 @@ func (m *Unrom) BatteryBacked() bool {
 }
 
 func (m *Cnrom) Write(v Word, a int) {
-	bank := int(v & 0x3)
+	bank := int(v & 0x3) * 2
 	WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
+	WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
 }
 
 func (m *Cnrom) BatteryBacked() bool {
