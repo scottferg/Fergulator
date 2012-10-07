@@ -45,6 +45,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 ## Tested games that run well or are playable
 
 * Super Mario Bros
+* Super Mario Bros 2
 * Contra
 * Bionic Commando
 * Blaster Master
@@ -73,6 +74,8 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Lode Runner
 * Mega Man
 * Mega Man 2
+* Mega Man 4
+* Mega Man 6
 * Metal Gear
 * Prince of Persia
 * A Boy and His Blob
