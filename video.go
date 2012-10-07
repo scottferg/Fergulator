@@ -15,7 +15,7 @@ type Video struct {
 }
 
 func (v *Video) Init(t <-chan []int, d <-chan []int, n string) {
-	if sdl.Init(sdl.INIT_EVERYTHING) != 0 {
+	if sdl.Init(sdl.INIT_VIDEO) != 0 {
 		log.Fatal(sdl.GetError())
 	}
 
