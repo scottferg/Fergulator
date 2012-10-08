@@ -7,6 +7,7 @@ import (
 	"github.com/jteeuwen/glfw"
 	"os"
 	"runtime"
+	"math"
 )
 
 type Video struct {
@@ -18,7 +19,23 @@ type Video struct {
 
 func reshape(width int, height int) {
 
-	gl.Viewport(0, 0, width, height)
+	x_offset := 0
+	y_offset := 0
+
+	r := ((float64) (height)) / ((float64) (width));
+
+	if (r > 0.9375)  { // Height taller than ratio
+		h := (int)(math.Floor((float64)(0.9375 * (float64) (width))))
+		y_offset = (height - h)/2
+		height = h;
+	} else if (r < 0.9375) { // Width wider
+		w := (int)(math.Floor((float64)((256.0/240.0) * (float64) (height))))
+		x_offset = (width - w)/2
+		width = w;
+	}
+
+
+	gl.Viewport(x_offset, y_offset, width, height)
 	gl.MatrixMode(gl.PROJECTION)
 	gl.LoadIdentity()
 	gl.Ortho(-1, 1, -1, 1, -1, 1)
