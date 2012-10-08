@@ -109,6 +109,12 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			bank := v & 0xF
 			bank %= m.ChrRomCount
 
+			if v&0x10 == 0x10 {
+				bank = (len(m.VromBanks) / 2) + (v & 0xF)
+			} else {
+				bank = v & 0xF
+			}
+
 			WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
 			WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
 		case Size4k:

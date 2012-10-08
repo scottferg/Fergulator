@@ -88,6 +88,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Kid Icarus
 * Mighty Bomb Jack
 * Bubble Bobble
+* Adventures of Link
 
 ## What isn't working
 
