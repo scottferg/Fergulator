@@ -47,50 +47,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 
 ## Tested games that run well or are playable
 
-* Super Mario Bros
-* Super Mario Bros 2
-* Contra
-* Bionic Commando
-* Blaster Master
-* Double Dragon
-* Final Fantasy
-* Tecmo Bowl
-* Ninja Gaiden
-* Legend of Zelda
-* Metroid
-* Tetris
-* Balloon Fight
-* Adventure Island
-* Castlevania
-* Castlevania 2
-* Dig Dug
-* Donkey Kong
-* Donkey Kong Jr.
-* Duck Tales
-* Duck Tales 2
-* Excitebike
-* Galaga
-* Gun Smoke
-* Hydlide
-* Ice Climber
-* Ice Hockey
-* Kung Fu
-* Lode Runner
-* Mega Man
-* Mega Man 2
-* Mega Man 3
-* Mega Man 4
-* Mega Man 5
-* Mega Man 6
-* Metal Gear
-* Prince of Persia
-* A Boy and His Blob
-* Snake Rattle 'n' Roll
-* Bart vs. The Space Mutants
-* Kid Icarus
-* Mighty Bomb Jack
-* Bubble Bobble
-* Adventures of Link
+[List is in the wiki](https://github.com/scottferg/Fergulator/wiki/Tested-Games)
 
 ## What isn't working
 
@@ -102,6 +59,5 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 
 ## Next planned mappers
 
-* MMC3
 * MMC5
 * MMC2
