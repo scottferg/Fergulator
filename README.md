@@ -84,6 +84,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Bart vs. The Space Mutants
 * Kid Icarus
 * Mighty Bomb Jack
+* Bubble Bobble
 
 ## What isn't working
 
