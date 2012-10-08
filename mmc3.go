@@ -311,8 +311,11 @@ func (m *Mmc3) Write8kRamBank(bank, dest int) {
 }
 
 func (m *Mmc3) Write1kVramBank(bank, dest int) {
-	b := (bank / 4) % m.ChrRomCount
+	b := (bank / 4)
 	offset := (bank % 4) * 0x400
+
+	//fmt.Printf("Updating bank: %d\n", b)
+	//fmt.Printf("Upper 1k offset: %d\n", offset)
 
 	WriteOffsetVramBank(m.VromBanks, b, dest, Size1k, offset)
 }
