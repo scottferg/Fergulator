@@ -2,15 +2,18 @@ package main
 
 import (
 	"fmt"
+	"github.com/0xe2-0x9a-0x9b/Go-SDL/gfx"
 	"github.com/banthar/gl"
 	"github.com/jteeuwen/glfw"
 	"os"
+	"runtime"
 )
 
 type Video struct {
-	tick  <-chan []uint32
-	debug <-chan []uint32
-	tex gl.Texture
+	tick       <-chan []uint32
+	debug      <-chan []uint32
+	fpsmanager *gfx.FPSmanager
+	tex        gl.Texture
 }
 
 func reshape(width int, height int) {
@@ -18,7 +21,7 @@ func reshape(width int, height int) {
 	gl.Viewport(0, 0, width, height)
 	gl.MatrixMode(gl.PROJECTION)
 	gl.LoadIdentity()
-	gl.Ortho(-1, 1, -1, 1, -1, 1);
+	gl.Ortho(-1, 1, -1, 1, -1, 1)
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.LoadIdentity()
 	gl.Disable(gl.DEPTH_TEST)
@@ -49,9 +52,12 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 
 	gl.Enable(gl.TEXTURE_2D)
 
-	glfw.SetWindowTitle("FergulatorGL")
+    v.fpsmanager = gfx.NewFramerate()
+    v.fpsmanager.SetFramerate(70)
+
+	glfw.SetWindowTitle(fmt.Sprintf("Fergulator - %s", n))
 	glfw.SetWindowSizeCallback(reshape)
-	glfw.SetWindowCloseCallback(quit_event)	
+	glfw.SetWindowCloseCallback(quit_event)
 	glfw.SetKeyCallback(KeyListener)
 	reshape(512, 480)
 
@@ -60,43 +66,38 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 }
 
 func (v *Video) Render() {
+	runtime.LockOSThread()
+
 	for {
 		select {
-		/*case d := <-v.debug:*/
-		// 60hz
-		// time.Sleep(16000000 * time.Nanosecond)
-		// time.Sleep(12000000 * time.Nanosecond)
 		case val := <-v.tick:
-			// 60hz
-			// time.Sleep(16000000 * time.Nanosecond)
-			// time.Sleep(4000000 * time.Nanosecond)
-
-			slice := make([]uint8, len(val) * 3)
-			for i := 0; i < len(val); i = i+1 {
-				slice[i * 3 + 0] = (uint8)((val[i] >> 16) & 0xff)
-				slice[i * 3 + 1] = (uint8)((val[i] >> 8) & 0xff)
-				slice[i * 3 + 2] = (uint8)((val[i]) & 0xff)
-			} 
+			slice := make([]uint8, len(val)*3)
+			for i := 0; i < len(val); i = i + 1 {
+				slice[i*3+0] = (uint8)((val[i] >> 16) & 0xff)
+				slice[i*3+1] = (uint8)((val[i] >> 8) & 0xff)
+				slice[i*3+2] = (uint8)((val[i]) & 0xff)
+			}
 
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-			v.tex.Bind(gl.TEXTURE_2D);
+			v.tex.Bind(gl.TEXTURE_2D)
 			gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 256, 240, 0, gl.RGB, gl.UNSIGNED_BYTE, slice)
-			gl.TexParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
-			gl.TexParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST)
+			gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+			gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 
 			gl.Begin(gl.QUADS)
 			gl.TexCoord2f(0.0, 1.0)
-			gl.Vertex3f(-1.0, -1.0,  0.0)
+			gl.Vertex3f(-1.0, -1.0, 0.0)
 			gl.TexCoord2f(1.0, 1.0)
-			gl.Vertex3f( 1.0, -1.0,  0.0)
+			gl.Vertex3f(1.0, -1.0, 0.0)
 			gl.TexCoord2f(1.0, 0.0)
-			gl.Vertex3f( 1.0,  1.0,  0.0)
+			gl.Vertex3f(1.0, 1.0, 0.0)
 			gl.TexCoord2f(0.0, 0.0)
-			gl.Vertex3f(-1.0,  1.0,  0.0)			
+			gl.Vertex3f(-1.0, 1.0, 0.0)
 			gl.End()
 
 			glfw.SwapBuffers()
+			v.fpsmanager.FramerateDelay()
 		}
 	}
 }
