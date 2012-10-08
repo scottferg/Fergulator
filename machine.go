@@ -209,7 +209,6 @@ func main() {
 	video.Init(v, d, gamename)
 	defer video.Close()
 
-	go JoypadListen()
 	go video.Render()
 
 	for running {

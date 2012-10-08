@@ -1,7 +1,21 @@
 package main
 
 import (
-	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
+	"github.com/jteeuwen/glfw"
+)
+
+const (
+	A = 90
+	B = 88
+	SELECT = glfw.KeyRshift
+	START = glfw.KeyEnter
+	UP = glfw.KeyUp
+	LEFT = glfw.KeyLeft
+	DOWN = glfw.KeyDown
+	RIGHT = glfw.KeyRight
+	RESET = 82
+	SAVE = 83
+	LOAD = 76
 )
 
 type Controller struct {
@@ -10,32 +24,32 @@ type Controller struct {
 	LastWrite   Word
 }
 
-func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word) {
-	switch k.Keysym.Sym {
-	case sdl.K_z: // A
+func (c *Controller) SetButtonState(k int, v Word) {
+	switch (k) {
+	case A: // A
 		c.ButtonState[0] = v
-	case sdl.K_x: // B
+	case B: // B
 		c.ButtonState[1] = v
-	case sdl.K_RSHIFT: // Select
+	case SELECT: // Select
 		c.ButtonState[2] = v
-	case sdl.K_RETURN: // Start
+	case START: // Start
 		c.ButtonState[3] = v
-	case sdl.K_UP: // Up
+	case UP: // Up
 		c.ButtonState[4] = v
-	case sdl.K_DOWN: // Down
+	case DOWN: // Down
 		c.ButtonState[5] = v
-	case sdl.K_LEFT: // Left
+	case LEFT: // Left
 		c.ButtonState[6] = v
-	case sdl.K_RIGHT: // Right
+	case RIGHT: // Right
 		c.ButtonState[7] = v
 	}
 }
 
-func (c *Controller) KeyDown(e sdl.KeyboardEvent) {
+func (c *Controller) KeyDown(e int) {
 	c.SetButtonState(e, 0x41)
 }
 
-func (c *Controller) KeyUp(e sdl.KeyboardEvent) {
+func (c *Controller) KeyUp(e int) {
 	c.SetButtonState(e, 0x40)
 }
 
@@ -71,41 +85,21 @@ func (c *Controller) Init() {
 	}
 }
 
-func JoypadListen() {
-	for {
-		select {
-		case ev := <-sdl.Events:
-			switch e := ev.(type) {
-			case sdl.QuitEvent:
+func KeyListener(key, state int) {
+	if (state == glfw.KeyPress) {
+		switch key  {
+			case glfw.KeyEsc:
 				running = false
-			case sdl.KeyboardEvent:
-				switch e.Keysym.Sym {
-				case sdl.K_ESCAPE:
-					running = false
-				case sdl.K_r:
-					// Trigger reset interrupt
-					if e.Type == sdl.KEYDOWN {
-						cpu.RequestInterrupt(InterruptReset)
-					}
-				case sdl.K_l:
-					if e.Type == sdl.KEYDOWN {
-						// Trigger reset interrupt
-						LoadState()
-					}
-				case sdl.K_s:
-					if e.Type == sdl.KEYDOWN {
-						// Trigger reset interrupt
-						SaveState()
-					}
-				}
-
-				switch e.Type {
-				case sdl.KEYDOWN:
-					controller.KeyDown(e)
-				case sdl.KEYUP:
-					controller.KeyUp(e)
-				}
-			}
+			case RESET:
+				cpu.RequestInterrupt(InterruptReset)
+			case LOAD:
+				LoadState()
+			case SAVE:
+				SaveState()
+			default:
+				controller.KeyDown(key)
 		}
+	} else {
+		controller.KeyUp(key)
 	}
 }
