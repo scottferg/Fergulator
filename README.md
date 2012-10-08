@@ -41,10 +41,12 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * UNROM
 * CNROM
 * MMC1
+* MMC3
 
 ## Tested games that run well or are playable
 
 * Super Mario Bros
+* Super Mario Bros 2
 * Contra
 * Bionic Commando
 * Blaster Master
@@ -63,6 +65,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Donkey Kong
 * Donkey Kong Jr.
 * Duck Tales
+* Duck Tales 2
 * Excitebike
 * Galaga
 * Gun Smoke
@@ -73,6 +76,10 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Lode Runner
 * Mega Man
 * Mega Man 2
+* Mega Man 3
+* Mega Man 4
+* Mega Man 5
+* Mega Man 6
 * Metal Gear
 * Prince of Persia
 * A Boy and His Blob
@@ -80,6 +87,8 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Bart vs. The Space Mutants
 * Kid Icarus
 * Mighty Bomb Jack
+* Bubble Bobble
+* Adventures of Link
 
 ## What isn't working
 

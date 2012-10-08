@@ -72,7 +72,6 @@ func (m *Memory) Write(address interface{}, val Word) error {
 			rom.Write(val, a)
 			return nil
 		} else if a >= 0x6000 && a < 0x8000 {
-			// TODO: Save to a file
 			m[a] = val
 		} else {
 			m[a] = val

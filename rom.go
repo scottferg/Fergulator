@@ -6,6 +6,7 @@ import (
 )
 
 const (
+	Size1k  = 0x0400
 	Size4k  = 0x1000
 	Size8k  = 0x2000
 	Size16k = 0x4000
@@ -37,9 +38,22 @@ func WriteRamBank(rom [][]Word, bank, dest, size int) {
 	}
 }
 
+// Used by MMC3 for selecting 8kb chunks of a PRG-ROM bank
+func WriteOffsetRamBank(rom [][]Word, bank, dest, size, offset int) {
+	for i := 0; i < size; i++ {
+		Ram[i+dest] = rom[bank][i+offset]
+	}
+}
+
 func WriteVramBank(rom [][]Word, bank, dest, size int) {
 	for i := 0; i < size; i++ {
 		ppu.Vram[i+dest] = rom[bank][i]
+	}
+}
+
+func WriteOffsetVramBank(rom [][]Word, bank, dest, size, offset int) {
+	for i := 0; i < size; i++ {
+		ppu.Vram[i+dest] = rom[bank][i+offset]
 	}
 }
 
@@ -60,7 +74,7 @@ func (m *Unrom) BatteryBacked() bool {
 }
 
 func (m *Cnrom) Write(v Word, a int) {
-	bank := int(v & 0x3) * 2
+	bank := int(v&0x3) * 2
 	WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
 	WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
 }
@@ -200,6 +214,10 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 			Battery:      r.Battery,
 			Data:         r.Data,
 		}
+	case 0x04:
+		// MMC3
+		fmt.Printf("MMC3\n")
+		m = NewMmc3(r)
 	default:
 		// Unsupported
 		fmt.Printf("Unsupported\n")
