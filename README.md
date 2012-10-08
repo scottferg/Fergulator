@@ -65,6 +65,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Donkey Kong
 * Donkey Kong Jr.
 * Duck Tales
+* Duck Tales 2
 * Excitebike
 * Galaga
 * Gun Smoke
