@@ -52,8 +52,8 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 
 	gl.Enable(gl.TEXTURE_2D)
 
-    v.fpsmanager = gfx.NewFramerate()
-    v.fpsmanager.SetFramerate(70)
+	v.fpsmanager = gfx.NewFramerate()
+	v.fpsmanager.SetFramerate(70)
 
 	glfw.SetWindowTitle(fmt.Sprintf("Fergulator - %s", n))
 	glfw.SetWindowSizeCallback(reshape)
