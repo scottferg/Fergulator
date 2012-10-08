@@ -28,7 +28,7 @@ type Flags struct {
 }
 
 type Pixel struct {
-	Color int
+	Color int32
 	Value int
 }
 
@@ -71,9 +71,9 @@ type Ppu struct {
 	AttributeShift    [0x400]uint
 
 	Palettebuffer []Pixel
-	Framebuffer   []int
+	Framebuffer   []int32
 
-	Output      chan []int
+	Output      chan []int32
 	Cycle       int
 	Scanline    int
 	Timestamp   int
@@ -85,9 +85,9 @@ type Ppu struct {
 	SuppressVbl bool
 }
 
-func (p *Ppu) Init() (chan []int, chan []int) {
+func (p *Ppu) Init() (chan []int32, chan []int32) {
 	p.WriteLatch = true
-	p.Output = make(chan []int)
+	p.Output = make(chan []int32)
 
 	p.Cycle = 0
 	p.Scanline = -1
@@ -110,7 +110,7 @@ func (p *Ppu) Init() (chan []int, chan []int) {
 	}
 
 	p.Palettebuffer = make([]Pixel, 0xF000)
-	p.Framebuffer = make([]int, 0xF000)
+	p.Framebuffer = make([]int32, 0xF000)
 
 	return p.Output, nil
 }
@@ -169,7 +169,7 @@ func (p *Ppu) raster() {
 		y := int(math.Floor(float64(i / 256)))
 		x := i - (y * 256)
 
-		var color int
+		var color int32
 		color = p.Palettebuffer[i].Color
 		p.Framebuffer[(y*256)+x] = color
 		p.Palettebuffer[i].Value = 0
