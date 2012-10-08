@@ -76,7 +76,9 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * Lode Runner
 * Mega Man
 * Mega Man 2
+* Mega Man 3
 * Mega Man 4
+* Mega Man 5
 * Mega Man 6
 * Metal Gear
 * Prince of Persia
