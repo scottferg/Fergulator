@@ -24,6 +24,11 @@ func reshape(width int, height int) {
 	gl.Disable(gl.DEPTH_TEST)
 }
 
+func quit_event() int {
+	running = false
+	return 0
+}
+
 func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 	v.tick = t
 	v.debug = d
@@ -46,6 +51,8 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 
 	glfw.SetWindowTitle("FergulatorGL")
 	glfw.SetWindowSizeCallback(reshape)
+	glfw.SetWindowCloseCallback(quit_event)	
+	glfw.SetKeyCallback(KeyListener)
 	reshape(512, 480)
 
 	v.tex = gl.GenTexture()
