@@ -5,17 +5,18 @@ import (
 )
 
 const (
-	A = 90
-	B = 88
-	SELECT = glfw.KeyRshift
-	START = glfw.KeyEnter
-	UP = glfw.KeyUp
-	LEFT = glfw.KeyLeft
-	DOWN = glfw.KeyDown
-	RIGHT = glfw.KeyRight
-	RESET = 82
-	SAVE = 83
-	LOAD = 76
+	A      = 90
+	B      = 88
+	Select = glfw.KeyRshift
+	Start  = glfw.KeyEnter
+	Up     = glfw.KeyUp
+	Left   = glfw.KeyLeft
+	Down   = glfw.KeyDown
+	Right  = glfw.KeyRight
+
+	KeyEventReset = 82
+	KeyEventSave  = 83
+	KeyEventLoad  = 76
 )
 
 type Controller struct {
@@ -25,22 +26,22 @@ type Controller struct {
 }
 
 func (c *Controller) SetButtonState(k int, v Word) {
-	switch (k) {
+	switch k {
 	case A: // A
 		c.ButtonState[0] = v
 	case B: // B
 		c.ButtonState[1] = v
-	case SELECT: // Select
+	case Select: // Select
 		c.ButtonState[2] = v
-	case START: // Start
+	case Start: // Start
 		c.ButtonState[3] = v
-	case UP: // Up
+	case Up: // Up
 		c.ButtonState[4] = v
-	case DOWN: // Down
+	case Down: // Down
 		c.ButtonState[5] = v
-	case LEFT: // Left
+	case Left: // Left
 		c.ButtonState[6] = v
-	case RIGHT: // Right
+	case Right: // Right
 		c.ButtonState[7] = v
 	}
 }
@@ -86,18 +87,18 @@ func (c *Controller) Init() {
 }
 
 func KeyListener(key, state int) {
-	if (state == glfw.KeyPress) {
-		switch key  {
-			case glfw.KeyEsc:
-				running = false
-			case RESET:
-				cpu.RequestInterrupt(InterruptReset)
-			case LOAD:
-				LoadState()
-			case SAVE:
-				SaveState()
-			default:
-				controller.KeyDown(key)
+	if state == glfw.KeyPress {
+		switch key {
+		case glfw.KeyEsc:
+			running = false
+		case KeyEventReset:
+			cpu.RequestInterrupt(InterruptReset)
+		case KeyEventLoad:
+			LoadState()
+		case KeyEventSave:
+			SaveState()
+		default:
+			controller.KeyDown(key)
 		}
 	} else {
 		controller.KeyUp(key)

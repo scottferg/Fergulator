@@ -209,15 +209,20 @@ func main() {
 	video.Init(v, d, gamename)
 	defer video.Close()
 
-	go video.Render()
+    // Main runloop, in a separate goroutine so that
+    // the video rendering can happen on this one
+	go func() {
+		for running {
+			cycles := cpu.Step()
 
-	for running {
-		cycles := cpu.Step()
-
-		for i := 0; i < 3*cycles; i++ {
-			ppu.Step()
+			for i := 0; i < 3*cycles; i++ {
+				ppu.Step()
+			}
 		}
-	}
+	}()
+
+	// This needs to happen on the main thread for OSX
+	video.Render()
 
 	return
 }
