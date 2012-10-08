@@ -8,26 +8,23 @@ import (
 )
 
 type Video struct {
-	tick  <-chan []int32
-	debug <-chan []int32
-	textures []gl.Texture
+	tick  <-chan []uint32
+	debug <-chan []uint32
+	tex gl.Texture
 }
 
 func reshape(width int, height int) {
 
-	h := float64(height) / float64(width)
-
 	gl.Viewport(0, 0, width, height)
-
 	gl.MatrixMode(gl.PROJECTION)
 	gl.LoadIdentity()
-	gl.Frustum(-1.0, 1.0, -h, h, 5.0, 60.0)
+	gl.Ortho(-1, 1, -1, 1, -1, 1);
 	gl.MatrixMode(gl.MODELVIEW)
 	gl.LoadIdentity()
-	gl.Translatef(0.0, 0.0, -40.0)
+	gl.Disable(gl.DEPTH_TEST)
 }
 
-func (v *Video) Init(t <-chan []int32, d <-chan []int32, n string) {
+func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 	v.tick = t
 	v.debug = d
 
@@ -36,7 +33,7 @@ func (v *Video) Init(t <-chan []int32, d <-chan []int32, n string) {
 		return
 	}
 
-	if err := glfw.OpenWindow(300, 300, 0, 0, 0, 0, 0, 0, glfw.Windowed); err != nil {
+	if err := glfw.OpenWindow(512, 480, 0, 0, 0, 0, 0, 0, glfw.Windowed); err != nil {
 		fmt.Fprintf(os.Stderr, "[e] %v\n", err)
 		return
 	}
@@ -45,9 +42,13 @@ func (v *Video) Init(t <-chan []int32, d <-chan []int32, n string) {
 		panic("gl error")
 	}
 
-	glfw.SetWindowTitle("gears")
-	reshape(300, 300)
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	gl.Enable(gl.TEXTURE_2D)
+
+	glfw.SetWindowTitle("FergulatorGL")
+	glfw.SetWindowSizeCallback(reshape)
+	reshape(512, 480)
+
+	v.tex = gl.GenTexture()
 
 }
 
@@ -63,22 +64,29 @@ func (v *Video) Render() {
 			// time.Sleep(16000000 * time.Nanosecond)
 			// time.Sleep(4000000 * time.Nanosecond)
 
-			slice := val[:]
+			slice := make([]uint8, len(val) * 3)
+			for i := 0; i < len(val); i = i+1 {
+				slice[i * 3 + 0] = (uint8)((val[i] >> 16) & 0xff)
+				slice[i * 3 + 1] = (uint8)((val[i] >> 8) & 0xff)
+				slice[i * 3 + 2] = (uint8)((val[i]) & 0xff)
+			} 
 
-			tex := gl.GenTexture()
+			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-			tex.Bind(gl.TEXTURE_2D);
-			gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGB, 256, 240, 0, gl.RGB, gl.INT, slice)
+			v.tex.Bind(gl.TEXTURE_2D);
+			gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 256, 240, 0, gl.RGB, gl.UNSIGNED_BYTE, slice)
+			gl.TexParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.NEAREST);
+			gl.TexParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.NEAREST)
 
 			gl.Begin(gl.QUADS)
-			gl.TexCoord2f(0.0, 0.0)
-			gl.Vertex3f(-1.0, -1.0,  1.0)
-			gl.TexCoord2f(1.0, 0.0)
-			gl.Vertex3f( 1.0, -1.0,  1.0)
-			gl.TexCoord2f(1.0, 1.0)
-			gl.Vertex3f( 1.0,  1.0,  1.0)
 			gl.TexCoord2f(0.0, 1.0)
-			gl.Vertex3f(-1.0,  1.0,  1.0)			
+			gl.Vertex3f(-1.0, -1.0,  0.0)
+			gl.TexCoord2f(1.0, 1.0)
+			gl.Vertex3f( 1.0, -1.0,  0.0)
+			gl.TexCoord2f(1.0, 0.0)
+			gl.Vertex3f( 1.0,  1.0,  0.0)
+			gl.TexCoord2f(0.0, 0.0)
+			gl.Vertex3f(-1.0,  1.0,  0.0)			
 			gl.End()
 
 			glfw.SwapBuffers()
