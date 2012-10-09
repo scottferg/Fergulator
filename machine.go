@@ -207,9 +207,6 @@ func main() {
 		return
 	}
 
-	video.Init(v, d, gamename)
-	defer video.Close()
-
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
 	go func() {
@@ -224,6 +221,8 @@ func main() {
 
 	// This needs to happen on the main thread for OSX
 	runtime.LockOSThread()
+	video.Init(v, d, gamename)
+	defer video.Close()
 	video.Render()
 
 	return

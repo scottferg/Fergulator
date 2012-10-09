@@ -1,22 +1,7 @@
 package main
 
 import (
-	"github.com/jteeuwen/glfw"
-)
-
-const (
-	A      = 90
-	B      = 88
-	Select = glfw.KeyRshift
-	Start  = glfw.KeyEnter
-	Up     = glfw.KeyUp
-	Left   = glfw.KeyLeft
-	Down   = glfw.KeyDown
-	Right  = glfw.KeyRight
-
-	KeyEventReset = 82
-	KeyEventSave  = 83
-	KeyEventLoad  = 76
+	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 )
 
 type Controller struct {
@@ -25,32 +10,32 @@ type Controller struct {
 	LastWrite   Word
 }
 
-func (c *Controller) SetButtonState(k int, v Word) {
-	switch k {
-	case A: // A
+func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word) {
+	switch k.Keysym.Sym {
+	case sdl.K_z: // A
 		c.ButtonState[0] = v
-	case B: // B
+	case sdl.K_x: // B
 		c.ButtonState[1] = v
-	case Select: // Select
+	case sdl.K_RSHIFT: // Select
 		c.ButtonState[2] = v
-	case Start: // Start
+	case sdl.K_RETURN: // Start
 		c.ButtonState[3] = v
-	case Up: // Up
+	case sdl.K_UP: // Up
 		c.ButtonState[4] = v
-	case Down: // Down
+	case sdl.K_DOWN: // Down
 		c.ButtonState[5] = v
-	case Left: // Left
+	case sdl.K_LEFT: // Left
 		c.ButtonState[6] = v
-	case Right: // Right
+	case sdl.K_RIGHT: // Right
 		c.ButtonState[7] = v
 	}
 }
 
-func (c *Controller) KeyDown(e int) {
+func (c *Controller) KeyDown(e sdl.KeyboardEvent) {
 	c.SetButtonState(e, 0x41)
 }
 
-func (c *Controller) KeyUp(e int) {
+func (c *Controller) KeyUp(e sdl.KeyboardEvent) {
 	c.SetButtonState(e, 0x40)
 }
 
@@ -83,24 +68,5 @@ func (c *Controller) Read() (r Word) {
 func (c *Controller) Init() {
 	for i := 0; i < len(c.ButtonState); i++ {
 		c.ButtonState[i] = 0x40
-	}
-}
-
-func KeyListener(key, state int) {
-	if state == glfw.KeyPress {
-		switch key {
-		case glfw.KeyEsc:
-			running = false
-		case KeyEventReset:
-			cpu.RequestInterrupt(InterruptReset)
-		case KeyEventLoad:
-			LoadState()
-		case KeyEventSave:
-			SaveState()
-		default:
-			controller.KeyDown(key)
-		}
-	} else {
-		controller.KeyUp(key)
 	}
 }

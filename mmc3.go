@@ -48,6 +48,8 @@ type Mmc3 struct {
 	IrqCounter      int
 	IrqPreset       int
 	IrqPresetVbl    int
+
+	RamProtectDest [16]int
 }
 
 func NewMmc3(r *Rom) *Mmc3 {
@@ -78,8 +80,8 @@ func (m *Mmc3) LoadRom() {
 	// http://forums.nesdev.com/viewtopic.php?p=38182#p38182
 
 	// Write hardwired PRG banks (0xC000 and 0xE000) 
-	m.Write8kRamBank((m.PrgBankCount-1)*2, 0xC000)
-	m.Write8kRamBank(((m.PrgBankCount-1)*2)+1, 0xE000)
+	m.Write8kRamBank((len(m.RomBanks)-1)*2, 0xC000)
+	m.Write8kRamBank(((len(m.RomBanks)-1)*2)+1, 0xE000)
 
 	// Write swappable PRG banks (0x8000 and 0xA000)
 	m.Write8kRamBank(0, 0x8000)
@@ -155,13 +157,14 @@ func (m *Mmc3) BankSelect(v int) {
 
 func (m *Mmc3) BankData(v int) {
 	loadHardBanks := func() {
+        fmt.Println("ADDRESS CHANGED")
 		if m.AddressChanged {
 			if m.PrgBankMode == PrgBankSwapModeLow {
-				fmt.Println("Changed address high")
-				m.Write8kRamBank((m.PrgBankCount-1)*2, 0xC000)
+				//fmt.Println("Changed address high")
+				m.Write8kRamBank((len(m.RomBanks)-1)*2, 0xC000)
 			} else {
-				fmt.Println("Changed address low")
-				m.Write8kRamBank((m.PrgBankCount-1)*2, 0x8000)
+				//fmt.Println("Changed address low")
+				m.Write8kRamBank((len(m.RomBanks)-1)*2, 0x8000)
 			}
 
 			m.AddressChanged = false
@@ -255,14 +258,14 @@ func (m *Mmc3) BankData(v int) {
 		loadHardBanks()
 
 		if m.PrgBankMode == PrgBankSwapModeLow {
-			fmt.Printf("0x%X: Low mode (0x8000) PRG switch on bank -> %d\n", ProgramCounter, v)
+			//fmt.Printf("0x%X: Low mode (0x8000) PRG switch on bank -> %d\n", ProgramCounter, v)
 			m.Write8kRamBank(v, 0x8000)
 		} else {
-			fmt.Printf("0x%X: High mode (0xC000) PRG switch on bank -> %d\n", ProgramCounter, v)
+			//fmt.Printf("0x%X: High mode (0xC000) PRG switch on bank -> %d\n", ProgramCounter, v)
 			m.Write8kRamBank(v, 0xC000)
 		}
 	case PrgBank8kA000:
-		fmt.Printf("0x%X: 8k 0xA000 PRG switch on bank -> %d\n", ProgramCounter, v)
+		//fmt.Printf("0x%X: 8k 0xA000 PRG switch on bank -> %d\n", ProgramCounter, v)
 		m.Write8kRamBank(v, 0xA000)
 
 		loadHardBanks()
@@ -279,7 +282,7 @@ func (m *Mmc3) SetMirroring(v int) {
 }
 
 func (m *Mmc3) RamProtection(v int) {
-    // TODO: WhAT IS THIS I DON'T EVEN
+	// TODO: WhAT IS THIS I DON'T EVEN
 	fmt.Println("RamProtection register")
 }
 
@@ -311,17 +314,22 @@ func (m *Mmc3) IrqEnable(v int) {
 }
 
 func (m *Mmc3) Write8kRamBank(bank, dest int) {
-	b := (bank / 2) % m.PrgBankCount
+	if m.RamProtectDest[dest>>12] == bank {
+		return
+	}
+	m.RamProtectDest[dest>>12] = bank
+
+	b := (bank >> 1) % len(m.RomBanks)
 	offset := (bank % 2) * 0x2000
 
-	//fmt.Printf("Updating bank at: 0x%X\n", dest)
-	//fmt.Printf("Upper 8k offset: %d\n", offset)
+	fmt.Printf("Updating bank: %d\n", b)
+	fmt.Printf("Upper 8k offset: %d\n", offset)
 
 	WriteOffsetRamBank(m.RomBanks, b, dest, Size8k, offset)
 }
 
 func (m *Mmc3) Write1kVramBank(bank, dest int) {
-	b := (bank / 4)
+	b := (bank >> 2) % len(m.VromBanks)
 	offset := (bank % 4) * 0x400
 
 	//fmt.Printf("Updating bank: %d\n", b)

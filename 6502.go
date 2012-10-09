@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 )
 
@@ -918,6 +919,7 @@ func (c *Cpu) Bit(location uint16) {
 }
 
 func (c *Cpu) PerformIrq() {
+    fmt.Println("Performing IRQ")
 	high := ProgramCounter >> 8
 	low := ProgramCounter & 0xFF
 
@@ -1000,6 +1002,7 @@ func (c *Cpu) Step() int {
 		c.InterruptRequested = InterruptNone
 	}
 
+    logpc := ProgramCounter
 	opcode, _ := Ram.Read(ProgramCounter)
 
 	c.Opcode = opcode
@@ -1495,7 +1498,7 @@ func (c *Cpu) Step() int {
 		c.CycleCount = 4
 		c.Bit(c.absoluteAddress())
 	default:
-		log.Fatalf("Invalid opcode at 0x%X: 0x%X", ProgramCounter, opcode)
+		log.Fatalf("Invalid opcode at 0x%X: 0x%X", logpc, opcode)
 	}
 
 	c.Timestamp = (c.CycleCount * 15)

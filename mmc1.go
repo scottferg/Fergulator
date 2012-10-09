@@ -111,7 +111,7 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 		case Size8k:
 			// Swap 8k VROM (in 8k mode, ignore first bit D0)
 			bank := v & 0xF
-			bank %= m.ChrRomCount
+			bank %= len(m.VromBanks)
 
 			if v&0x10 == 0x10 {
 				bank = (len(m.VromBanks) / 2) + (v & 0xF)
@@ -130,7 +130,7 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			} else {
 				bank = v & 0xF
 			}
-			WriteVramBank(m.VromBanks, bank%m.ChrRomCount, 0x0, Size4k)
+			WriteVramBank(m.VromBanks, bank%len(m.VromBanks), 0x0, Size4k)
 		}
 		// CHR Bank 1
 	case 2:
@@ -148,7 +148,7 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			} else {
 				bank = v & 0xF
 			}
-			WriteVramBank(m.VromBanks, bank%m.ChrRomCount, 0x1000, Size4k)
+			WriteVramBank(m.VromBanks, bank%len(m.VromBanks), 0x1000, Size4k)
 		}
 		// PRG Bank
 	case 3:
