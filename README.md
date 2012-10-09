@@ -8,7 +8,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 
 ## To build on Linux
 
-        $ sudo apt-get install libsdl1.2-dev libsdl-gfx1.2-dev libglew1.6-dev libxrandr-dev
+        $ sudo apt-get install libsdl1.2-dev libsdl-gfx1.2-dev libsdl-image1.2-dev libglew1.6-dev libxrandr-dev
         $ go get -u github.com/0xe2-0x9a-0x9b/Go-SDL/sdl
         $ go get -u github.com/0xe2-0x9a-0x9b/Go-SDL/gfx
         $ go get -u github.com/banthar/gl
@@ -17,7 +17,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 
 ## To build on OSX
 
-        $ brew install sdl sdl_gfx glew
+        $ brew install sdl sdl_gfx sdl_image glew
         $ PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get -u github.com/0xe2-0x9a-0x9b/Go-SDL/sdl
         $ PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get -u github.com/0xe2-0x9a-0x9b/Go-SDL/gfx
         $ PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get -u github.com/banthar/gl
