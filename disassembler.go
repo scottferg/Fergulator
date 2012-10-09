@@ -6,11 +6,10 @@ import (
 
 var (
 	c  *Cpu
-	pc int
+	pc uint16
 )
 
 func immediateAddress() int {
-	pc++
 	val, _ := Ram.Read(pc - 1)
 	return int(val)
 }
@@ -21,13 +20,11 @@ func absoluteAddress() (result int) {
 	high, _ := Ram.Read(pc + 1)
 	low, _ := Ram.Read(pc)
 
-	pc += 2
 	return (int(high) << 8) + int(low)
 }
 
 func zeroPageAddress() int {
-	pc++
-	res, _ := Ram.Read(pc - 1)
+	res, _ := Ram.Read(pc)
 
 	return int(res)
 }
@@ -47,21 +44,17 @@ func absoluteIndexedAddress(index Word) (result int) {
 	high, _ := Ram.Read(pc + 1)
 	low, _ := Ram.Read(pc)
 
-	pc++
 	return (int(high) << 8) + int(low) + int(index)
 }
 
 func zeroPageIndexedAddress(index Word) int {
 	location, _ := Ram.Read(pc)
-	pc++
 	return int(location + index)
 }
 
 func indexedIndirectAddress() int {
 	location, _ := Ram.Read(pc)
 	location = location + c.X
-
-	pc++
 
 	// Switch to an int (or more appropriately uint16) since we 
 	// will overflow when shifting the high byte
@@ -79,7 +72,6 @@ func indirectIndexedAddress() int {
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
 
-	pc++
 	return (int(high) << 8) + int(low) + int(c.Y)
 }
 
@@ -91,7 +83,7 @@ func accumulatorAddress() int {
 	return 0
 }
 
-func Disassemble(opcode Word, cpu *Cpu, p int) {
+func Disassemble(opcode Word, cpu *Cpu, p uint16) {
 	c = cpu
 	pc = p
 

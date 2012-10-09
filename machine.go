@@ -31,7 +31,7 @@ func setResetVector() {
 	high, _ := Ram.Read(0xFFFD)
 	low, _ := Ram.Read(0xFFFC)
 
-	ProgramCounter = (int(high) << 8) + int(low)
+	ProgramCounter = (uint16(high) << 8) + uint16(low)
 }
 
 func LoadState() {
@@ -47,8 +47,8 @@ func LoadState() {
 		Ram[i] = Word(v)
 	}
 
-	pchigh := int(state[0x2000])
-	pclow := int(state[0x2001])
+	pchigh := uint16(state[0x2000])
+	pclow := uint16(state[0x2001])
 
 	ProgramCounter = (pchigh << 8) | pclow
 

@@ -12,7 +12,7 @@ const (
 )
 
 var (
-	ProgramCounter = 0x8000
+	ProgramCounter uint16
 )
 
 type Cpu struct {
@@ -180,29 +180,29 @@ func (c *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
 	}
 }
 
-func (c *Cpu) immediateAddress() int {
+func (c *Cpu) immediateAddress() uint16 {
 	ProgramCounter++
 	return ProgramCounter - 1
 }
 
-func (c *Cpu) absoluteAddress() (result int) {
+func (c *Cpu) absoluteAddress() (result uint16) {
 	// Switch to an int (or more appropriately uint16) since we 
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(ProgramCounter + 1)
 	low, _ := Ram.Read(ProgramCounter)
 
 	ProgramCounter += 2
-	return (int(high) << 8) + int(low)
+	return (uint16(high) << 8) + uint16(low)
 }
 
-func (c *Cpu) zeroPageAddress() int {
+func (c *Cpu) zeroPageAddress() uint16 {
 	ProgramCounter++
 	res, _ := Ram.Read(ProgramCounter - 1)
 
-	return int(res)
+	return uint16(res)
 }
 
-func (c *Cpu) indirectAbsoluteAddress(addr int) (result int) {
+func (c *Cpu) indirectAbsoluteAddress(addr uint16) (result uint16) {
 	high, _ := Ram.Read(addr + 1)
 	low, _ := Ram.Read(addr)
 
@@ -210,27 +210,27 @@ func (c *Cpu) indirectAbsoluteAddress(addr int) (result int) {
 	// the full 16-bit value when it reads the second byte, it 
 	// adds 1 to the low byte only. So JMP (03FF) reads from 3FF 
 	// and 300, not 3FF and 400.
-	laddr := (int(high) << 8) + int(low)
-	haddr := (int(high) << 8) + ((int(low) + 1) & 0xFF)
+	laddr := (uint16(high) << 8) + uint16(low)
+	haddr := (uint16(high) << 8) + ((uint16(low) + 1) & 0xFF)
 
 	ih, _ := Ram.Read(haddr)
 	il, _ := Ram.Read(laddr)
 
-	result = (int(ih) << 8) + int(il)
+	result = (uint16(ih) << 8) + uint16(il)
 	return
 }
 
-func (c *Cpu) absoluteIndexedAddress(index Word) (result int) {
+func (c *Cpu) absoluteIndexedAddress(index Word) (result uint16) {
 	// Switch to an int (or more appropriately uint16) since we 
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(ProgramCounter + 1)
 	low, _ := Ram.Read(ProgramCounter)
 
-	if int(low)+int(index) > 0xFF {
+	if uint16(low)+uint16(index) > 0xFF {
 		c.CycleCount += 1
 	}
 
-	address := (int(high) << 8) + int(low) + int(index)
+	address := (uint16(high) << 8) + uint16(low) + uint16(index)
 
 	if address > 0xFFFF {
 		address = address & 0xFFFF
@@ -240,13 +240,13 @@ func (c *Cpu) absoluteIndexedAddress(index Word) (result int) {
 	return address
 }
 
-func (c *Cpu) zeroPageIndexedAddress(index Word) int {
+func (c *Cpu) zeroPageIndexedAddress(index Word) uint16 {
 	location, _ := Ram.Read(ProgramCounter)
 	ProgramCounter++
-	return int(location + index)
+	return uint16(location + index)
 }
 
-func (c *Cpu) indexedIndirectAddress() int {
+func (c *Cpu) indexedIndirectAddress() uint16 {
 	location, _ := Ram.Read(ProgramCounter)
 	location = location + c.X
 
@@ -257,10 +257,10 @@ func (c *Cpu) indexedIndirectAddress() int {
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
 
-	return (int(high) << 8) + int(low)
+	return (uint16(high) << 8) + uint16(low)
 }
 
-func (c *Cpu) indirectIndexedAddress() int {
+func (c *Cpu) indirectIndexedAddress() uint16 {
 	location, _ := Ram.Read(ProgramCounter)
 
 	// Switch to an int (or more appropriately uint16) since we 
@@ -268,11 +268,11 @@ func (c *Cpu) indirectIndexedAddress() int {
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
 
-	if int(low)+int(c.Y) > 0xFF {
+	if uint16(low)+uint16(c.Y) > 0xFF {
 		c.CycleCount += 1
 	}
 
-	address := (int(high) << 8) + int(low) + int(c.Y)
+	address := (uint16(high) << 8) + uint16(low) + uint16(c.Y)
 
 	if address > 0xFFFF {
 		address = address & 0xFFFF
@@ -282,10 +282,10 @@ func (c *Cpu) indirectIndexedAddress() int {
 	return address
 }
 
-func (c *Cpu) relativeAddress() (a int) {
+func (c *Cpu) relativeAddress() (a uint16) {
 	val, _ := Ram.Read(ProgramCounter)
 
-	a = int(val)
+	a = uint16(val)
 	if a < 0x80 {
 		a = a + ProgramCounter
 	} else {
@@ -297,11 +297,11 @@ func (c *Cpu) relativeAddress() (a int) {
 	return
 }
 
-func (c *Cpu) accumulatorAddress() int {
+func (c *Cpu) accumulatorAddress() uint16 {
 	return 0
 }
 
-func (c *Cpu) Adc(location int) {
+func (c *Cpu) Adc(location uint16) {
 	val, _ := Ram.Read(location)
 
 	cached := c.A
@@ -316,7 +316,7 @@ func (c *Cpu) Adc(location int) {
 	c.A = c.A & 0xFF
 }
 
-func (c *Cpu) Lda(location int) {
+func (c *Cpu) Lda(location uint16) {
 	val, _ := Ram.Read(location)
 	c.A = val
 
@@ -324,7 +324,7 @@ func (c *Cpu) Lda(location int) {
 	c.testAndSetZero(c.A)
 }
 
-func (c *Cpu) Ldx(location int) {
+func (c *Cpu) Ldx(location uint16) {
 	val, _ := Ram.Read(location)
 	c.X = val
 
@@ -332,7 +332,7 @@ func (c *Cpu) Ldx(location int) {
 	c.testAndSetZero(c.X)
 }
 
-func (c *Cpu) Ldy(location int) {
+func (c *Cpu) Ldy(location uint16) {
 	val, _ := Ram.Read(location)
 	c.Y = val
 
@@ -340,19 +340,19 @@ func (c *Cpu) Ldy(location int) {
 	c.testAndSetZero(c.Y)
 }
 
-func (c *Cpu) Sta(location int) {
+func (c *Cpu) Sta(location uint16) {
 	Ram.Write(location, c.A)
 }
 
-func (c *Cpu) Stx(location int) {
+func (c *Cpu) Stx(location uint16) {
 	Ram.Write(location, c.X)
 }
 
-func (c *Cpu) Sty(location int) {
+func (c *Cpu) Sty(location uint16) {
 	Ram.Write(location, c.Y)
 }
 
-func (c *Cpu) Jmp(location int) {
+func (c *Cpu) Jmp(location uint16) {
 	ProgramCounter = location
 }
 
@@ -593,22 +593,22 @@ func (c *Cpu) Compare(register Word, value Word) {
 	c.testAndSetCarrySubtraction(int(register) - int(value))
 }
 
-func (c *Cpu) Cmp(location int) {
+func (c *Cpu) Cmp(location uint16) {
 	val, _ := Ram.Read(location)
 	c.Compare(c.A, val)
 }
 
-func (c *Cpu) Cpx(location int) {
+func (c *Cpu) Cpx(location uint16) {
 	val, _ := Ram.Read(location)
 	c.Compare(c.X, val)
 }
 
-func (c *Cpu) Cpy(location int) {
+func (c *Cpu) Cpy(location uint16) {
 	val, _ := Ram.Read(location)
 	c.Compare(c.Y, val)
 }
 
-func (c *Cpu) Sbc(location int) {
+func (c *Cpu) Sbc(location uint16) {
 	val, _ := Ram.Read(location)
 
 	cache := c.A
@@ -652,7 +652,7 @@ func (c *Cpu) Sed() {
 	c.setDecimalMode()
 }
 
-func (c *Cpu) And(location int) {
+func (c *Cpu) And(location uint16) {
 	val, _ := Ram.Read(location)
 	c.A = c.A & val
 
@@ -660,7 +660,7 @@ func (c *Cpu) And(location int) {
 	c.testAndSetZero(c.A)
 }
 
-func (c *Cpu) Ora(location int) {
+func (c *Cpu) Ora(location uint16) {
 	val, _ := Ram.Read(location)
 	c.A = c.A | val
 	c.A &= 0xFF
@@ -669,7 +669,7 @@ func (c *Cpu) Ora(location int) {
 	c.testAndSetZero(c.A)
 }
 
-func (c *Cpu) Eor(location int) {
+func (c *Cpu) Eor(location uint16) {
 	val, _ := Ram.Read(location)
 	c.A = c.A ^ val
 
@@ -677,7 +677,7 @@ func (c *Cpu) Eor(location int) {
 	c.testAndSetZero(c.A)
 }
 
-func (c *Cpu) Dec(location int) {
+func (c *Cpu) Dec(location uint16) {
 	val, _ := Ram.Read(location)
 	val = val - 1
 
@@ -687,7 +687,7 @@ func (c *Cpu) Dec(location int) {
 	c.testAndSetZero(val)
 }
 
-func (c *Cpu) Inc(location int) {
+func (c *Cpu) Inc(location uint16) {
 	val, _ := Ram.Read(location)
 	val = val + 1
 
@@ -718,10 +718,13 @@ func (c *Cpu) Brk() {
 
 	c.setIrqDisable()
 
-	c.Jmp(c.indirectAbsoluteAddress(0xFFFE))
+	h, _ := Ram.Read(0xFFFF)
+	l, _ := Ram.Read(0xFFFE)
+
+	ProgramCounter = uint16(h)<<8 + uint16(l)
 }
 
-func (c *Cpu) Jsr(location int) {
+func (c *Cpu) Jsr(location uint16) {
 	high := (ProgramCounter - 1) >> 8
 	low := (ProgramCounter - 1) & 0xFF
 
@@ -737,17 +740,17 @@ func (c *Cpu) Rti() {
 	low := c.pullFromStack()
 	high := c.pullFromStack()
 
-	ProgramCounter = ((int(high) << 8) + int(low))
+	ProgramCounter = ((uint16(high) << 8) + uint16(low))
 }
 
 func (c *Cpu) Rts() {
 	low := c.pullFromStack()
 	high := c.pullFromStack()
 
-	ProgramCounter = ((int(high) << 8) + int(low)) + 1
+	ProgramCounter = ((uint16(high) << 8) + uint16(low)) + 1
 }
 
-func (c *Cpu) Lsr(location int) {
+func (c *Cpu) Lsr(location uint16) {
 	val, _ := Ram.Read(location)
 
 	if val&0x01 > 0x00 {
@@ -777,7 +780,7 @@ func (c *Cpu) LsrAcc() {
 	c.testAndSetZero(c.A)
 }
 
-func (c *Cpu) Asl(location int) {
+func (c *Cpu) Asl(location uint16) {
 	val, _ := Ram.Read(location)
 
 	if val&0x80 > 0 {
@@ -806,7 +809,7 @@ func (c *Cpu) AslAcc() {
 	c.testAndSetZero(c.A)
 }
 
-func (c *Cpu) Rol(location int) {
+func (c *Cpu) Rol(location uint16) {
 	value, _ := Ram.Read(location)
 
 	carry := value & 0x80
@@ -849,7 +852,7 @@ func (c *Cpu) RolAcc() {
 	c.testAndSetZero(c.A)
 }
 
-func (c *Cpu) Ror(location int) {
+func (c *Cpu) Ror(location uint16) {
 	value, _ := Ram.Read(location)
 
 	carry := value & 0x1
@@ -892,7 +895,7 @@ func (c *Cpu) RorAcc() {
 	c.testAndSetZero(c.A)
 }
 
-func (c *Cpu) Bit(location int) {
+func (c *Cpu) Bit(location uint16) {
 	val, _ := Ram.Read(location)
 
 	if val&c.A == 0 {
@@ -926,7 +929,7 @@ func (c *Cpu) PerformIrq() {
 	h, _ := Ram.Read(0xFFFF)
 	l, _ := Ram.Read(0xFFFE)
 
-	ProgramCounter = int(h)<<8 + int(l)
+	ProgramCounter = uint16(h)<<8 + uint16(l)
 }
 
 func (c *Cpu) PerformNmi() {
@@ -941,7 +944,7 @@ func (c *Cpu) PerformNmi() {
 	h, _ := Ram.Read(0xFFFB)
 	l, _ := Ram.Read(0xFFFA)
 
-	ProgramCounter = int(h)<<8 + int(l)
+	ProgramCounter = uint16(h)<<8 + uint16(l)
 }
 
 func (c *Cpu) PerformReset() {
@@ -950,7 +953,7 @@ func (c *Cpu) PerformReset() {
 		high, _ := Ram.Read(0xFFFD)
 		low, _ := Ram.Read(0xFFFC)
 
-		ProgramCounter = int(high)<<8 + int(low)
+		ProgramCounter = uint16(high)<<8 + uint16(low)
 	}
 }
 

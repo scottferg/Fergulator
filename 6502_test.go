@@ -14,7 +14,7 @@ type CpuState struct {
 	P  int
 	S  int
     C  int
-	Op int
+	Op uint16
 }
 
 func TestGoldLog(test *testing.T) {
@@ -67,7 +67,7 @@ func TestGoldLog(test *testing.T) {
 			Y:  int(y[0]),
 			P:  int(p[0]),
 			S:  int(sp[0]),
-			Op: (int(high) << 8) + int(low),
+			Op: (uint16(high) << 8) + uint16(low),
 		}
 
 		verifyCpuState(ProgramCounter, &cpu, expectedState, test)
@@ -80,7 +80,7 @@ func TestGoldLog(test *testing.T) {
 	}
 }
 
-func verifyCpuState(pc int, c *Cpu, e CpuState, test *testing.T) {
+func verifyCpuState(pc uint16, c *Cpu, e CpuState, test *testing.T) {
 	if pc != e.Op {
 		test.Errorf("PC was 0x%X, expected 0x%X\n", pc, e.Op)
 	}

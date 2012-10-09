@@ -26,6 +26,8 @@ func fitAddressSize(addr interface{}) (v int, e error) {
 		v = int(a)
 	case int:
 		v = int(a)
+	case uint16:
+		v = int(a)
 	default:
 		e = MemoryError{ErrorText: "Invalid type used"}
 	}
