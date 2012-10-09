@@ -213,7 +213,7 @@ func main() {
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
 	go func() {
-		for running {
+		for {
 			cycles := cpu.Step()
 
 			for i := 0; i < 3*cycles; i++ {

@@ -82,7 +82,7 @@ func quit_event() int {
 func (v *Video) Render() {
 	runtime.LockOSThread()
 
-	for {
+	for running {
 		select {
 		case val := <-v.tick:
 			slice := make([]uint8, len(val)*3)
