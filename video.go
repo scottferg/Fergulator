@@ -85,10 +85,14 @@ func (v *Video) Render() {
 	for running {
 		select {
 		case ev := <-sdl.Events:
+            // TODO: Should see if there's a way to do this
+            // from another goroutine. Had to move it here for
+            // the ResizeEvent
 			switch e := ev.(type) {
 			case sdl.QuitEvent:
 				running = false
             case sdl.ResizeEvent:
+                fmt.Printf("ResizeEvent -> h: %d w: %d\n", e.H, e.W)
                 video.ResizeEvent(&e)
 			case sdl.KeyboardEvent:
 				switch e.Keysym.Sym {
