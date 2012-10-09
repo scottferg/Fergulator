@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -919,7 +918,6 @@ func (c *Cpu) Bit(location uint16) {
 }
 
 func (c *Cpu) PerformIrq() {
-    fmt.Println("Performing IRQ")
 	high := ProgramCounter >> 8
 	low := ProgramCounter & 0xFF
 
@@ -1002,7 +1000,7 @@ func (c *Cpu) Step() int {
 		c.InterruptRequested = InterruptNone
 	}
 
-    logpc := ProgramCounter
+	logpc := ProgramCounter
 	opcode, _ := Ram.Read(ProgramCounter)
 
 	c.Opcode = opcode

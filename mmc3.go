@@ -39,15 +39,14 @@ type Mmc3 struct {
 	Battery      bool
 	Data         []byte
 
-	BankSelection   int
-	PrgBankMode     int
-	ChrA12Inversion int
-	AddressChanged  bool
-	IrqEnabled      bool
-	IrqLatchValue   int
-	IrqCounter      int
-	IrqPreset       int
-	IrqPresetVbl    int
+	BankSelection         int
+	PrgBankMode           int
+	ChrA12Inversion       int
+	AddressChanged        bool
+	IrqEnabled            bool
+	IrqCounterReloadValue Word
+	IrqCounter            Word
+	IrqReset              bool
 
 	RamProtectDest [16]int
 }
@@ -157,7 +156,6 @@ func (m *Mmc3) BankSelect(v int) {
 
 func (m *Mmc3) BankData(v int) {
 	loadHardBanks := func() {
-        fmt.Println("ADDRESS CHANGED")
 		if m.AddressChanged {
 			if m.PrgBankMode == PrgBankSwapModeLow {
 				//fmt.Println("Changed address high")
@@ -288,24 +286,18 @@ func (m *Mmc3) RamProtection(v int) {
 
 func (m *Mmc3) IrqLatch(v int) {
 	// $C000
-	m.IrqLatchValue = v
+	m.IrqCounterReloadValue = Word(v)
 }
 
 func (m *Mmc3) IrqReload(v int) {
 	// $C001
-	if ppu.Scanline < 240 {
-		m.IrqCounter |= 0x80
-		m.IrqPreset = 0xFF
-	} else {
-		m.IrqCounter |= 0x80
-		m.IrqPresetVbl = 0xFF
-		m.IrqPreset = 0x0
-	}
+	m.IrqReset = true
 }
 
 func (m *Mmc3) IrqDisable(v int) {
 	// $E001
 	m.IrqEnabled = false
+	m.IrqCounter = m.IrqCounterReloadValue
 }
 
 func (m *Mmc3) IrqEnable(v int) {
@@ -322,9 +314,6 @@ func (m *Mmc3) Write8kRamBank(bank, dest int) {
 	b := (bank >> 1) % len(m.RomBanks)
 	offset := (bank % 2) * 0x2000
 
-	fmt.Printf("Updating bank: %d\n", b)
-	fmt.Printf("Upper 8k offset: %d\n", offset)
-
 	WriteOffsetRamBank(m.RomBanks, b, dest, Size8k, offset)
 }
 
@@ -339,17 +328,15 @@ func (m *Mmc3) Write1kVramBank(bank, dest int) {
 }
 
 func (m *Mmc3) Hook() {
-	if (ppu.Scanline > -1 && ppu.Scanline < 240) && (ppu.ShowBackground || ppu.ShowSprites) {
-		if m.IrqPresetVbl > 0x0 {
-			m.IrqCounter = m.IrqLatchValue
-			m.IrqPresetVbl = 0x0
-		}
-
-		if m.IrqPreset > 0x0 {
-			m.IrqCounter = m.IrqLatchValue
-			m.IrqPreset = 0x0
+	if (ppu.Scanline > 20 && ppu.Scanline < 240) && (ppu.ShowBackground || ppu.ShowSprites) {
+		// A12 Rising Edge
+		if m.IrqReset {
+			m.IrqCounter = m.IrqCounterReloadValue
+			m.IrqReset = false
 		} else if m.IrqCounter > 0 {
-			m.IrqCounter--
+			if ppu.SpritePatternAddress != ppu.BackgroundPatternAddress && (ppu.SpritePatternAddress > 0 || ppu.BackgroundPatternAddress > 0) {
+				m.IrqCounter--
+			}
 		}
 
 		if m.IrqCounter == 0 {
