@@ -214,6 +214,9 @@ func (p *Ppu) Step() {
 			if p.ShowBackground {
 				p.updateEndScanlineRegisters()
 			}
+		} else if p.Cycle == 260 {
+			// MMC3 IRQ, otherwise nothing
+			rom.Hook()
 		}
 	case p.Scanline == -1:
 		if p.Cycle == 1 {
@@ -489,19 +492,19 @@ func (p *Ppu) ReadData() (r Word, err error) {
 	if p.VramAddress >= 0x2000 && p.VramAddress < 0x3000 {
 		r = p.VramDataBuffer
 		p.VramDataBuffer = p.Nametables.readNametableData(p.VramAddress)
-    } else if p.VramAddress < 0x3F00 {
+	} else if p.VramAddress < 0x3F00 {
 		r = p.VramDataBuffer
 		p.VramDataBuffer = p.Vram[p.VramAddress]
 	} else {
-        bufferAddress := p.VramAddress-0x1000
-        switch {
-        case bufferAddress >= 0x2000 && bufferAddress < 0x3000:
-            p.VramDataBuffer = p.Nametables.readNametableData(bufferAddress)
-        default:
-            p.VramDataBuffer = p.Vram[bufferAddress]
-        }
+		bufferAddress := p.VramAddress - 0x1000
+		switch {
+		case bufferAddress >= 0x2000 && bufferAddress < 0x3000:
+			p.VramDataBuffer = p.Nametables.readNametableData(bufferAddress)
+		default:
+			p.VramDataBuffer = p.Vram[bufferAddress]
+		}
 
-        a := p.VramAddress
+		a := p.VramAddress
 		if a&0xF == 0 {
 			a = 0
 		}
@@ -639,10 +642,10 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 	spriteCount := 0
 
 	for i, y := range p.SpriteData.YCoordinates {
-        spriteHeight := 8
-        if p.SpriteSize&0x1 == 0x1 {
-            spriteHeight = 16
-        }
+		spriteHeight := 8
+		if p.SpriteSize&0x1 == 0x1 {
+			spriteHeight = 16
+		}
 
 		if int(y) > (line-1)-spriteHeight && int(y)+(spriteHeight-1) < (line-1)+spriteHeight {
 			attrValue := p.Attributes[i] & 0x3
@@ -660,7 +663,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 			yflip := (p.Attributes[i]>>7)&0x1 == 0x1
 			if yflip {
-				ycoord = int(p.YCoordinates[i]) + ((spriteHeight-1) - c)
+				ycoord = int(p.YCoordinates[i]) + ((spriteHeight - 1) - c)
 			} else {
 				ycoord = int(p.YCoordinates[i]) + c + 1
 			}
@@ -670,22 +673,22 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 				s := p.sprPatternTableAddress(int(t))
 				var tile []Word
 
-                top := p.Vram[s : s+16]
-                bottom := p.Vram[s+16 : s+32]
+				top := p.Vram[s : s+16]
+				bottom := p.Vram[s+16 : s+32]
 
-                if c > 7 && yflip {
-                    tile = top
-                    ycoord += 8
-                } else if c < 8 && yflip {
-                    tile = bottom
-                    ycoord -= 8
-                } else if c > 7 {
-                    tile = bottom
-                } else {
-                    tile = top
-                }
+				if c > 7 && yflip {
+					tile = top
+					ycoord += 8
+				} else if c < 8 && yflip {
+					tile = bottom
+					ycoord -= 8
+				} else if c > 7 {
+					tile = bottom
+				} else {
+					tile = top
+				}
 
-                sprite0 := i == 0
+				sprite0 := i == 0
 
 				p.decodePatternTile([]Word{tile[c%8], tile[(c%8)+8]},
 					int(p.XCoordinates[i]),
@@ -724,11 +727,11 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			xcoord = x + int(7-b)
 		}
 
-        // Don't wrap around if we're past the edge of the
-        // screen
-        if xcoord > 255 {
-            continue
-        }
+		// Don't wrap around if we're past the edge of the
+		// screen
+		if xcoord > 255 {
+			continue
+		}
 
 		fbRow := y*256 + xcoord
 

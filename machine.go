@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -222,6 +223,7 @@ func main() {
 	}()
 
 	// This needs to happen on the main thread for OSX
+	runtime.LockOSThread()
 	video.Render()
 
 	return

@@ -16,6 +16,7 @@ const (
 type Mapper interface {
 	Write(v Word, a int)
 	BatteryBacked() bool
+	Hook()
 }
 
 // Nrom
@@ -61,12 +62,20 @@ func (m *Rom) Write(v Word, a int) {
 	// Nothing to do
 }
 
+func (m *Rom) Hook() {
+	// No hooks
+}
+
 func (m *Rom) BatteryBacked() bool {
 	return m.Battery
 }
 
 func (m *Unrom) Write(v Word, a int) {
 	WriteRamBank(m.RomBanks, int(v&0x7), 0x8000, Size16k)
+}
+
+func (m *Unrom) Hook() {
+	// No hooks
 }
 
 func (m *Unrom) BatteryBacked() bool {
@@ -77,6 +86,10 @@ func (m *Cnrom) Write(v Word, a int) {
 	bank := int(v&0x3) * 2
 	WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
 	WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
+}
+
+func (m *Cnrom) Hook() {
+	// No hooks
 }
 
 func (m *Cnrom) BatteryBacked() bool {

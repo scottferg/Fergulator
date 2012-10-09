@@ -5,9 +5,9 @@ import (
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/gfx"
 	"github.com/banthar/gl"
 	"github.com/jteeuwen/glfw"
+	"math"
 	"os"
 	"runtime"
-	"math"
 )
 
 type Video struct {
@@ -15,38 +15,6 @@ type Video struct {
 	debug      <-chan []uint32
 	fpsmanager *gfx.FPSmanager
 	tex        gl.Texture
-}
-
-func reshape(width int, height int) {
-
-	x_offset := 0
-	y_offset := 0
-
-	r := ((float64) (height)) / ((float64) (width));
-
-	if (r > 0.9375)  { // Height taller than ratio
-		h := (int)(math.Floor((float64)(0.9375 * (float64) (width))))
-		y_offset = (height - h)/2
-		height = h;
-	} else if (r < 0.9375) { // Width wider
-		w := (int)(math.Floor((float64)((256.0/240.0) * (float64) (height))))
-		x_offset = (width - w)/2
-		width = w;
-	}
-
-
-	gl.Viewport(x_offset, y_offset, width, height)
-	gl.MatrixMode(gl.PROJECTION)
-	gl.LoadIdentity()
-	gl.Ortho(-1, 1, -1, 1, -1, 1)
-	gl.MatrixMode(gl.MODELVIEW)
-	gl.LoadIdentity()
-	gl.Disable(gl.DEPTH_TEST)
-}
-
-func quit_event() int {
-	running = false
-	return 0
 }
 
 func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
@@ -69,9 +37,6 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 
 	gl.Enable(gl.TEXTURE_2D)
 
-	v.fpsmanager = gfx.NewFramerate()
-	v.fpsmanager.SetFramerate(70)
-
 	glfw.SetWindowTitle(fmt.Sprintf("Fergulator - %s", n))
 	glfw.SetWindowSizeCallback(reshape)
 	glfw.SetWindowCloseCallback(quit_event)
@@ -80,6 +45,38 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 
 	v.tex = gl.GenTexture()
 
+	v.fpsmanager = gfx.NewFramerate()
+	v.fpsmanager.SetFramerate(70)
+}
+
+func reshape(width int, height int) {
+	x_offset := 0
+	y_offset := 0
+
+	r := ((float64)(height)) / ((float64)(width))
+
+	if r > 0.9375 { // Height taller than ratio
+		h := (int)(math.Floor((float64)(0.9375 * (float64)(width))))
+		y_offset = (height - h) / 2
+		height = h
+	} else if r < 0.9375 { // Width wider
+		w := (int)(math.Floor((float64)((256.0 / 240.0) * (float64)(height))))
+		x_offset = (width - w) / 2
+		width = w
+	}
+
+	gl.Viewport(x_offset, y_offset, width, height)
+	gl.MatrixMode(gl.PROJECTION)
+	gl.LoadIdentity()
+	gl.Ortho(-1, 1, -1, 1, -1, 1)
+	gl.MatrixMode(gl.MODELVIEW)
+	gl.LoadIdentity()
+	gl.Disable(gl.DEPTH_TEST)
+}
+
+func quit_event() int {
+	running = false
+	return 0
 }
 
 func (v *Video) Render() {
@@ -122,5 +119,4 @@ func (v *Video) Render() {
 func (v *Video) Close() {
 	glfw.CloseWindow()
 	glfw.Terminate()
-
 }

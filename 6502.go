@@ -914,6 +914,21 @@ func (c *Cpu) Bit(location int) {
 	}
 }
 
+func (c *Cpu) PerformIrq() {
+	high := ProgramCounter >> 8
+	low := ProgramCounter & 0xFF
+
+	c.pushToStack(Word(high))
+	c.pushToStack(Word(low))
+
+	c.pushToStack(c.P)
+
+	h, _ := Ram.Read(0xFFFF)
+	l, _ := Ram.Read(0xFFFE)
+
+	ProgramCounter = int(h)<<8 + int(l)
+}
+
 func (c *Cpu) PerformNmi() {
 	high := ProgramCounter >> 8
 	low := ProgramCounter & 0xFF
@@ -969,6 +984,11 @@ func (c *Cpu) Step() int {
 
 	// Check if an interrupt was requested
 	switch c.InterruptRequested {
+	case InterruptIrq:
+		if !c.getIrqDisable() {
+			c.PerformIrq()
+		}
+		c.InterruptRequested = InterruptNone
 	case InterruptNmi:
 		c.PerformNmi()
 		c.InterruptRequested = InterruptNone

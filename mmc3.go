@@ -39,13 +39,15 @@ type Mmc3 struct {
 	Battery      bool
 	Data         []byte
 
-	BankSelection         int
-	PrgBankMode           int
-	ChrA12Inversion       int
-	AddressChanged        bool
-	IrqEnabled            bool
-	IrqCounterReloadValue int
-	IrqCounter            int
+	BankSelection   int
+	PrgBankMode     int
+	ChrA12Inversion int
+	AddressChanged  bool
+	IrqEnabled      bool
+	IrqLatchValue   int
+	IrqCounter      int
+	IrqPreset       int
+	IrqPresetVbl    int
 }
 
 func NewMmc3(r *Rom) *Mmc3 {
@@ -277,17 +279,25 @@ func (m *Mmc3) SetMirroring(v int) {
 }
 
 func (m *Mmc3) RamProtection(v int) {
+    // TODO: WhAT IS THIS I DON'T EVEN
 	fmt.Println("RamProtection register")
 }
 
 func (m *Mmc3) IrqLatch(v int) {
 	// $C000
-	m.IrqCounterReloadValue = v
+	m.IrqLatchValue = v
 }
 
 func (m *Mmc3) IrqReload(v int) {
 	// $C001
-	m.IrqCounter = v
+	if ppu.Scanline < 240 {
+		m.IrqCounter |= 0x80
+		m.IrqPreset = 0xFF
+	} else {
+		m.IrqCounter |= 0x80
+		m.IrqPresetVbl = 0xFF
+		m.IrqPreset = 0x0
+	}
 }
 
 func (m *Mmc3) IrqDisable(v int) {
@@ -318,4 +328,26 @@ func (m *Mmc3) Write1kVramBank(bank, dest int) {
 	//fmt.Printf("Upper 1k offset: %d\n", offset)
 
 	WriteOffsetVramBank(m.VromBanks, b, dest, Size1k, offset)
+}
+
+func (m *Mmc3) Hook() {
+	if (ppu.Scanline > -1 && ppu.Scanline < 240) && (ppu.ShowBackground || ppu.ShowSprites) {
+		if m.IrqPresetVbl > 0x0 {
+			m.IrqCounter = m.IrqLatchValue
+			m.IrqPresetVbl = 0x0
+		}
+
+		if m.IrqPreset > 0x0 {
+			m.IrqCounter = m.IrqLatchValue
+			m.IrqPreset = 0x0
+		} else if m.IrqCounter > 0 {
+			m.IrqCounter--
+		}
+
+		if m.IrqCounter == 0 {
+			if m.IrqEnabled {
+				cpu.RequestInterrupt(InterruptIrq)
+			}
+		}
+	}
 }
