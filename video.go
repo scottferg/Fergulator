@@ -48,7 +48,7 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 
 func (v *Video) ResizeEvent(re *sdl.ResizeEvent) {
 	v.screen = sdl.SetVideoMode(int(re.W), int(re.H), 32, sdl.OPENGL|sdl.RESIZABLE)
-    v.Reshape(int(re.W), int(re.H))
+	v.Reshape(int(re.W), int(re.H))
 }
 
 func (v *Video) Reshape(width int, height int) {
@@ -85,15 +85,14 @@ func (v *Video) Render() {
 	for running {
 		select {
 		case ev := <-sdl.Events:
-            // TODO: Should see if there's a way to do this
-            // from another goroutine. Had to move it here for
-            // the ResizeEvent
+			// TODO: Should see if there's a way to do this
+			// from another goroutine. Had to move it here for
+			// the ResizeEvent
 			switch e := ev.(type) {
+			case sdl.ResizeEvent:
+				v.ResizeEvent(&e)
 			case sdl.QuitEvent:
 				running = false
-            case sdl.ResizeEvent:
-                fmt.Printf("ResizeEvent -> h: %d w: %d\n", e.H, e.W)
-                video.ResizeEvent(&e)
 			case sdl.KeyboardEvent:
 				switch e.Keysym.Sym {
 				case sdl.K_ESCAPE:
