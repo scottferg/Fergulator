@@ -62,7 +62,16 @@ func (v *Video) Reshape(width int, height int) {
 		y_offset = (height - h) / 2
 		height = h
 	} else if r < 0.9375 { // Width wider
-		w := (int)(math.Floor((float64)((240.0 / 224.0) * (float64)(height))))
+		var scrW, scrH float64
+		if ppu.OverscanEnabled {
+			scrW = 240.0
+			scrH = 224.0
+		} else {
+			scrW = 256.0
+			scrH = 240.0
+		}
+
+		w := (int)(math.Floor((float64)((scrH / scrW) * (float64)(height))))
 		x_offset = (width - w) / 2
 		width = w
 	}
@@ -112,12 +121,26 @@ func (v *Video) Render() {
 						// Trigger reset interrupt
 						SaveState()
 					}
+				case sdl.K_o:
+					if e.Type == sdl.KEYDOWN {
+						ppu.OverscanEnabled = !ppu.OverscanEnabled
+					}
 				case sdl.K_1:
-					v.ResizeEvent(256, 240)
+					if e.Type == sdl.KEYDOWN {
+						v.ResizeEvent(256, 240)
+					}
 				case sdl.K_2:
-					v.ResizeEvent(512, 480)
+					if e.Type == sdl.KEYDOWN {
+						v.ResizeEvent(512, 480)
+					}
 				case sdl.K_3:
-					v.ResizeEvent(768, 720)
+					if e.Type == sdl.KEYDOWN {
+						v.ResizeEvent(768, 720)
+					}
+				case sdl.K_4:
+					if e.Type == sdl.KEYDOWN {
+						v.ResizeEvent(1024, 960)
+					}
 				}
 
 				switch e.Type {
@@ -138,7 +161,13 @@ func (v *Video) Render() {
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 			v.tex.Bind(gl.TEXTURE_2D)
-			gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 240, 224, 0, gl.RGB, gl.UNSIGNED_BYTE, slice)
+
+			if ppu.OverscanEnabled {
+				gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 240, 224, 0, gl.RGB, gl.UNSIGNED_BYTE, slice)
+			} else {
+				gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 256, 240, 0, gl.RGB, gl.UNSIGNED_BYTE, slice)
+			}
+
 			gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
 			gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 

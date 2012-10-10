@@ -65,6 +65,7 @@ type Ppu struct {
 	PaletteRam        [0x20]Word
 	AttributeLocation [0x400]uint
 	AttributeShift    [0x400]uint
+	A12High           bool
 
 	Palettebuffer []Pixel
 	Framebuffer   []uint32
@@ -77,8 +78,9 @@ type Ppu struct {
 	FrameCount  int
 	FrameCycles int
 
-	SuppressNmi bool
-	SuppressVbl bool
+	SuppressNmi     bool
+	SuppressVbl     bool
+	OverscanEnabled bool
 }
 
 func (p *Ppu) Init() (chan []uint32, chan []uint32) {
@@ -157,6 +159,10 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 	} else {
 		p.Nametables.writeNametableData(a-0x1000, v)
 	}
+
+	if a < 0x2000 {
+		p.A12High = (p.VramAddress & 0x1000) != 0x0
+	}
 }
 
 func (p *Ppu) raster() {
@@ -165,16 +171,31 @@ func (p *Ppu) raster() {
 		y := i / 256
 		x := i - (y * 256)
 
-		if y < 8 || y > 231 || x < 8 || x > 247 {
-			continue
-		} else {
-			y -= 8
-			x -= 8
-		}
-
 		var color uint32
 		color = p.Palettebuffer[i].Color
-		p.Framebuffer[(y*240)+x] = color
+
+		width := 256
+
+		if p.OverscanEnabled {
+			if y < 8 || y > 231 || x < 8 || x > 247 {
+				continue
+			} else {
+				y -= 8
+				x -= 8
+			}
+
+			width = 240
+
+            if len(p.Framebuffer) == 0xF000 {
+                p.Framebuffer = make([]uint32, 0xEFE0)
+            }
+		} else {
+            if len(p.Framebuffer) == 0xEFE0 {
+                p.Framebuffer = make([]uint32, 0xF000)
+            }
+        }
+
+		p.Framebuffer[(y*width)+x] = color
 		p.Palettebuffer[i].Value = 0
 	}
 
@@ -218,11 +239,8 @@ func (p *Ppu) Step() {
 				p.updateEndScanlineRegisters()
 			}
 		} else if p.Cycle == 260 {
-			// MMC3 IRQ, otherwise nothing
-			if p.ShowBackground || p.ShowSprites {
-				rom.Hook()
-			}
-		}
+            rom.Hook()
+        }
 	case p.Scanline == -1:
 		if p.Cycle == 1 {
 			// Clear VBlank flag
@@ -473,6 +491,7 @@ func (p *Ppu) WriteAddress(v Word) {
 		p.VramAddress = p.VramLatch
 	}
 
+	p.A12High = (p.VramAddress & 0x1000) != 0x0
 	p.WriteLatch = !p.WriteLatch
 }
 
@@ -488,6 +507,7 @@ func (p *Ppu) WriteData(v Word) {
 	}
 
 	p.incrementVramAddress()
+	p.A12High = (p.VramAddress & 0x1000) != 0x0
 }
 
 // $2007
@@ -518,6 +538,7 @@ func (p *Ppu) ReadData() (r Word, err error) {
 	}
 
 	p.incrementVramAddress()
+	p.A12High = (p.VramAddress & 0x1000) != 0x0
 
 	return
 }

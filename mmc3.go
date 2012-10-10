@@ -311,22 +311,24 @@ func (m *Mmc3) Write1kVramBank(bank, dest int) {
 
 func (m *Mmc3) Hook() {
 	// A12 Rising Edge
-	if m.IrqPresentVbl {
-		m.IrqCounter = m.IrqLatchValue
-		m.IrqPresentVbl = false
-	}
-
-	if m.IrqPresent {
-		m.IrqCounter = m.IrqLatchValue
-		m.IrqPresent = false
-	} else if m.IrqCounter > 0 {
-		m.IrqCounter--
-	}
-
-	if m.IrqCounter == 0 {
-		if m.IrqEnabled {
-			cpu.RequestInterrupt(InterruptIrq)
+	if ppu.A12High || (ppu.ShowBackground || ppu.ShowSprites) {
+		if m.IrqPresentVbl {
+			m.IrqCounter = m.IrqLatchValue
+			m.IrqPresentVbl = false
 		}
-		m.IrqPresent = false
+
+		if m.IrqPresent {
+			m.IrqCounter = m.IrqLatchValue
+			m.IrqPresent = false
+		} else if m.IrqCounter > 0 {
+			m.IrqCounter--
+		}
+
+		if m.IrqCounter == 0 {
+			if m.IrqEnabled {
+				cpu.RequestInterrupt(InterruptIrq)
+			}
+			m.IrqPresent = false
+		}
 	}
 }
