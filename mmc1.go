@@ -63,20 +63,17 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 	// Control register
 	case 0:
 		// Set mirroring
-		tmp := v & 0x3
+		m.Mirroring = v & 0x3
 
-		if m.Mirroring != tmp {
-			m.Mirroring = tmp
-			switch m.Mirroring {
-			case 0x0:
-				ppu.Nametables.SetMirroring(MirroringSingleUpper)
-			case 0x1:
-				ppu.Nametables.SetMirroring(MirroringSingleLower)
-			case 0x2:
-				ppu.Nametables.SetMirroring(MirroringVertical)
-			case 0x3:
-				ppu.Nametables.SetMirroring(MirroringHorizontal)
-			}
+		switch m.Mirroring {
+		case 0x0:
+			ppu.Nametables.SetMirroring(MirroringSingleUpper)
+		case 0x1:
+			ppu.Nametables.SetMirroring(MirroringSingleLower)
+		case 0x2:
+			ppu.Nametables.SetMirroring(MirroringVertical)
+		case 0x3:
+			ppu.Nametables.SetMirroring(MirroringHorizontal)
 		}
 
 		switch (v >> 0x2) & 0x3 {
