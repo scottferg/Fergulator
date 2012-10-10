@@ -231,7 +231,6 @@ func main() {
 
 			for i := 0; i < 3*cycles; i++ {
 				ppu.Step()
-                rom.Hook()
 			}
 		}
 	}()

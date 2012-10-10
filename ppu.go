@@ -66,6 +66,7 @@ type Ppu struct {
 	AttributeLocation [0x400]uint
 	AttributeShift    [0x400]uint
 	A12High           bool
+	RunHook           bool
 
 	Palettebuffer []Pixel
 	Framebuffer   []uint32
@@ -161,7 +162,7 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 	}
 
 	if a < 0x2000 {
-		p.A12High = (p.VramAddress & 0x1000) != 0x0
+		p.checkA12RisingEdge()
 	}
 }
 
@@ -237,6 +238,18 @@ func (p *Ppu) Step() {
 		} else if p.Cycle == 256 {
 			if p.ShowBackground {
 				p.updateEndScanlineRegisters()
+			}
+		} else if p.Cycle == 260 {
+			if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
+				if p.RunHook {
+					rom.Hook()
+				}
+			}
+		} else if p.Cycle == 324 {
+			if p.SpritePatternAddress == 0x0 && p.BackgroundPatternAddress == 0x1 {
+				if p.RunHook {
+					rom.Hook()
+				}
 			}
 		}
 	case p.Scanline == -1:
@@ -489,7 +502,7 @@ func (p *Ppu) WriteAddress(v Word) {
 		p.VramAddress = p.VramLatch
 	}
 
-	p.A12High = (p.VramAddress & 0x1000) != 0x0
+	p.checkA12RisingEdge()
 	p.WriteLatch = !p.WriteLatch
 }
 
@@ -505,7 +518,7 @@ func (p *Ppu) WriteData(v Word) {
 	}
 
 	p.incrementVramAddress()
-	p.A12High = (p.VramAddress & 0x1000) != 0x0
+	p.checkA12RisingEdge()
 }
 
 // $2007
@@ -536,7 +549,7 @@ func (p *Ppu) ReadData() (r Word, err error) {
 	}
 
 	p.incrementVramAddress()
-	p.A12High = (p.VramAddress & 0x1000) != 0x0
+	p.checkA12RisingEdge()
 
 	return
 }
@@ -547,6 +560,13 @@ func (p *Ppu) incrementVramAddress() {
 		p.VramAddress = p.VramAddress + 0x20
 	default:
 		p.VramAddress = p.VramAddress + 0x01
+	}
+}
+
+func (p *Ppu) checkA12RisingEdge() {
+	p.A12High = (p.VramAddress & 0x1000) != 0x0
+	if p.A12High {
+		p.RunHook = true
 	}
 }
 
