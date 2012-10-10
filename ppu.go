@@ -1,9 +1,5 @@
 package main
 
-import (
-	"math"
-)
-
 const (
 	StatusSpriteOverflow = iota
 	StatusSprite0Hit
@@ -11,10 +7,10 @@ const (
 )
 
 type SpriteData struct {
-	Tiles        [256]Word
-	YCoordinates [256]Word
-	Attributes   [256]Word
-	XCoordinates [256]Word
+	Tiles        [0x100]Word
+	YCoordinates [0x100]Word
+	Attributes   [0x100]Word
+	XCoordinates [0x100]Word
 }
 
 type Flags struct {
@@ -69,6 +65,7 @@ type Ppu struct {
 	PaletteRam        [0x20]Word
 	AttributeLocation [0x400]uint
 	AttributeShift    [0x400]uint
+	A12High           bool
 
 	Palettebuffer []Pixel
 	Framebuffer   []uint32
@@ -109,8 +106,8 @@ func (p *Ppu) Init() (chan []uint32, chan []uint32) {
 		p.AttributeLocation[i] = ((x >> 2) & 0x07) | (((x >> 4) & 0x38) | 0x3C0)
 	}
 
-	p.Palettebuffer = make([]Pixel, 0xF000)
-	p.Framebuffer = make([]uint32, 0xF000)
+	p.Palettebuffer = make([]Pixel, 0xE000)
+	p.Framebuffer = make([]uint32, 0xE000)
 
 	return p.Output, nil
 }
@@ -161,17 +158,21 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 	} else {
 		p.Nametables.writeNametableData(a-0x1000, v)
 	}
+
+	if a < 0x2000 {
+		p.A12High = (p.VramAddress & 0x1000) != 0x0
+	}
 }
 
 func (p *Ppu) raster() {
 	length := len(p.Palettebuffer)
 	for i := length - 1; i >= 0; i-- {
-		y := int(math.Floor(float64(i / 256)))
-		x := i - (y * 256)
+		y := i / 240
+		x := i - (y * 240)
 
 		var color uint32
 		color = p.Palettebuffer[i].Color
-		p.Framebuffer[(y*256)+x] = color
+		p.Framebuffer[(y*240)+x] = color
 		p.Palettebuffer[i].Value = 0
 	}
 
@@ -216,7 +217,9 @@ func (p *Ppu) Step() {
 			}
 		} else if p.Cycle == 260 {
 			// MMC3 IRQ, otherwise nothing
-			rom.Hook()
+			if p.ShowBackground || p.ShowSprites {
+				rom.Hook()
+			}
 		}
 	case p.Scanline == -1:
 		if p.Cycle == 1 {
@@ -423,7 +426,7 @@ func (p *Ppu) WriteDma(v Word) {
 }
 
 func (p *Ppu) updateBufferedSpriteMem(a int, v Word) {
-	i := int(math.Floor(float64(a / 4)))
+	i := a / 4
 
 	switch a % 4 {
 	case 0x0:
@@ -468,6 +471,7 @@ func (p *Ppu) WriteAddress(v Word) {
 		p.VramAddress = p.VramLatch
 	}
 
+	p.A12High = (p.VramAddress & 0x1000) != 0x0
 	p.WriteLatch = !p.WriteLatch
 }
 
@@ -483,6 +487,7 @@ func (p *Ppu) WriteData(v Word) {
 	}
 
 	p.incrementVramAddress()
+	p.A12High = (p.VramAddress & 0x1000) != 0x0
 }
 
 // $2007
@@ -513,6 +518,7 @@ func (p *Ppu) ReadData() (r Word, err error) {
 	}
 
 	p.incrementVramAddress()
+	p.A12High = (p.VramAddress & 0x1000) != 0x0
 
 	return
 }
@@ -601,7 +607,6 @@ func (p *Ppu) renderTileRow() {
 
 		var b uint
 		for b = 0; b < 8; b++ {
-			fbRow := p.Scanline*256 + ((x * 8) + int(b))
 
 			pixel := (p.LowBitShift >> (15 - b - uint(p.FineX))) & 0x01
 			pixel += ((p.HighBitShift >> (15 - b - uint(p.FineX)) & 0x01) << 1)
@@ -615,15 +620,20 @@ func (p *Ppu) renderTileRow() {
 				palette = p.bgPaletteEntry(attr, pixel)
 			}
 
-			if p.Palettebuffer[fbRow].Value != 0 {
-				// Pixel is already rendered and priority
-				// 1 means show behind background
-				continue
-			}
+			// Crop outer 8 pixels for overscan
+			if p.Scanline > 7 && p.Scanline < 232 && (x*8) > 7 && (x*8) < 248 {
+				fbRow := (p.Scanline-7)*240 + (((x * 8) - 8) + int(b))
 
-			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[palette%64],
-				int(pixel),
+				if p.Palettebuffer[fbRow].Value != 0 {
+					// Pixel is already rendered and priority
+					// 1 means show behind background
+					continue
+				}
+
+				p.Palettebuffer[fbRow] = Pixel{
+					PaletteRgb[palette%64],
+					int(pixel),
+				}
 			}
 		}
 
@@ -733,8 +743,6 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			continue
 		}
 
-		fbRow := y*256 + xcoord
-
 		// Store the bit 0/1
 		pixel := (t[0] >> b) & 0x01
 		pixel += ((t[1] >> b & 0x01) << 1)
@@ -744,28 +752,32 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			trans = true
 		}
 
-		// Set the color of the pixel in the buffer
-		//
-		if fbRow < 0xF000 && !trans {
-			priority := (*attr >> 5) & 0x1
+		// Crop outer 8 pixels for overscan
+		if y > 7 && y < 232 && (xcoord) > 7 && (xcoord) < 248 {
+			fbRow := (y-8)*240 + (xcoord - 8)
+			// Set the color of the pixel in the buffer
+			//
+			if fbRow < 0xF000 && !trans {
+				priority := (*attr >> 5) & 0x1
 
-			hit := (Ram[0x2002]&0x40 == 0x40)
-			if p.Palettebuffer[fbRow].Value != 0 && spZero && !hit {
-				// Since we render background first, if we're placing an opaque
-				// pixel here and the existing pixel is opaque, we've hit
-				// Sprite 0 
-				p.setStatus(StatusSprite0Hit)
-			}
+				hit := (Ram[0x2002]&0x40 == 0x40)
+				if p.Palettebuffer[fbRow].Value != 0 && spZero && !hit {
+					// Since we render background first, if we're placing an opaque
+					// pixel here and the existing pixel is opaque, we've hit
+					// Sprite 0 
+					p.setStatus(StatusSprite0Hit)
+				}
 
-			if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
-				// Pixel is already rendered and priority
-				// 1 means show behind background
-				continue
-			}
+				if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
+					// Pixel is already rendered and priority
+					// 1 means show behind background
+					continue
+				}
 
-			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[int(pal[pixel])%64],
-				int(pixel),
+				p.Palettebuffer[fbRow] = Pixel{
+					PaletteRgb[int(pal[pixel])%64],
+					int(pixel),
+				}
 			}
 		}
 	}
