@@ -622,7 +622,7 @@ func (p *Ppu) renderTileRow() {
 
 			// Crop outer 8 pixels for overscan
 			if p.Scanline > 7 && p.Scanline < 232 && (x*8) > 7 && (x*8) < 248 {
-				fbRow := (p.Scanline-8)*240 + (((x * 8) - 8) + int(b))
+				fbRow := (p.Scanline-7)*240 + (((x * 8) - 8) + int(b))
 
 				if p.Palettebuffer[fbRow].Value != 0 {
 					// Pixel is already rendered and priority
