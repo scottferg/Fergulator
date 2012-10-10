@@ -46,9 +46,9 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 	v.fpsmanager.SetFramerate(70)
 }
 
-func (v *Video) ResizeEvent(re *sdl.ResizeEvent) {
-	v.screen = sdl.SetVideoMode(int(re.W), int(re.H), 32, sdl.OPENGL|sdl.RESIZABLE)
-	v.Reshape(int(re.W), int(re.H))
+func (v *Video) ResizeEvent(w, h int) {
+	v.screen = sdl.SetVideoMode(w, h, 32, sdl.OPENGL|sdl.RESIZABLE)
+	v.Reshape(w, h)
 }
 
 func (v *Video) Reshape(width int, height int) {
@@ -90,7 +90,7 @@ func (v *Video) Render() {
 			// the ResizeEvent
 			switch e := ev.(type) {
 			case sdl.ResizeEvent:
-				v.ResizeEvent(&e)
+				v.ResizeEvent(int(e.W), int(e.H))
 			case sdl.QuitEvent:
 				running = false
 			case sdl.KeyboardEvent:
@@ -112,6 +112,12 @@ func (v *Video) Render() {
 						// Trigger reset interrupt
 						SaveState()
 					}
+				case sdl.K_1:
+					v.ResizeEvent(256, 240)
+				case sdl.K_2:
+					v.ResizeEvent(512, 480)
+				case sdl.K_3:
+					v.ResizeEvent(768, 720)
 				}
 
 				switch e.Type {
