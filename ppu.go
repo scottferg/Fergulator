@@ -1,9 +1,5 @@
 package main
 
-import (
-	"math"
-)
-
 const (
 	StatusSpriteOverflow = iota
 	StatusSprite0Hit
@@ -110,7 +106,7 @@ func (p *Ppu) Init() (chan []uint32, chan []uint32) {
 	}
 
 	p.Palettebuffer = make([]Pixel, 0xF000)
-	p.Framebuffer = make([]uint32, 0xF000)
+	p.Framebuffer = make([]uint32, 0xEFE0)
 
 	return p.Output, nil
 }
@@ -166,12 +162,19 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 func (p *Ppu) raster() {
 	length := len(p.Palettebuffer)
 	for i := length - 1; i >= 0; i-- {
-		y := int(math.Floor(float64(i / 256)))
+		y := i / 256
 		x := i - (y * 256)
+
+		if y < 8 || y > 231 || x < 8 || x > 247 {
+			continue
+		} else {
+			y -= 8
+			x -= 8
+		}
 
 		var color uint32
 		color = p.Palettebuffer[i].Color
-		p.Framebuffer[(y*256)+x] = color
+		p.Framebuffer[(y*240)+x] = color
 		p.Palettebuffer[i].Value = 0
 	}
 
@@ -216,7 +219,9 @@ func (p *Ppu) Step() {
 			}
 		} else if p.Cycle == 260 {
 			// MMC3 IRQ, otherwise nothing
-			rom.Hook()
+			if p.ShowBackground || p.ShowSprites {
+				rom.Hook()
+			}
 		}
 	case p.Scanline == -1:
 		if p.Cycle == 1 {
@@ -423,7 +428,7 @@ func (p *Ppu) WriteDma(v Word) {
 }
 
 func (p *Ppu) updateBufferedSpriteMem(a int, v Word) {
-	i := int(math.Floor(float64(a / 4)))
+	i := a / 4
 
 	switch a % 4 {
 	case 0x0:
