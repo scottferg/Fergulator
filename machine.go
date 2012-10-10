@@ -2,10 +2,13 @@ package main
 
 import (
 	"bytes"
+	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"runtime"
+	"runtime/pprof"
 	"strings"
 	"time"
 )
@@ -25,6 +28,8 @@ var (
 	gamename       string
 	saveStateFile  string
 	batteryRamFile string
+
+	cpuprofile = flag.String("cprof", "", "write cpu profile to file")
 )
 
 func setResetVector() {
@@ -178,12 +183,23 @@ func main() {
 		return
 	}
 
+	flag.Parse()
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	Ram.Init()
 	cpu.Init()
 	v, d := ppu.Init()
 	controller.Init()
 
-	if contents, err := ioutil.ReadFile(os.Args[1]); err == nil {
+	if contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1]); err == nil {
 
 		if rom, err = LoadRom(contents); err != nil {
 			fmt.Println(err.Error())
