@@ -39,14 +39,15 @@ type Mmc3 struct {
 	Battery      bool
 	Data         []byte
 
-	BankSelection         int
-	PrgBankMode           int
-	ChrA12Inversion       int
-	AddressChanged        bool
-	IrqEnabled            bool
-	IrqCounterReloadValue Word
-	IrqCounter            Word
-	IrqReset              bool
+	BankSelection   int
+	PrgBankMode     int
+	ChrA12Inversion int
+	AddressChanged  bool
+	IrqEnabled      bool
+	IrqLatchValue   Word
+	IrqCounter      Word
+	IrqPresent      bool
+	IrqPresentVbl   bool
 
 	RamProtectDest [16]int
 }
@@ -158,10 +159,8 @@ func (m *Mmc3) BankData(v int) {
 	loadHardBanks := func() {
 		if m.AddressChanged {
 			if m.PrgBankMode == PrgBankSwapModeLow {
-				//fmt.Println("Changed address high")
 				m.Write8kRamBank((len(m.RomBanks)-1)*2, 0xC000)
 			} else {
-				//fmt.Println("Changed address low")
 				m.Write8kRamBank((len(m.RomBanks)-1)*2, 0x8000)
 			}
 
@@ -175,13 +174,10 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		//fmt.Printf("2k @ 0x0000: ")
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			//fmt.Printf("ModeLow CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x0000)
 			m.Write1kVramBank(v+1, 0x0400)
 		} else {
-			//fmt.Printf("ModeHigh CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x1000)
 			m.Write1kVramBank(v+1, 0x1400)
 		}
@@ -190,13 +186,10 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		//fmt.Printf("2k @ 0x0800: ")
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			//fmt.Printf("ModeLow CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x0800)
 			m.Write1kVramBank(v+1, 0x0C00)
 		} else {
-			//fmt.Printf("ModeHigh CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x1800)
 			m.Write1kVramBank(v+1, 0x1C00)
 		}
@@ -205,12 +198,9 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		//fmt.Printf("1k @ 0x1000: ")
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			//fmt.Printf("ModeLow CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x1000)
 		} else {
-			//fmt.Printf("ModeHigh CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x0000)
 		}
 	case ChrBank1k1400:
@@ -218,12 +208,9 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		//fmt.Printf("1k @ 0x1400: ")
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			//fmt.Printf("ModeLow CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x1400)
 		} else {
-			//fmt.Printf("ModeHigh CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x0400)
 		}
 	case ChrBank1k1800:
@@ -231,12 +218,9 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		//fmt.Printf("1k @ 0x1800: ")
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			//fmt.Printf("ModeLow CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x1800)
 		} else {
-			//fmt.Printf("ModeHigh CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x0800)
 		}
 	case ChrBank1k1C00:
@@ -244,26 +228,20 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		//fmt.Printf("1k @ 0x1C00: ")
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			//fmt.Printf("ModeLow CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x1C00)
 		} else {
-			//fmt.Printf("ModeHigh CHR on bank -> %d\n", v)
 			m.Write1kVramBank(v, 0x0C00)
 		}
 	case PrgBank8k8000:
 		loadHardBanks()
 
 		if m.PrgBankMode == PrgBankSwapModeLow {
-			//fmt.Printf("0x%X: Low mode (0x8000) PRG switch on bank -> %d\n", ProgramCounter, v)
 			m.Write8kRamBank(v, 0x8000)
 		} else {
-			//fmt.Printf("0x%X: High mode (0xC000) PRG switch on bank -> %d\n", ProgramCounter, v)
 			m.Write8kRamBank(v, 0xC000)
 		}
 	case PrgBank8kA000:
-		//fmt.Printf("0x%X: 8k 0xA000 PRG switch on bank -> %d\n", ProgramCounter, v)
 		m.Write8kRamBank(v, 0xA000)
 
 		loadHardBanks()
@@ -286,18 +264,25 @@ func (m *Mmc3) RamProtection(v int) {
 
 func (m *Mmc3) IrqLatch(v int) {
 	// $C000
-	m.IrqCounterReloadValue = Word(v)
+	m.IrqLatchValue = Word(v)
 }
 
 func (m *Mmc3) IrqReload(v int) {
 	// $C001
-	m.IrqReset = true
+	if ppu.Scanline < 241 {
+		m.IrqCounter |= 0x80
+		m.IrqPresent = true
+	} else {
+		m.IrqCounter |= 0x80
+		m.IrqPresentVbl = true
+		m.IrqPresent = false
+	}
 }
 
 func (m *Mmc3) IrqDisable(v int) {
 	// $E001
 	m.IrqEnabled = false
-	m.IrqCounter = m.IrqCounterReloadValue
+	m.IrqCounter = m.IrqLatchValue
 }
 
 func (m *Mmc3) IrqEnable(v int) {
@@ -321,28 +306,27 @@ func (m *Mmc3) Write1kVramBank(bank, dest int) {
 	b := (bank >> 2) % len(m.VromBanks)
 	offset := (bank % 4) * 0x400
 
-	//fmt.Printf("Updating bank: %d\n", b)
-	//fmt.Printf("Upper 1k offset: %d\n", offset)
-
 	WriteOffsetVramBank(m.VromBanks, b, dest, Size1k, offset)
 }
 
 func (m *Mmc3) Hook() {
-	if (ppu.Scanline > 20 && ppu.Scanline < 240) && (ppu.ShowBackground || ppu.ShowSprites) {
-		// A12 Rising Edge
-		if m.IrqReset {
-			m.IrqCounter = m.IrqCounterReloadValue
-			m.IrqReset = false
-		} else if m.IrqCounter > 0 {
-			if ppu.SpritePatternAddress != ppu.BackgroundPatternAddress && (ppu.SpritePatternAddress > 0 || ppu.BackgroundPatternAddress > 0) {
-				m.IrqCounter--
-			}
-		}
+	// A12 Rising Edge
+	if m.IrqPresentVbl {
+		m.IrqCounter = m.IrqLatchValue
+		m.IrqPresentVbl = false
+	}
 
-		if m.IrqCounter == 0 {
-			if m.IrqEnabled {
-				cpu.RequestInterrupt(InterruptIrq)
-			}
+	if m.IrqPresent {
+		m.IrqCounter = m.IrqLatchValue
+		m.IrqPresent = false
+	} else if m.IrqCounter > 0 {
+		m.IrqCounter--
+	}
+
+	if m.IrqCounter == 0 {
+		if m.IrqEnabled {
+			cpu.RequestInterrupt(InterruptIrq)
 		}
+		m.IrqPresent = false
 	}
 }
