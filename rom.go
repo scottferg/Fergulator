@@ -227,6 +227,8 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 			Battery:      r.Battery,
 			Data:         r.Data,
 		}
+    case 0x44:
+        fallthrough
 	case 0x04:
 		// MMC3
 		fmt.Printf("MMC3\n")
