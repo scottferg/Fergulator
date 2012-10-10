@@ -62,7 +62,7 @@ func (v *Video) Reshape(width int, height int) {
 		y_offset = (height - h) / 2
 		height = h
 	} else if r < 0.9375 { // Width wider
-		w := (int)(math.Floor((float64)((240.0 / 224.0) * (float64)(height))))
+		w := (int)(math.Floor((float64)((256.0 / 240.0) * (float64)(height))))
 		x_offset = (width - w) / 2
 		width = w
 	}
@@ -138,7 +138,7 @@ func (v *Video) Render() {
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 			v.tex.Bind(gl.TEXTURE_2D)
-			gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 240, 224, 0, gl.RGB, gl.UNSIGNED_BYTE, slice)
+			gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 256, 240, 0, gl.RGB, gl.UNSIGNED_BYTE, slice)
 			gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
 			gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 
