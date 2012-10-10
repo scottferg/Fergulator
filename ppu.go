@@ -186,14 +186,14 @@ func (p *Ppu) raster() {
 
 			width = 240
 
-            if len(p.Framebuffer) == 0xF000 {
-                p.Framebuffer = make([]uint32, 0xEFE0)
-            }
+			if len(p.Framebuffer) == 0xF000 {
+				p.Framebuffer = make([]uint32, 0xEFE0)
+			}
 		} else {
-            if len(p.Framebuffer) == 0xEFE0 {
-                p.Framebuffer = make([]uint32, 0xF000)
-            }
-        }
+			if len(p.Framebuffer) == 0xEFE0 {
+				p.Framebuffer = make([]uint32, 0xF000)
+			}
+		}
 
 		p.Framebuffer[(y*width)+x] = color
 		p.Palettebuffer[i].Value = 0
@@ -238,9 +238,7 @@ func (p *Ppu) Step() {
 			if p.ShowBackground {
 				p.updateEndScanlineRegisters()
 			}
-		} else if p.Cycle == 260 {
-            rom.Hook()
-        }
+		}
 	case p.Scanline == -1:
 		if p.Cycle == 1 {
 			// Clear VBlank flag
