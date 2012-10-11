@@ -42,7 +42,7 @@ func (n *Nametable) SetMirroring(m int) {
 }
 
 func (n *Nametable) writeNametableData(a int, v Word) {
-    n.LogicalTables[(a&0xC00)>>10][a&0x3FF] = v
+	n.LogicalTables[(a&0xC00)>>10][a&0x3FF] = v
 }
 
 func (n *Nametable) readNametableData(a int) Word {
