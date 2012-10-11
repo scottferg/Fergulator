@@ -55,6 +55,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * CNROM
 * MMC1
 * MMC3
+* ANROM
 
 ## Tested games that run well or are playable
 
