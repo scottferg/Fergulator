@@ -39,6 +39,15 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
         Save State - S
         Load State - L
 
+        Reset - R
+
+        1:1 aspect ratio - 1
+        2:1 aspect ratio - 2
+        3:1 aspect ratio - 3
+        4:1 aspect ratio - 4
+
+        Emulate overscan - O
+
 ## Supported Mappers
 
 * NROM
