@@ -24,8 +24,9 @@ type Flags struct {
 }
 
 type Pixel struct {
-	Color uint32
-	Value int
+	Color  uint32
+	Value  int
+	Pindex int
 }
 
 type Masks struct {
@@ -198,6 +199,7 @@ func (p *Ppu) raster() {
 
 		p.Framebuffer[(y*width)+x] = color
 		p.Palettebuffer[i].Value = 0
+		p.Palettebuffer[i].Pindex = -1
 	}
 
 	p.Output <- p.Framebuffer
@@ -668,6 +670,7 @@ func (p *Ppu) renderTileRow() {
 			p.Palettebuffer[fbRow] = Pixel{
 				PaletteRgb[palette%64],
 				int(pixel),
+				-1,
 			}
 		}
 
@@ -738,7 +741,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 					int(p.XCoordinates[i]),
 					ycoord,
 					p.sprPaletteEntry(uint(attrValue)),
-					&p.Attributes[i], sprite0)
+					&p.Attributes[i], sprite0, i)
 			} else {
 				// 8x8 Sprite
 				s := p.sprPatternTableAddress(int(t))
@@ -748,7 +751,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 					int(p.XCoordinates[i]),
 					ycoord,
 					p.sprPaletteEntry(uint(attrValue)),
-					&p.Attributes[i], i == 0)
+					&p.Attributes[i], i == 0, i)
 			}
 
 			spriteCount++
@@ -761,7 +764,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 	}
 }
 
-func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZero bool) {
+func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZero bool, index int) {
 	var b uint
 	for b = 0; b < 8; b++ {
 		var xcoord int
@@ -805,11 +808,16 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 				// Pixel is already rendered and priority
 				// 1 means show behind background
 				continue
+			} else if p.Palettebuffer[fbRow].Pindex > -1 && p.Palettebuffer[fbRow].Pindex < index {
+				// Pixel with a higher sprite priority (lower index)
+				// is already here, so don't render this pixel
+				continue
 			}
 
 			p.Palettebuffer[fbRow] = Pixel{
 				PaletteRgb[int(pal[pixel])%64],
 				int(pixel),
+				index,
 			}
 		}
 	}
