@@ -50,7 +50,7 @@ func (m *Mmc1) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc1) Hook() {
+func (m *Mmc1) Hook(a int) {
 	// Nothing to do
 }
 

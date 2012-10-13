@@ -244,13 +244,13 @@ func (p *Ppu) Step() {
 		} else if p.Cycle == 260 {
 			if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
 				if p.RunHook {
-					rom.Hook()
+					rom.Hook(0)
 				}
 			}
 		} else if p.Cycle == 324 {
 			if p.SpritePatternAddress == 0x0 && p.BackgroundPatternAddress == 0x1 {
 				if p.RunHook {
-					rom.Hook()
+					rom.Hook(0)
 				}
 			}
 		}
@@ -504,6 +504,11 @@ func (p *Ppu) WriteAddress(v Word) {
 		p.VramAddress = p.VramLatch
 	}
 
+	if p.VramAddress < 0x2000 {
+		// MMC2 latch trigger
+		rom.Hook(p.VramAddress)
+	}
+
 	p.checkA12RisingEdge()
 	p.WriteLatch = !p.WriteLatch
 }
@@ -517,6 +522,8 @@ func (p *Ppu) WriteData(v Word) {
 		p.Nametables.writeNametableData(p.VramAddress, v)
 	} else {
 		p.Vram[p.VramAddress&0x3FFF] = v
+		// MMC2 latch trigger
+		rom.Hook(p.VramAddress)
 	}
 
 	p.incrementVramAddress()
@@ -533,6 +540,11 @@ func (p *Ppu) ReadData() (r Word, err error) {
 	} else if p.VramAddress < 0x3F00 {
 		r = p.VramDataBuffer
 		p.VramDataBuffer = p.Vram[p.VramAddress]
+
+		if p.VramAddress < 0x2000 {
+			// MMC2 latch trigger
+			rom.Hook(p.VramAddress)
+		}
 	} else {
 		bufferAddress := p.VramAddress - 0x1000
 		switch {
@@ -548,6 +560,11 @@ func (p *Ppu) ReadData() (r Word, err error) {
 		}
 
 		r = p.PaletteRam[a&0x1F]
+
+		if p.VramAddress < 0x2000 {
+			// MMC2 latch trigger
+			rom.Hook(p.VramAddress)
+		}
 	}
 
 	p.incrementVramAddress()
@@ -627,6 +644,9 @@ func (p *Ppu) renderTileRow() {
 		} else {
 			p.VramAddress++
 		}
+
+		// MMC2 latch trigger
+		rom.Hook(p.VramAddress)
 
 		return uint16(p.Vram[t]), uint16(p.Vram[t+8]), attr
 	}

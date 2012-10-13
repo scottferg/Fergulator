@@ -15,7 +15,7 @@ func (m *Anrom) Write(v Word, a int) {
 	WriteRamBank(m.RomBanks, bank+1, 0xC000, Size16k)
 }
 
-func (m *Anrom) Hook() {
+func (m *Anrom) Hook(a int) {
 	// No hooks
 }
 
