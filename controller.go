@@ -4,10 +4,81 @@ import (
 	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
 )
 
+const (
+	JoypadButtonA      = 1
+	JoypadButtonB      = 2
+	JoypadButtonStart  = 9
+	JoypadButtonSelect = 8
+	JoypadAxisUp       = -32768
+	JoypadAxisDown     = 32767
+	JoypadAxisLeft     = -32768
+	JoypadAxisRight    = 32767
+)
+
 type Controller struct {
 	ButtonState [8]Word
 	StrobeState int
 	LastWrite   Word
+	LastYAxis   int
+	LastXAxis   int
+}
+
+func (c *Controller) SetJoypadAxisState(a, d int, v Word) {
+	resetAxis := func(d int) {
+		switch d {
+		case 0:
+			if c.LastYAxis != -1 {
+				c.ButtonState[c.LastYAxis] = 0x40
+			}
+		case 1:
+			if c.LastXAxis != -1 {
+				c.ButtonState[c.LastXAxis] = 0x40
+			}
+		}
+	}
+
+	if a == 4 {
+		switch d {
+		case JoypadAxisUp: // Up
+			resetAxis(0)
+			c.ButtonState[4] = v
+			c.LastYAxis = 4
+		case JoypadAxisDown: // Down
+			resetAxis(0)
+			c.ButtonState[5] = v
+			c.LastYAxis = 5
+		default:
+			resetAxis(0)
+			c.LastYAxis = -1
+		}
+	} else if a == 3 {
+		switch d {
+		case JoypadAxisLeft: // Left
+			resetAxis(1)
+			c.ButtonState[6] = v
+			c.LastXAxis = 6
+		case JoypadAxisRight: // Right
+			resetAxis(1)
+			c.ButtonState[7] = v
+			c.LastXAxis = 7
+		default:
+			resetAxis(1)
+			c.LastXAxis = -1
+		}
+	}
+}
+
+func (c *Controller) SetJoypadButtonState(k int, v Word) {
+	switch k {
+	case JoypadButtonA: // A
+		c.ButtonState[0] = v
+	case JoypadButtonB: // B
+		c.ButtonState[1] = v
+	case JoypadButtonSelect: // Select
+		c.ButtonState[2] = v
+	case JoypadButtonStart: // Start
+		c.ButtonState[3] = v
+	}
 }
 
 func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word) {
@@ -29,6 +100,22 @@ func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word) {
 	case sdl.K_RIGHT: // Right
 		c.ButtonState[7] = v
 	}
+}
+
+func (c *Controller) AxisDown(a, d int) {
+	c.SetJoypadAxisState(a, d, 0x41)
+}
+
+func (c *Controller) AxisUp(a, d int) {
+	c.SetJoypadAxisState(a, d, 0x40)
+}
+
+func (c *Controller) ButtonDown(b int) {
+	c.SetJoypadButtonState(b, 0x41)
+}
+
+func (c *Controller) ButtonUp(b int) {
+	c.SetJoypadButtonState(b, 0x40)
 }
 
 func (c *Controller) KeyDown(e sdl.KeyboardEvent) {

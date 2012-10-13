@@ -15,6 +15,8 @@ type Video struct {
 	fpsmanager *gfx.FPSmanager
 	screen     *sdl.Surface
 	tex        gl.Texture
+	joy        *sdl.Joystick
+	Fullscreen bool
 }
 
 func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
@@ -44,11 +46,30 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 
 	v.fpsmanager = gfx.NewFramerate()
 	v.fpsmanager.SetFramerate(70)
+
+	for i := 0; i < sdl.NumJoysticks(); i++ {
+		v.joy = sdl.JoystickOpen(i)
+
+		if v.joy != nil {
+			fmt.Printf("Joystick %d\n", i)
+			fmt.Println("  Name: ", sdl.JoystickName(0))
+			fmt.Println("  Number of Axes: ", v.joy.NumAxes())
+			fmt.Println("  Number of Buttons: ", v.joy.NumButtons())
+			fmt.Println("  Number of Balls: ", v.joy.NumBalls())
+		} else {
+			fmt.Println("  Couldn't open Joystick!")
+		}
+	}
 }
 
 func (v *Video) ResizeEvent(w, h int) {
 	v.screen = sdl.SetVideoMode(w, h, 32, sdl.OPENGL|sdl.RESIZABLE)
 	v.Reshape(w, h)
+}
+
+func (v *Video) FullscreenEvent() {
+	v.screen = sdl.SetVideoMode(1440, 900, 32, sdl.OPENGL|sdl.FULLSCREEN)
+	v.Reshape(1440, 900)
 }
 
 func (v *Video) Reshape(width int, height int) {
@@ -102,6 +123,23 @@ func (v *Video) Render() {
 				v.ResizeEvent(int(e.W), int(e.H))
 			case sdl.QuitEvent:
 				running = false
+			case sdl.JoyAxisEvent:
+				switch e.Value {
+				// Same values for left/right
+				case JoypadAxisUp:
+					fallthrough
+				case JoypadAxisDown:
+					controller.AxisDown(int(e.Axis), int(e.Value))
+				default:
+					controller.AxisUp(int(e.Axis), int(e.Value))
+				}
+			case sdl.JoyButtonEvent:
+				switch v.joy.GetButton(int(e.Button)) {
+				case 1:
+					controller.ButtonDown(int(e.Button))
+				case 0:
+					controller.ButtonUp(int(e.Button))
+				}
 			case sdl.KeyboardEvent:
 				switch e.Keysym.Sym {
 				case sdl.K_ESCAPE:
@@ -140,6 +178,16 @@ func (v *Video) Render() {
 				case sdl.K_4:
 					if e.Type == sdl.KEYDOWN {
 						v.ResizeEvent(1024, 960)
+					}
+				case sdl.K_f:
+					if e.Type == sdl.KEYDOWN {
+						if v.Fullscreen {
+							v.ResizeEvent(512, 480)
+						} else {
+							v.FullscreenEvent()
+						}
+
+						v.Fullscreen = !v.Fullscreen
 					}
 				}
 
