@@ -506,7 +506,7 @@ func (p *Ppu) WriteAddress(v Word) {
 
 	if p.VramAddress < 0x2000 {
 		// MMC2 latch trigger
-		rom.Hook(p.VramAddress)
+		// rom.Hook(p.VramAddress)
 	}
 
 	p.checkA12RisingEdge()
@@ -523,7 +523,7 @@ func (p *Ppu) WriteData(v Word) {
 	} else {
 		p.Vram[p.VramAddress&0x3FFF] = v
 		// MMC2 latch trigger
-		rom.Hook(p.VramAddress)
+		// rom.Hook(p.VramAddress)
 	}
 
 	p.incrementVramAddress()
@@ -543,7 +543,7 @@ func (p *Ppu) ReadData() (r Word, err error) {
 
 		if p.VramAddress < 0x2000 {
 			// MMC2 latch trigger
-			rom.Hook(p.VramAddress)
+			// rom.Hook(p.VramAddress)
 		}
 	} else {
 		bufferAddress := p.VramAddress - 0x1000
@@ -563,7 +563,7 @@ func (p *Ppu) ReadData() (r Word, err error) {
 
 		if p.VramAddress < 0x2000 {
 			// MMC2 latch trigger
-			rom.Hook(p.VramAddress)
+			// rom.Hook(p.VramAddress)
 		}
 	}
 
@@ -646,7 +646,7 @@ func (p *Ppu) renderTileRow() {
 		}
 
 		// MMC2 latch trigger
-		rom.Hook(p.VramAddress)
+		// rom.Hook(p.VramAddress)
 
 		return uint16(p.Vram[t]), uint16(p.Vram[t+8]), attr
 	}
