@@ -37,7 +37,7 @@ func (c *Controller) SetJoypadAxisState(a, d int, v Word) {
 		}
 	}
 
-	if a == 4 {
+	if a == 4 || a == 1 {
 		switch d {
 		case JoypadAxisUp: // Up
 			resetAxis(0)
@@ -51,7 +51,7 @@ func (c *Controller) SetJoypadAxisState(a, d int, v Word) {
 			resetAxis(0)
 			c.LastYAxis = -1
 		}
-	} else if a == 3 {
+	} else if a == 3 || a == 0 {
 		switch d {
 		case JoypadAxisLeft: // Left
 			resetAxis(1)
