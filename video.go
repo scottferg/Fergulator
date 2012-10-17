@@ -208,9 +208,9 @@ func (v *Video) Render() {
 
 				switch e.Type {
 				case sdl.KEYDOWN:
-					pads[1].KeyDown(e)
+					pads[0].KeyDown(e)
 				case sdl.KEYUP:
-					pads[1].KeyUp(e)
+					pads[0].KeyUp(e)
 				}
 			}
 		case val := <-v.tick:
