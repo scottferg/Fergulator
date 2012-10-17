@@ -50,9 +50,11 @@ func (m *Mmc1) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc1) Hook(a int) {
+func (m *Mmc1) Hook() {
 	// Nothing to do
 }
+
+func (m *Mmc1) LatchTrigger(a int) {}
 
 func (m *Mmc1) BatteryBacked() bool {
 	return m.Battery

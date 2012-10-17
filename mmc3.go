@@ -301,7 +301,7 @@ func (m *Mmc3) Write1kVramBank(bank, dest int) {
 	WriteOffsetVramBank(m.VromBanks, b, dest, Size1k, offset)
 }
 
-func (m *Mmc3) Hook(a int) {
+func (m *Mmc3) Hook() {
 	// A12 Rising Edge
 	if (ppu.Scanline > -1 && ppu.Scanline < 241) && (ppu.ShowBackground || ppu.ShowSprites) {
 		if m.IrqReset {
@@ -318,3 +318,5 @@ func (m *Mmc3) Hook(a int) {
 		}
 	}
 }
+
+func (m *Mmc3) LatchTrigger(a int) {}

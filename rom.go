@@ -16,7 +16,8 @@ const (
 type Mapper interface {
 	Write(v Word, a int)
 	BatteryBacked() bool
-	Hook(a int)
+	Hook()
+    LatchTrigger(a int)
 }
 
 // Nrom
@@ -62,7 +63,11 @@ func (m *Rom) Write(v Word, a int) {
 	// Nothing to do
 }
 
-func (m *Rom) Hook(a int) {
+func (m *Rom) Hook() {
+	// No hooks
+}
+
+func (m *Rom) LatchTrigger(a int) {
 	// No hooks
 }
 
@@ -74,7 +79,11 @@ func (m *Unrom) Write(v Word, a int) {
 	WriteRamBank(m.RomBanks, int(v&0x7), 0x8000, Size16k)
 }
 
-func (m *Unrom) Hook(a int) {
+func (m *Unrom) Hook() {
+	// No hooks
+}
+
+func (m *Unrom) LatchTrigger(a int) {
 	// No hooks
 }
 
@@ -88,7 +97,11 @@ func (m *Cnrom) Write(v Word, a int) {
 	WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
 }
 
-func (m *Cnrom) Hook(a int) {
+func (m *Cnrom) Hook() {
+	// No hooks
+}
+
+func (m *Cnrom) LatchTrigger(a int) {
 	// No hooks
 }
 

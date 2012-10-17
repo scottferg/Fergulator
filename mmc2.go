@@ -89,7 +89,9 @@ func (m *Mmc2) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc2) Hook(a int) {
+func (m *Mmc2) Hook() {}
+
+func (m *Mmc2) LatchTrigger(a int) {
 	a &= 0x1FF0
 
 	switch {
