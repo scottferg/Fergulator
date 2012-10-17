@@ -646,7 +646,7 @@ func (p *Ppu) renderTileRow() {
 		}
 
 		// MMC2 latch trigger
-		rom.LatchTrigger(t)
+		rom.LatchTrigger(p.VramAddress)
 
 		return uint16(p.Vram[t]), uint16(p.Vram[t+8]), attr
 	}
