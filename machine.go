@@ -19,11 +19,11 @@ var (
 
 	running = true
 
-	cpu        Cpu
-	ppu        Ppu
-	rom        Mapper
-	video      Video
-	controller Controller
+	cpu   Cpu
+	ppu   Ppu
+	rom   Mapper
+	video Video
+	pads  [2]*Controller
 
 	gamename       string
 	saveStateFile  string
@@ -194,10 +194,14 @@ func main() {
 		defer pprof.StopCPUProfile()
 	}
 
+	pads[0] = new(Controller)
+	pads[1] = new(Controller)
+	pads[0].Init()
+	pads[1].Init()
+
 	Ram.Init()
 	cpu.Init()
 	v, d := ppu.Init()
-	controller.Init()
 
 	if contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1]); err == nil {
 

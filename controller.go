@@ -128,7 +128,11 @@ func (c *Controller) KeyUp(e sdl.KeyboardEvent) {
 
 func (c *Controller) Write(v Word) {
 	if v == 0 && c.LastWrite == 1 {
-		c.StrobeState = 0
+		// 0x4016 writes manage strobe state for
+		// both controllers. 0x4017 is reserved for
+		// APU
+		pads[0].StrobeState = 0
+		pads[1].StrobeState = 0
 	}
 
 	c.LastWrite = v

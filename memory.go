@@ -64,11 +64,11 @@ func (m *Memory) Write(address interface{}, val Word) error {
 			ppu.PpuRegWrite(val, a)
 			m[a] = val
 		} else if a == 0x4016 {
-			controller.Write(val)
+			pads[0].Write(val)
 			m[a] = val
 		} else if a == 0x4017 {
-			// controller.WritePad2(val)
-			m[a] = 0
+			pads[1].Write(val)
+			m[a] = val
 		} else if a >= 0x8000 && a <= 0xFFFF {
 			// MMC1
 			rom.Write(val, a)
@@ -95,7 +95,9 @@ func (m *Memory) Read(address interface{}) (Word, error) {
 		//ppu.Run(cpu.Timestamp)
 		return ppu.PpuRegRead(a)
 	} else if a == 0x4016 {
-		return controller.Read(), nil
+		return pads[0].Read(), nil
+	} else if a == 0x4017 {
+		return pads[1].Read(), nil
 	}
 
 	return m[a], nil

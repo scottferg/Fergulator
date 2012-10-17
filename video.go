@@ -15,7 +15,7 @@ type Video struct {
 	fpsmanager *gfx.FPSmanager
 	screen     *sdl.Surface
 	tex        gl.Texture
-	joy        *sdl.Joystick
+	joy        []*sdl.Joystick
 	Fullscreen bool
 }
 
@@ -47,15 +47,18 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 	v.fpsmanager = gfx.NewFramerate()
 	v.fpsmanager.SetFramerate(70)
 
-	for i := 0; i < sdl.NumJoysticks(); i++ {
-		v.joy = sdl.JoystickOpen(i)
+	v.joy = make([]*sdl.Joystick, sdl.NumJoysticks())
 
-		if v.joy != nil {
+	for i := 0; i < sdl.NumJoysticks(); i++ {
+		v.joy[i] = sdl.JoystickOpen(i)
+
+		fmt.Println("-----------------")
+		if v.joy[i] != nil {
 			fmt.Printf("Joystick %d\n", i)
 			fmt.Println("  Name: ", sdl.JoystickName(0))
-			fmt.Println("  Number of Axes: ", v.joy.NumAxes())
-			fmt.Println("  Number of Buttons: ", v.joy.NumButtons())
-			fmt.Println("  Number of Balls: ", v.joy.NumBalls())
+			fmt.Println("  Number of Axes: ", v.joy[i].NumAxes())
+			fmt.Println("  Number of Buttons: ", v.joy[i].NumButtons())
+			fmt.Println("  Number of Balls: ", v.joy[i].NumBalls())
 		} else {
 			fmt.Println("  Couldn't open Joystick!")
 		}
@@ -124,21 +127,33 @@ func (v *Video) Render() {
 			case sdl.QuitEvent:
 				running = false
 			case sdl.JoyAxisEvent:
+				joy := int(e.Which)
+
+				if joy > 0 {
+					joy = 1
+				}
+
 				switch e.Value {
 				// Same values for left/right
 				case JoypadAxisUp:
 					fallthrough
 				case JoypadAxisDown:
-					controller.AxisDown(int(e.Axis), int(e.Value))
+					pads[joy].AxisDown(int(e.Axis), int(e.Value))
 				default:
-					controller.AxisUp(int(e.Axis), int(e.Value))
+					pads[joy].AxisUp(int(e.Axis), int(e.Value))
 				}
 			case sdl.JoyButtonEvent:
-				switch v.joy.GetButton(int(e.Button)) {
+				joy := int(e.Which)
+
+				if joy > 0 {
+					joy = 1
+				}
+
+				switch v.joy[int(e.Which)].GetButton(int(e.Button)) {
 				case 1:
-					controller.ButtonDown(int(e.Button))
+					pads[joy].ButtonDown(int(e.Button))
 				case 0:
-					controller.ButtonUp(int(e.Button))
+					pads[joy].ButtonUp(int(e.Button))
 				}
 			case sdl.KeyboardEvent:
 				switch e.Keysym.Sym {
@@ -193,9 +208,9 @@ func (v *Video) Render() {
 
 				switch e.Type {
 				case sdl.KEYDOWN:
-					controller.KeyDown(e)
+					pads[1].KeyDown(e)
 				case sdl.KEYUP:
-					controller.KeyUp(e)
+					pads[1].KeyUp(e)
 				}
 			}
 		case val := <-v.tick:
