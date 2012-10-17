@@ -1,7 +1,7 @@
 package main
 
 import (
-    "fmt"
+	"fmt"
 )
 
 const (
@@ -64,9 +64,12 @@ func (m *Mmc2) LoadRom() {
 	m.Write8kRamBank(0, 0x8000)
 
 	// Write hardwired PRG banks (0xC000 and 0xE000) 
-	m.Write8kRamBank((len(m.RomBanks)*2)-2, 0xA000)
-	m.Write8kRamBank((len(m.RomBanks)*2)-1, 0xC000)
-	m.Write8kRamBank((len(m.RomBanks) * 2), 0xE000)
+	// Third to last bank
+	m.Write8kRamBank(((len(m.RomBanks)-2)*2)+1, 0xA000)
+	// Second to last bank
+	m.Write8kRamBank((len(m.RomBanks)-1)*2, 0xC000)
+	// Last bank
+	m.Write8kRamBank(((len(m.RomBanks)-1)*2)+1, 0xE000)
 
 	WriteVramBank(m.VromBanks, 4, 0x0000, Size4k)
 	WriteVramBank(m.VromBanks, 0, 0x1000, Size4k)
@@ -96,19 +99,19 @@ func (m *Mmc2) LatchTrigger(a int) {
 
 	switch {
 	case a == 0xFD0 && m.Latch0 != 0xFD:
-        fmt.Printf("Latch A: 0x%X\n", a)
+		fmt.Printf("Latch A: 0x%X\n", a)
 		m.Latch0 = 0xFD
 		WriteVramBank(m.VromBanks, m.Latch0Low, 0x0000, Size4k)
 	case a == 0xFE0 && m.Latch0 != 0xFE:
-        fmt.Printf("Latch A: 0x%X\n", a)
+		fmt.Printf("Latch A: 0x%X\n", a)
 		m.Latch0 = 0xFE
 		WriteVramBank(m.VromBanks, m.Latch1Low, 0x0000, Size4k)
 	case a == 0x1F00 && m.Latch1 != 0xFD:
-        fmt.Printf("Latch A: 0x%X\n", a)
+		fmt.Printf("Latch A: 0x%X\n", a)
 		m.Latch1 = 0xFD
 		WriteVramBank(m.VromBanks, m.Latch0High, 0x1000, Size4k)
 	case a == 0x1FE0 && m.Latch1 != 0xFE:
-        fmt.Printf("Latch A: 0x%X\n", a)
+		fmt.Printf("Latch A: 0x%X\n", a)
 		m.Latch1 = 0xFE
 		WriteVramBank(m.VromBanks, m.Latch1High, 0x1000, Size4k)
 	}
@@ -139,7 +142,7 @@ func (m *Mmc2) RegisterNumber(a int) int {
 
 func (m *Mmc2) PrgBankSelect(v Word) {
 	bank := int(v & 0xF)
-	WriteRamBank(m.RomBanks, bank, 0x8000, Size8k)
+	m.Write8kRamBank(bank, 0x8000)
 }
 
 func (m *Mmc2) ChrBankSelect(v Word, b int) {
