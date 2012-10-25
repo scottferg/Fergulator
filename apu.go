@@ -11,6 +11,8 @@ type Square struct {
 }
 
 type Triangle struct {
+	Value                    Word
+	InternalCountersDisabled bool
 }
 
 type Apu struct {
@@ -37,7 +39,7 @@ func (a *Apu) WriteFlags(v Word) {
 	//    +----- DMC
 	a.Square1Enabled = (v & 0x1) == 0x1
 	a.Square2Enabled = ((v >> 1) & 0x1) == 0x1
-	a.TriangeEnabled = ((v >> 2) & 0x1) == 0x1
+	a.TriangleEnabled = ((v >> 2) & 0x1) == 0x1
 	a.NoiseEnabled = ((v >> 3) & 0x1) == 0x1
 	a.DmcEnabled = ((v >> 4) & 0x1) == 0x1
 }
