@@ -69,6 +69,8 @@ func (m *Memory) Write(address interface{}, val Word) error {
 		} else if a == 0x4017 {
 			pads[1].Write(val)
 			m[a] = val
+		} else if a&0xF000 == 0x4000 {
+			apu.RegWrite(val, a)
 		} else if a >= 0x8000 && a <= 0xFFFF {
 			// MMC1
 			rom.Write(val, a)
@@ -98,6 +100,8 @@ func (m *Memory) Read(address interface{}) (Word, error) {
 		return pads[0].Read(), nil
 	} else if a == 0x4017 {
 		return pads[1].Read(), nil
+	} else if a&0xF000 == 0x4000 {
+		return apu.RegRead(a)
 	}
 
 	return m[a], nil

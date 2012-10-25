@@ -21,6 +21,7 @@ var (
 
 	cpu   Cpu
 	ppu   Ppu
+	apu   Apu
 	rom   Mapper
 	video Video
 	pads  [2]*Controller
@@ -201,6 +202,7 @@ func main() {
 
 	Ram.Init()
 	cpu.Init()
+	apu.Init()
 	v, d := ppu.Init()
 
 	if contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1]); err == nil {
