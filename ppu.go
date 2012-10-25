@@ -89,6 +89,7 @@ func (p *Ppu) Init() (chan []uint32, chan []uint32) {
 	p.WriteLatch = true
 	p.Output = make(chan []uint32)
 
+	p.OverscanEnabled = true
 	p.Cycle = 0
 	p.Scanline = -1
 	p.FrameCount = 0
