@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+    "fmt"
 )
 
 const (
@@ -22,12 +22,12 @@ type Mmc2 struct {
 	Battery      bool
 	Data         []byte
 
-	Latch0     int
-	Latch1     int
-	Latch0High int
-	Latch1High int
-	Latch0Low  int
-	Latch1Low  int
+	latch_a   int
+	latch_b   int
+	LatchFE0 int
+	LatchFE1 int
+	LatchFD0 int
+	LatchFD1 int
 }
 
 func NewMmc2(r *Rom) *Mmc2 {
@@ -40,12 +40,12 @@ func NewMmc2(r *Rom) *Mmc2 {
 		Data:         r.Data,
 	}
 
-	m.Latch0 = 0xFE
-	m.Latch1 = 0xFE
-	m.Latch0Low = 0
-	m.Latch1Low = 4
-	m.Latch0High = 0
-	m.Latch1High = 0
+	m.latch_a = 0xFE
+	m.latch_b = 0xFE
+	m.LatchFD0 = 0
+	m.LatchFE0 = 4
+	m.LatchFD1 = 0
+	m.LatchFE1 = 0
 
 	m.LoadRom()
 
@@ -98,22 +98,22 @@ func (m *Mmc2) LatchTrigger(a int) {
 	a &= 0x1FF0
 
 	switch {
-	case a == 0xFD0 && m.Latch0 != 0xFD:
-		fmt.Printf("Latch A: 0x%X\n", a)
-		m.Latch0 = 0xFD
-		WriteVramBank(m.VromBanks, m.Latch0Low, 0x0000, Size4k)
-	case a == 0xFE0 && m.Latch0 != 0xFE:
-		fmt.Printf("Latch A: 0x%X\n", a)
-		m.Latch0 = 0xFE
-		WriteVramBank(m.VromBanks, m.Latch1Low, 0x0000, Size4k)
-	case a == 0x1F00 && m.Latch1 != 0xFD:
-		fmt.Printf("Latch A: 0x%X\n", a)
-		m.Latch1 = 0xFD
-		WriteVramBank(m.VromBanks, m.Latch0High, 0x1000, Size4k)
-	case a == 0x1FE0 && m.Latch1 != 0xFE:
-		fmt.Printf("Latch A: 0x%X\n", a)
-		m.Latch1 = 0xFE
-		WriteVramBank(m.VromBanks, m.Latch1High, 0x1000, Size4k)
+	case a == 0x0FD0 && m.latch_a != 0xFD:
+        fmt.Println("Loading FD0")
+		m.latch_a = 0xFD
+		WriteVramBank(m.VromBanks, m.LatchFD0, 0x0000, Size4k)
+	case a == 0x0FE0 && m.latch_a != 0xFE:
+        fmt.Println("Loading FE0")
+		m.latch_a = 0xFE
+		WriteVramBank(m.VromBanks, m.LatchFE0, 0x0000, Size4k)
+	case a == 0x1FD0 && m.latch_b != 0xFD:
+        fmt.Println("Loading FD1")
+		m.latch_b = 0xFD
+		WriteVramBank(m.VromBanks, m.LatchFD1, 0x1000, Size4k)
+	case a == 0x1FE0 && m.latch_b != 0xFE:
+        fmt.Println("Loading FE1")
+		m.latch_b = 0xFE
+		WriteVramBank(m.VromBanks, m.LatchFE1, 0x1000, Size4k)
 	}
 }
 
@@ -122,18 +122,18 @@ func (m *Mmc2) BatteryBacked() bool {
 }
 
 func (m *Mmc2) RegisterNumber(a int) int {
-	switch {
-	case a >= 0xA000 && a <= 0xAFFF:
+	switch a >> 12 {
+	case 0xA:
 		return RegisterPrgBankSelect
-	case a >= 0xB000 && a <= 0xBFFF:
+	case 0xB:
 		return RegisterChrBank1Select
-	case a >= 0xC000 && a <= 0xCFFF:
+	case 0xC:
 		return RegisterChrBank2Select
-	case a >= 0xD000 && a <= 0xDFFF:
+	case 0xD:
 		return RegisterChrBank3Select
-	case a >= 0xE000 && a <= 0xEFFF:
+	case 0xE:
 		return RegisterChrBank4Select
-	case a >= 0xF000 && a <= 0xFFFF:
+	case 0xF:
 		return RegisterMirroringSelect
 	}
 
@@ -146,30 +146,35 @@ func (m *Mmc2) PrgBankSelect(v Word) {
 }
 
 func (m *Mmc2) ChrBankSelect(v Word, b int) {
+
 	switch b {
 	case 1:
-		m.Latch0Low = int(v)
+        fmt.Printf("Setting FD0 -> a = 0x%X\n", m.latch_a)
+		m.LatchFD0 = int(v)
 
-		if m.Latch0 == 0xFD {
-			WriteVramBank(m.VromBanks, m.Latch0Low, 0x0000, Size4k)
+		if m.latch_a == 0xFD {
+			WriteVramBank(m.VromBanks, m.LatchFD0%len(m.VromBanks), 0x0000, Size4k)
 		}
 	case 2:
-		m.Latch1Low = int(v)
+        fmt.Printf("Setting FE0 -> a = 0x%X\n", m.latch_a)
+		m.LatchFE0 = int(v)
 
-		if m.Latch0 == 0xFE {
-			WriteVramBank(m.VromBanks, m.Latch1Low, 0x0000, Size4k)
+		if m.latch_a == 0xFE {
+			WriteVramBank(m.VromBanks, m.LatchFE0%len(m.VromBanks), 0x0000, Size4k)
 		}
 	case 3:
-		m.Latch0High = int(v)
+        fmt.Printf("Setting FD1 -> b = 0x%X\n", m.latch_b)
+		m.LatchFD1 = int(v)
 
-		if m.Latch1 == 0xFD {
-			WriteVramBank(m.VromBanks, m.Latch0High, 0x1000, Size4k)
+		if m.latch_b == 0xFD {
+			WriteVramBank(m.VromBanks, m.LatchFD1%len(m.VromBanks), 0x1000, Size4k)
 		}
 	case 4:
-		m.Latch1High = int(v)
+        fmt.Printf("Setting FE1 -> b = 0x%X\n", m.latch_b)
+		m.LatchFE1 = int(v)
 
-		if m.Latch1 == 0xFE {
-			WriteVramBank(m.VromBanks, m.Latch1High, 0x1000, Size4k)
+		if m.latch_b == 0xFE {
+			WriteVramBank(m.VromBanks, m.LatchFE1%len(m.VromBanks) , 0x1000, Size4k)
 		}
 	}
 }

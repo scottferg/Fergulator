@@ -505,11 +505,6 @@ func (p *Ppu) WriteAddress(v Word) {
 		p.VramAddress = p.VramLatch
 	}
 
-	if p.VramAddress < 0x2000 {
-		// MMC2 latch trigger
-		rom.LatchTrigger(p.VramAddress)
-	}
-
 	p.checkA12RisingEdge()
 	p.WriteLatch = !p.WriteLatch
 }
@@ -777,7 +772,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 			spriteCount++
 
-			if spriteCount == 8 {
+			if spriteCount == 9 {
 				p.setStatus(StatusSpriteOverflow)
 				break
 			}

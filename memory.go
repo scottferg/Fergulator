@@ -68,6 +68,7 @@ func (m *Memory) Write(address interface{}, val Word) error {
 			m[a] = val
 		} else if a == 0x4017 {
 			pads[1].Write(val)
+            apu.RegWrite(val, a)
 			m[a] = val
 		} else if a&0xF000 == 0x4000 {
 			apu.RegWrite(val, a)

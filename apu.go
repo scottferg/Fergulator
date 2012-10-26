@@ -1,7 +1,12 @@
 package main
 
-import (
-	"fmt"
+var (
+	DutyLookup = []int{
+		0, 1, 0, 0, 0, 0, 0, 0,
+		0, 1, 1, 0, 0, 0, 0, 0,
+		0, 1, 1, 1, 1, 0, 0, 0,
+		1, 0, 0, 1, 1, 1, 1, 1,
+	}
 )
 
 type Square struct {
@@ -9,16 +14,14 @@ type Square struct {
 	SawEnvelopeDisabled   bool
 	LengthCounterDisabled bool
 	DutyCycle             Word
-	LowPeriod             Word
-	HighPeriod            Word
+	Period                int
 	LengthCounter         Word
 }
 
 type Triangle struct {
 	Value                    Word
 	InternalCountersDisabled bool
-	LowPeriod                Word
-	HighPeriod               Word
+	Period                   int
 	LengthCounter            Word
 }
 
@@ -39,6 +42,8 @@ func (a *Apu) Init() {
 func (a *Apu) RegRead(addr int) (Word, error) {
 	switch addr {
 	case 0x4015:
+		// TODO: When a status read occurrs, emulate the APU up to that point.
+		// http://forums.nesdev.com/viewtopic.php?t=2123
 		return a.ReadStatus(), nil
 	}
 
@@ -46,7 +51,6 @@ func (a *Apu) RegRead(addr int) (Word, error) {
 }
 
 func (a *Apu) RegWrite(v Word, addr int) {
-	fmt.Printf("APU RegWrite: 0x%X\n", addr)
 	switch addr & 0xFF {
 	case 0x0:
 		a.WriteSquare1Control(v)
@@ -91,18 +95,58 @@ func (a *Apu) WriteControlFlags1(v Word) {
 	a.TriangleEnabled = ((v >> 2) & 0x1) == 0x1
 	a.NoiseEnabled = ((v >> 3) & 0x1) == 0x1
 	a.DmcEnabled = ((v >> 4) & 0x1) == 0x1
+
+	if !a.Square1Enabled {
+		a.Square1.LengthCounter = 0
+	}
+
+	if !a.Square2Enabled {
+		a.Square2.LengthCounter = 0
+	}
+
+	if !a.TriangleEnabled {
+		a.Triangle.LengthCounter = 0
+	}
+
+	// TODO:
+	// If the DMC bit is clear, the DMC bytes remaining will be 
+	// set to 0 and the DMC will silence when it empties.
+	// If the DMC bit is set, the DMC sample will be restarted 
+	// only if its bytes remaining is 0. Writing to this register 
+	// clears the DMC interrupt flag.
 }
 
 // $4015 (r)
 func (a *Apu) ReadStatus() Word {
 	// if-d nt21   DMC IRQ, frame IRQ, length counter statuses
-	return 0
+	var status Word
+
+	if a.Square1.LengthCounter > 0 {
+		status |= 0x1
+	}
+
+	if a.Square2.LengthCounter > 0 {
+		status |= 0x2
+	}
+
+	if a.Triangle.LengthCounter > 0 {
+		status |= 0x8
+	}
+
+	// TODO: Noise -> 0x10
+
+	// Reading this register clears the frame interrupt 
+	// flag (but not the DMC interrupt flag).
+	// If an interrupt flag was set at the same moment of 
+	// the read, it will read back as 1 but it will not be cleared.
+
+	return status
 }
 
 // $4017
 func (a *Apu) WriteControlFlags2(v Word) {
 	// fd-- ----   5-frame cycle, disable frame interrupt
-	fmt.Println("WriteControl2!")
+	// fmt.Println("WriteControl2!")
 }
 
 // $4000
@@ -125,12 +169,12 @@ func (a *Apu) WriteSquare1Sweeps(v Word) {
 
 // $4002
 func (a *Apu) WriteSquare1Low(v Word) {
-	a.Square1.LowPeriod = v
+	a.Square1.Period = (a.Square1.Period & 0x700) | int(v)
 }
 
 // $4003
 func (a *Apu) WriteSquare1High(v Word) {
-	a.Square1.HighPeriod = v & 0xF
+	a.Square1.Period = (a.Square1.Period & 0xFF) | int((v&0xF)<<8)
 	a.Square1.LengthCounter = v >> 3
 }
 
@@ -154,12 +198,12 @@ func (a *Apu) WriteSquare2Sweeps(v Word) {
 
 // $4006
 func (a *Apu) WriteSquare2Low(v Word) {
-	a.Square2.LowPeriod = v
+	a.Square2.Period = (a.Square1.Period & 0x700) | int(v)
 }
 
 // $4007
 func (a *Apu) WriteSquare2High(v Word) {
-	a.Square2.HighPeriod = v & 0xF
+	a.Square2.Period = (a.Square1.Period & 0xFF) | int((v&0xF)<<8)
 	a.Square2.LengthCounter = v >> 3
 }
 
@@ -175,11 +219,11 @@ func (a *Apu) WriteTriangleControl(v Word) {
 
 // $400A
 func (a *Apu) WriteTriangleLow(v Word) {
-	a.Triangle.LowPeriod = v
+	a.Triangle.Period = (a.Triangle.Period & 0x700) | int(v)
 }
 
 // $400B
 func (a *Apu) WriteTriangleHigh(v Word) {
-	a.Triangle.HighPeriod = v & 0xF
+	a.Triangle.Period = (a.Triangle.Period & 0xFF) | int((v&0xF)<<8)
 	a.Triangle.LengthCounter = v >> 3
 }
