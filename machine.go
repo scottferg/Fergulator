@@ -179,6 +179,8 @@ func saveBatteryFile() {
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU())
+
 	if len(os.Args) < 2 {
 		fmt.Println("Please specify a ROM file")
 		return
