@@ -54,6 +54,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 * UNROM
 * CNROM
 * MMC1
+* MMC2
 * MMC3
 * ANROM
 
@@ -64,12 +65,9 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 ## What isn't working
 
 * Sound
-* Second controller
-* Scrolling and palettes on a number of MMC1 games
 * Save states for some MMC1 games
 * Some minor graphical glitches on screen boundary
 
 ## Next planned mappers
 
 * MMC5
-* MMC2
