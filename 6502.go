@@ -420,15 +420,19 @@ func (c *Cpu) Iny() {
 	c.testAndSetZero(c.Y)
 }
 
+func (c *Cpu) SetBranchCycleCount(a uint16) {
+    if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+        c.CycleCount += 2
+    } else {
+        c.CycleCount += 1
+    }
+}
+
 func (c *Cpu) Bpl() {
 	if !c.getNegative() {
 		a := c.relativeAddress()
-
-		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			c.CycleCount += 2
-		} else {
-			c.CycleCount += 1
-		}
+    
+        c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -440,11 +444,7 @@ func (c *Cpu) Bmi() {
 	if c.getNegative() {
 		a := c.relativeAddress()
 
-		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			c.CycleCount += 2
-		} else {
-			c.CycleCount += 1
-		}
+        c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -456,11 +456,7 @@ func (c *Cpu) Bvc() {
 	if !c.getOverflow() {
 		a := c.relativeAddress()
 
-		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			c.CycleCount += 2
-		} else {
-			c.CycleCount += 1
-		}
+        c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -472,11 +468,7 @@ func (c *Cpu) Bvs() {
 	if c.getOverflow() {
 		a := c.relativeAddress()
 
-		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			c.CycleCount += 2
-		} else {
-			c.CycleCount += 1
-		}
+        c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -488,11 +480,7 @@ func (c *Cpu) Bcc() {
 	if !c.getCarry() {
 		a := c.relativeAddress()
 
-		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			c.CycleCount += 2
-		} else {
-			c.CycleCount += 1
-		}
+        c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -504,11 +492,7 @@ func (c *Cpu) Bcs() {
 	if c.getCarry() {
 		a := c.relativeAddress()
 
-		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			c.CycleCount += 2
-		} else {
-			c.CycleCount += 1
-		}
+        c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -520,11 +504,7 @@ func (c *Cpu) Bne() {
 	if !c.getZero() {
 		a := c.relativeAddress()
 
-		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			c.CycleCount += 2
-		} else {
-			c.CycleCount += 1
-		}
+        c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -536,11 +516,7 @@ func (c *Cpu) Beq() {
 	if c.getZero() {
 		a := c.relativeAddress()
 
-		if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-			c.CycleCount += 2
-		} else {
-			c.CycleCount += 1
-		}
+        c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -1174,28 +1150,28 @@ func (c *Cpu) Step() int {
 		c.Iny()
 	// Branch Instructions
 	case 0x10:
-		c.CycleCount = 2
+		c.CycleCount = 1
 		c.Bpl()
 	case 0x30:
-		c.CycleCount = 2
+		c.CycleCount = 1
 		c.Bmi()
 	case 0x50:
-		c.CycleCount = 2
+		c.CycleCount = 1
 		c.Bvc()
 	case 0x70:
-		c.CycleCount = 2
+		c.CycleCount = 1
 		c.Bvs()
 	case 0x90:
-		c.CycleCount = 2
+		c.CycleCount = 1
 		c.Bcc()
 	case 0xB0:
-		c.CycleCount = 2
+		c.CycleCount = 1
 		c.Bcs()
 	case 0xD0:
-		c.CycleCount = 2
+		c.CycleCount = 1
 		c.Bne()
 	case 0xF0:
-		c.CycleCount = 2
+		c.CycleCount = 1
 		c.Beq()
 	// CMP
 	case 0xC9:

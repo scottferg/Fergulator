@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/0xe2-0x9a-0x9b/Go-SDL/gfx"
-	"github.com/0xe2-0x9a-0x9b/Go-SDL/sdl"
+	"github.com/scottferg/Go-SDL/gfx"
+	"github.com/scottferg/Go-SDL/sdl"
 	"github.com/banthar/gl"
 	"log"
 	"math"

@@ -67,7 +67,6 @@ type Ppu struct {
 	AttributeLocation [0x400]uint
 	AttributeShift    [0x400]uint
 	A12High           bool
-	RunHook           bool
 
 	Palettebuffer []Pixel
 	Framebuffer   []uint32
@@ -162,10 +161,6 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 	} else {
 		p.Nametables.writeNametableData(a-0x1000, v)
 	}
-
-	if a < 0x2000 {
-		p.checkA12RisingEdge()
-	}
 }
 
 func (p *Ppu) raster() {
@@ -244,15 +239,7 @@ func (p *Ppu) Step() {
 			}
 		} else if p.Cycle == 260 {
 			if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
-				if p.RunHook {
-					rom.Hook()
-				}
-			}
-		} else if p.Cycle == 324 {
-			if p.SpritePatternAddress == 0x0 && p.BackgroundPatternAddress == 0x1 {
-				if p.RunHook {
-					rom.Hook()
-				}
+                rom.Hook()
 			}
 		}
 	case p.Scanline == -1:
@@ -505,7 +492,6 @@ func (p *Ppu) WriteAddress(v Word) {
 		p.VramAddress = p.VramLatch
 	}
 
-	p.checkA12RisingEdge()
 	p.WriteLatch = !p.WriteLatch
 }
 
@@ -519,11 +505,11 @@ func (p *Ppu) WriteData(v Word) {
 	} else {
 		p.Vram[p.VramAddress&0x3FFF] = v
 		// MMC2 latch trigger
-		rom.LatchTrigger(p.VramAddress)
+		t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
+		rom.LatchTrigger(t)
 	}
 
 	p.incrementVramAddress()
-	p.checkA12RisingEdge()
 }
 
 // $2007
@@ -539,7 +525,8 @@ func (p *Ppu) ReadData() (r Word, err error) {
 
 		if p.VramAddress < 0x2000 {
 			// MMC2 latch trigger
-			rom.LatchTrigger(p.VramAddress)
+			t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
+			rom.LatchTrigger(t)
 		}
 	} else {
 		bufferAddress := p.VramAddress - 0x1000
@@ -559,12 +546,12 @@ func (p *Ppu) ReadData() (r Word, err error) {
 
 		if p.VramAddress < 0x2000 {
 			// MMC2 latch trigger
-			rom.LatchTrigger(p.VramAddress)
+			t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
+			rom.LatchTrigger(t)
 		}
 	}
 
 	p.incrementVramAddress()
-	p.checkA12RisingEdge()
 
 	return
 }
@@ -575,13 +562,6 @@ func (p *Ppu) incrementVramAddress() {
 		p.VramAddress = p.VramAddress + 0x20
 	default:
 		p.VramAddress = p.VramAddress + 0x01
-	}
-}
-
-func (p *Ppu) checkA12RisingEdge() {
-	p.A12High = (p.VramAddress & 0x1000) != 0x0
-	if p.A12High {
-		p.RunHook = true
 	}
 }
 

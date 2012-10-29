@@ -91,7 +91,7 @@ func (m *Mmc2) Write(v Word, a int) {
 func (m *Mmc2) Hook() {}
 
 func (m *Mmc2) LatchTrigger(a int) {
-	a &= 0x1FF0
+	a &= 0x3FF0
 
 	switch {
 	case a == 0x0FD0 && m.LatchLow != 0xFD:

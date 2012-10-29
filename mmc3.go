@@ -47,6 +47,7 @@ type Mmc3 struct {
 	IrqLatchValue   Word
 	IrqCounter      Word
 	IrqReset        bool
+	IrqResetVbl     bool
 
 	RamProtectDest [16]int
 }
@@ -268,11 +269,18 @@ func (m *Mmc3) IrqLatch(v int) {
 
 func (m *Mmc3) IrqReload(v int) {
 	// $C001
-	m.IrqReset = true
+	m.IrqCounter |= 0x80
+
+	if ppu.Scanline < 240 {
+		m.IrqReset = true
+	} else {
+		m.IrqResetVbl = true
+		m.IrqReset = false
+	}
 }
 
 func (m *Mmc3) IrqDisable(v int) {
-	// $E001
+	// $E000
 	m.IrqEnabled = false
 	m.IrqCounter = m.IrqLatchValue
 }
@@ -303,7 +311,12 @@ func (m *Mmc3) Write1kVramBank(bank, dest int) {
 
 func (m *Mmc3) Hook() {
 	// A12 Rising Edge
-	if (ppu.Scanline > -1 && ppu.Scanline < 241) && (ppu.ShowBackground || ppu.ShowSprites) {
+	if (ppu.Scanline > -1 && ppu.Scanline < 240) && (ppu.ShowBackground || ppu.ShowSprites) {
+		if m.IrqResetVbl {
+			m.IrqCounter = m.IrqLatchValue
+			m.IrqResetVbl = false
+		}
+
 		if m.IrqReset {
 			m.IrqCounter = m.IrqLatchValue
 			m.IrqReset = false
@@ -316,6 +329,8 @@ func (m *Mmc3) Hook() {
 		if m.IrqEnabled {
 			cpu.RequestInterrupt(InterruptIrq)
 		}
+
+		m.IrqReset = true
 	}
 }
 
