@@ -421,18 +421,18 @@ func (c *Cpu) Iny() {
 }
 
 func (c *Cpu) SetBranchCycleCount(a uint16) {
-    if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-        c.CycleCount += 2
-    } else {
-        c.CycleCount += 1
-    }
+	if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
+		c.CycleCount += 2
+	} else {
+		c.CycleCount += 1
+	}
 }
 
 func (c *Cpu) Bpl() {
 	if !c.getNegative() {
 		a := c.relativeAddress()
-    
-        c.SetBranchCycleCount(a)
+
+		c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -444,7 +444,7 @@ func (c *Cpu) Bmi() {
 	if c.getNegative() {
 		a := c.relativeAddress()
 
-        c.SetBranchCycleCount(a)
+		c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -456,7 +456,7 @@ func (c *Cpu) Bvc() {
 	if !c.getOverflow() {
 		a := c.relativeAddress()
 
-        c.SetBranchCycleCount(a)
+		c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -468,7 +468,7 @@ func (c *Cpu) Bvs() {
 	if c.getOverflow() {
 		a := c.relativeAddress()
 
-        c.SetBranchCycleCount(a)
+		c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -480,7 +480,7 @@ func (c *Cpu) Bcc() {
 	if !c.getCarry() {
 		a := c.relativeAddress()
 
-        c.SetBranchCycleCount(a)
+		c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -492,7 +492,7 @@ func (c *Cpu) Bcs() {
 	if c.getCarry() {
 		a := c.relativeAddress()
 
-        c.SetBranchCycleCount(a)
+		c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -504,7 +504,7 @@ func (c *Cpu) Bne() {
 	if !c.getZero() {
 		a := c.relativeAddress()
 
-        c.SetBranchCycleCount(a)
+		c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
@@ -516,7 +516,7 @@ func (c *Cpu) Beq() {
 	if c.getZero() {
 		a := c.relativeAddress()
 
-        c.SetBranchCycleCount(a)
+		c.SetBranchCycleCount(a)
 
 		ProgramCounter = a
 	} else {
