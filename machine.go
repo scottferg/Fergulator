@@ -205,7 +205,7 @@ func main() {
 	Ram.Init()
 	cpu.Init()
 	apu.Init()
-	v, d := ppu.Init()
+	v := ppu.Init()
 
 	if contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1]); err == nil {
 
@@ -243,9 +243,12 @@ func main() {
 		}
 	}()
 
+	r := video.Init(v, gamename)
+
+	go ReadInput(r)
+
 	// This needs to happen on the main thread for OSX
 	runtime.LockOSThread()
-	video.Init(v, d, gamename)
 	defer video.Close()
 	video.Render()
 

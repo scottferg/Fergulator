@@ -4,6 +4,10 @@ import (
 	"github.com/scottferg/Go-SDL/sdl"
 )
 
+var (
+	joy []*sdl.Joystick
+)
+
 const (
 	JoypadButtonA      = 1
 	JoypadButtonB      = 2
@@ -159,5 +163,95 @@ func (c *Controller) Read() (r Word) {
 func (c *Controller) Init() {
 	for i := 0; i < len(c.ButtonState); i++ {
 		c.ButtonState[i] = 0x40
+	}
+}
+
+func ReadInput(r chan [2]int) {
+	for {
+		select {
+		case ev := <-sdl.Events:
+			switch e := ev.(type) {
+			case sdl.ResizeEvent:
+				r <- [2]int{int(e.W), int(e.H)}
+			case sdl.QuitEvent:
+				running = false
+			case sdl.JoyAxisEvent:
+				joy := int(e.Which)
+
+				if joy > 0 {
+					joy = 1
+				}
+
+				switch e.Value {
+				// Same values for left/right
+				case JoypadAxisUp:
+					fallthrough
+				case JoypadAxisDown:
+					pads[joy].AxisDown(int(e.Axis), int(e.Value))
+				default:
+					pads[joy].AxisUp(int(e.Axis), int(e.Value))
+				}
+			case sdl.JoyButtonEvent:
+				j := int(e.Which)
+
+				if j > 0 {
+					j = 1
+				}
+
+				switch joy[int(e.Which)].GetButton(int(e.Button)) {
+				case 1:
+					pads[j].ButtonDown(int(e.Button))
+				case 0:
+					pads[j].ButtonUp(int(e.Button))
+				}
+			case sdl.KeyboardEvent:
+				switch e.Keysym.Sym {
+				case sdl.K_ESCAPE:
+					running = false
+				case sdl.K_r:
+					// Trigger reset interrupt
+					if e.Type == sdl.KEYDOWN {
+						cpu.RequestInterrupt(InterruptReset)
+					}
+				case sdl.K_l:
+					if e.Type == sdl.KEYDOWN {
+						// Trigger reset interrupt
+						LoadState()
+					}
+				case sdl.K_s:
+					if e.Type == sdl.KEYDOWN {
+						// Trigger reset interrupt
+						SaveState()
+					}
+				case sdl.K_o:
+					if e.Type == sdl.KEYDOWN {
+						ppu.OverscanEnabled = !ppu.OverscanEnabled
+					}
+				case sdl.K_1:
+					if e.Type == sdl.KEYDOWN {
+						r <- [2]int{256, 240}
+					}
+				case sdl.K_2:
+					if e.Type == sdl.KEYDOWN {
+						r <- [2]int{512, 480}
+					}
+				case sdl.K_3:
+					if e.Type == sdl.KEYDOWN {
+						r <- [2]int{768, 720}
+					}
+				case sdl.K_4:
+					if e.Type == sdl.KEYDOWN {
+						r <- [2]int{1024, 960}
+					}
+				}
+
+				switch e.Type {
+				case sdl.KEYDOWN:
+					pads[0].KeyDown(e)
+				case sdl.KEYUP:
+					pads[0].KeyUp(e)
+				}
+			}
+		}
 	}
 }

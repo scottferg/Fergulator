@@ -84,7 +84,7 @@ type Ppu struct {
 	OverscanEnabled bool
 }
 
-func (p *Ppu) Init() (chan []uint32, chan []uint32) {
+func (p *Ppu) Init() chan []uint32 {
 	p.WriteLatch = true
 	p.Output = make(chan []uint32)
 
@@ -112,7 +112,7 @@ func (p *Ppu) Init() (chan []uint32, chan []uint32) {
 	p.Palettebuffer = make([]Pixel, 0xF000)
 	p.Framebuffer = make([]uint32, 0xEFE0)
 
-	return p.Output, nil
+	return p.Output
 }
 
 func (p *Ppu) PpuRegRead(a int) (Word, error) {
@@ -239,7 +239,7 @@ func (p *Ppu) Step() {
 			}
 		} else if p.Cycle == 260 {
 			if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
-                rom.Hook()
+				rom.Hook()
 			}
 		}
 	case p.Scanline == -1:

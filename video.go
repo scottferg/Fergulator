@@ -2,26 +2,25 @@ package main
 
 import (
 	"fmt"
+	"github.com/banthar/gl"
 	"github.com/scottferg/Go-SDL/gfx"
 	"github.com/scottferg/Go-SDL/sdl"
-	"github.com/banthar/gl"
 	"log"
 	"math"
 )
 
 type Video struct {
 	tick       <-chan []uint32
-	debug      <-chan []uint32
+	resize     chan [2]int
 	fpsmanager *gfx.FPSmanager
 	screen     *sdl.Surface
 	tex        gl.Texture
-	joy        []*sdl.Joystick
 	Fullscreen bool
 }
 
-func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
+func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
 	v.tick = t
-	v.debug = d
+	v.resize = make(chan [2]int)
 
 	if sdl.Init(sdl.INIT_EVERYTHING) != 0 {
 		log.Fatal(sdl.GetError())
@@ -47,22 +46,24 @@ func (v *Video) Init(t <-chan []uint32, d <-chan []uint32, n string) {
 	v.fpsmanager = gfx.NewFramerate()
 	v.fpsmanager.SetFramerate(70)
 
-	v.joy = make([]*sdl.Joystick, sdl.NumJoysticks())
+	joy = make([]*sdl.Joystick, sdl.NumJoysticks())
 
 	for i := 0; i < sdl.NumJoysticks(); i++ {
-		v.joy[i] = sdl.JoystickOpen(i)
+		joy[i] = sdl.JoystickOpen(i)
 
 		fmt.Println("-----------------")
-		if v.joy[i] != nil {
+		if joy[i] != nil {
 			fmt.Printf("Joystick %d\n", i)
 			fmt.Println("  Name: ", sdl.JoystickName(0))
-			fmt.Println("  Number of Axes: ", v.joy[i].NumAxes())
-			fmt.Println("  Number of Buttons: ", v.joy[i].NumButtons())
-			fmt.Println("  Number of Balls: ", v.joy[i].NumBalls())
+			fmt.Println("  Number of Axes: ", joy[i].NumAxes())
+			fmt.Println("  Number of Buttons: ", joy[i].NumButtons())
+			fmt.Println("  Number of Balls: ", joy[i].NumBalls())
 		} else {
 			fmt.Println("  Couldn't open Joystick!")
 		}
 	}
+
+	return v.resize
 }
 
 func (v *Video) ResizeEvent(w, h int) {
@@ -117,102 +118,8 @@ func quit_event() int {
 func (v *Video) Render() {
 	for running {
 		select {
-		case ev := <-sdl.Events:
-			// TODO: Should see if there's a way to do this
-			// from another goroutine. Had to move it here for
-			// the ResizeEvent
-			switch e := ev.(type) {
-			case sdl.ResizeEvent:
-				v.ResizeEvent(int(e.W), int(e.H))
-			case sdl.QuitEvent:
-				running = false
-			case sdl.JoyAxisEvent:
-				joy := int(e.Which)
-
-				if joy > 0 {
-					joy = 1
-				}
-
-				switch e.Value {
-				// Same values for left/right
-				case JoypadAxisUp:
-					fallthrough
-				case JoypadAxisDown:
-					pads[joy].AxisDown(int(e.Axis), int(e.Value))
-				default:
-					pads[joy].AxisUp(int(e.Axis), int(e.Value))
-				}
-			case sdl.JoyButtonEvent:
-				joy := int(e.Which)
-
-				if joy > 0 {
-					joy = 1
-				}
-
-				switch v.joy[int(e.Which)].GetButton(int(e.Button)) {
-				case 1:
-					pads[joy].ButtonDown(int(e.Button))
-				case 0:
-					pads[joy].ButtonUp(int(e.Button))
-				}
-			case sdl.KeyboardEvent:
-				switch e.Keysym.Sym {
-				case sdl.K_ESCAPE:
-					running = false
-				case sdl.K_r:
-					// Trigger reset interrupt
-					if e.Type == sdl.KEYDOWN {
-						cpu.RequestInterrupt(InterruptReset)
-					}
-				case sdl.K_l:
-					if e.Type == sdl.KEYDOWN {
-						// Trigger reset interrupt
-						LoadState()
-					}
-				case sdl.K_s:
-					if e.Type == sdl.KEYDOWN {
-						// Trigger reset interrupt
-						SaveState()
-					}
-				case sdl.K_o:
-					if e.Type == sdl.KEYDOWN {
-						ppu.OverscanEnabled = !ppu.OverscanEnabled
-					}
-				case sdl.K_1:
-					if e.Type == sdl.KEYDOWN {
-						v.ResizeEvent(256, 240)
-					}
-				case sdl.K_2:
-					if e.Type == sdl.KEYDOWN {
-						v.ResizeEvent(512, 480)
-					}
-				case sdl.K_3:
-					if e.Type == sdl.KEYDOWN {
-						v.ResizeEvent(768, 720)
-					}
-				case sdl.K_4:
-					if e.Type == sdl.KEYDOWN {
-						v.ResizeEvent(1024, 960)
-					}
-				case sdl.K_f:
-					if e.Type == sdl.KEYDOWN {
-						if v.Fullscreen {
-							v.ResizeEvent(512, 480)
-						} else {
-							v.FullscreenEvent()
-						}
-
-						v.Fullscreen = !v.Fullscreen
-					}
-				}
-
-				switch e.Type {
-				case sdl.KEYDOWN:
-					pads[0].KeyDown(e)
-				case sdl.KEYUP:
-					pads[0].KeyUp(e)
-				}
-			}
+		case dimensions := <-v.resize:
+			v.ResizeEvent(dimensions[0], dimensions[1])
 		case val := <-v.tick:
 			slice := make([]uint8, len(val)*3)
 			for i := 0; i < len(val); i = i + 1 {
