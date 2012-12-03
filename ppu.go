@@ -79,9 +79,12 @@ type Ppu struct {
 	FrameCount  int
 	FrameCycles int
 
-	SuppressNmi     bool
-	SuppressVbl     bool
-	OverscanEnabled bool
+	SuppressNmi        bool
+	SuppressVbl        bool
+	OverscanEnabled    bool
+	SpriteLimitEnabled bool
+
+	CycleCount int
 }
 
 func (p *Ppu) Init() chan []uint32 {
@@ -89,6 +92,7 @@ func (p *Ppu) Init() chan []uint32 {
 	p.Output = make(chan []uint32)
 
 	p.OverscanEnabled = true
+	p.SpriteLimitEnabled = true
 	p.Cycle = 0
 	p.Scanline = -1
 	p.FrameCount = 0
@@ -208,6 +212,7 @@ func (p *Ppu) Step() {
 			if !p.SuppressVbl {
 				// We're in VBlank
 				p.setStatus(StatusVblankStarted)
+				p.CycleCount = 0
 			}
 
 			// $2000.7 enables/disables NMIs
@@ -218,7 +223,11 @@ func (p *Ppu) Step() {
 			p.raster()
 		}
 	case p.Scanline == 260: // End of vblank
-		if p.Cycle == 341 {
+		if p.Cycle == 1 {
+			// Clear VBlank flag
+			p.clearStatus(StatusVblankStarted)
+			p.CycleCount = 0
+		} else if p.Cycle == 341 {
 			p.Scanline = -1
 			p.Cycle = 1
 			p.FrameCount++
@@ -244,9 +253,6 @@ func (p *Ppu) Step() {
 		}
 	case p.Scanline == -1:
 		if p.Cycle == 1 {
-			// Clear VBlank flag
-			p.clearStatus(StatusVblankStarted)
-
 			p.clearStatus(StatusSprite0Hit)
 			p.clearStatus(StatusSpriteOverflow)
 		} else if p.Cycle == 304 {
@@ -264,6 +270,11 @@ func (p *Ppu) Step() {
 	}
 
 	p.Cycle++
+	p.CycleCount++
+}
+
+func (p *Ppu) renderingEnabled() bool {
+	return p.ShowBackground && p.ShowSprites
 }
 
 func (p *Ppu) updateEndScanlineRegisters() {
@@ -753,8 +764,10 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 			spriteCount++
 
 			if spriteCount == 9 {
-				p.setStatus(StatusSpriteOverflow)
-				break
+				if p.SpriteLimitEnabled {
+					p.setStatus(StatusSpriteOverflow)
+					break
+				}
 			}
 		}
 	}
@@ -800,13 +813,14 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 				p.setStatus(StatusSprite0Hit)
 			}
 
-			if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
-				// Pixel is already rendered and priority
-				// 1 means show behind background
-				continue
-			} else if p.Palettebuffer[fbRow].Pindex > -1 && p.Palettebuffer[fbRow].Pindex < index {
+			if p.Palettebuffer[fbRow].Pindex > -1 && p.Palettebuffer[fbRow].Pindex < index {
 				// Pixel with a higher sprite priority (lower index)
 				// is already here, so don't render this pixel
+				continue
+			} else if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
+				// Pixel is already rendered and priority
+				// 1 means show behind background
+				// unless background pixel is not transparent
 				continue
 			}
 

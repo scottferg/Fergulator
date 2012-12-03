@@ -218,6 +218,11 @@ func ReadInput(r chan [2]int) {
 						// Trigger reset interrupt
 						LoadState()
 					}
+				case sdl.K_p:
+					if e.Type == sdl.KEYDOWN {
+						// Enable/disable scanline sprite limiter flag
+						ppu.SpriteLimitEnabled = !ppu.SpriteLimitEnabled
+					}
 				case sdl.K_s:
 					if e.Type == sdl.KEYDOWN {
 						// Trigger reset interrupt
