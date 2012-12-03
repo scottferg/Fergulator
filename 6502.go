@@ -226,11 +226,13 @@ func (c *Cpu) absoluteIndexedAddress(index Word) (result uint16) {
 	high, _ := Ram.Read(ProgramCounter + 1)
 	low, _ := Ram.Read(ProgramCounter)
 
-	if uint16(low)+uint16(index) > 0xFF {
+	address := (uint16(high) << 8) + uint16(low)
+
+	if address&0xFF00 != (address+uint16(index))&0xFF00 {
 		c.CycleCount += 1
 	}
 
-	address := (uint16(high) << 8) + uint16(low) + uint16(index)
+	address += uint16(index)
 
 	if address > 0xFFFF {
 		address = address & 0xFFFF
@@ -268,11 +270,13 @@ func (c *Cpu) indirectIndexedAddress() uint16 {
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
 
-	if uint16(low)+uint16(c.Y) > 0xFF {
+	address := (uint16(high) << 8) + uint16(low)
+
+	if address&0xFF00 != (address+uint16(c.Y))&0xFF00 {
 		c.CycleCount += 1
 	}
 
-	address := (uint16(high) << 8) + uint16(low) + uint16(c.Y)
+	address += uint16(c.Y)
 
 	if address > 0xFFFF {
 		address = address & 0xFFFF
@@ -421,10 +425,10 @@ func (c *Cpu) Iny() {
 }
 
 func (c *Cpu) SetBranchCycleCount(a uint16) {
-	if ((ProgramCounter - 1) & 0xFF00) != (a & 0xFF00) {
-		c.CycleCount += 2
+	if ((ProgramCounter - 1) & 0xFF00 >> 8) != ((a & 0xFF00) >> 8) {
+		c.CycleCount = 4
 	} else {
-		c.CycleCount += 1
+		c.CycleCount = 3
 	}
 }
 
@@ -1081,17 +1085,17 @@ func (c *Cpu) Step() int {
 		c.CycleCount = 4
 		c.Sta(c.absoluteAddress())
 	case 0x9D:
-		c.CycleCount = 5
 		c.Sta(c.absoluteIndexedAddress(c.X))
-	case 0x99:
 		c.CycleCount = 5
+	case 0x99:
 		c.Sta(c.absoluteIndexedAddress(c.Y))
+		c.CycleCount = 5
 	case 0x81:
 		c.CycleCount = 6
 		c.Sta(c.indexedIndirectAddress())
 	case 0x91:
-		c.CycleCount = 6
 		c.Sta(c.indirectIndexedAddress())
+		c.CycleCount = 6
 	// STX
 	case 0x86:
 		c.CycleCount = 3
@@ -1150,28 +1154,28 @@ func (c *Cpu) Step() int {
 		c.Iny()
 	// Branch Instructions
 	case 0x10:
-		c.CycleCount = 1
+		c.CycleCount = 2
 		c.Bpl()
 	case 0x30:
-		c.CycleCount = 1
+		c.CycleCount = 2
 		c.Bmi()
 	case 0x50:
-		c.CycleCount = 1
+		c.CycleCount = 2
 		c.Bvc()
 	case 0x70:
-		c.CycleCount = 1
+		c.CycleCount = 2
 		c.Bvs()
 	case 0x90:
-		c.CycleCount = 1
+		c.CycleCount = 2
 		c.Bcc()
 	case 0xB0:
-		c.CycleCount = 1
+		c.CycleCount = 2
 		c.Bcs()
 	case 0xD0:
-		c.CycleCount = 1
+		c.CycleCount = 2
 		c.Bne()
 	case 0xF0:
-		c.CycleCount = 1
+		c.CycleCount = 2
 		c.Beq()
 	// CMP
 	case 0xC9:
@@ -1370,8 +1374,8 @@ func (c *Cpu) Step() int {
 		c.CycleCount = 6
 		c.Dec(c.absoluteAddress())
 	case 0xde:
-		c.CycleCount = 7
 		c.Dec(c.absoluteIndexedAddress(c.X))
+		c.CycleCount = 7
 	// INC
 	case 0xe6:
 		c.CycleCount = 5
@@ -1383,8 +1387,8 @@ func (c *Cpu) Step() int {
 		c.CycleCount = 6
 		c.Inc(c.absoluteAddress())
 	case 0xfe:
-		c.CycleCount = 7
 		c.Inc(c.absoluteIndexedAddress(c.X))
+		c.CycleCount = 7
 	// BRK
 	case 0x00:
 		c.CycleCount = 7
@@ -1414,8 +1418,8 @@ func (c *Cpu) Step() int {
 		c.CycleCount = 6
 		c.Lsr(c.absoluteAddress())
 	case 0x5e:
-		c.CycleCount = 7
 		c.Lsr(c.absoluteIndexedAddress(c.X))
+		c.CycleCount = 7
 	// ASL
 	case 0x0a:
 		c.CycleCount = 2
@@ -1429,9 +1433,9 @@ func (c *Cpu) Step() int {
 	case 0x0e:
 		c.CycleCount = 6
 		c.Asl(c.absoluteAddress())
-	case 0x1e:
-		c.CycleCount = 7
+	case 0x1E:
 		c.Asl(c.absoluteIndexedAddress(c.X))
+		c.CycleCount = 7
 	// ROL
 	case 0x2a:
 		c.CycleCount = 2
@@ -1446,8 +1450,8 @@ func (c *Cpu) Step() int {
 		c.CycleCount = 6
 		c.Rol(c.absoluteAddress())
 	case 0x3e:
-		c.CycleCount = 7
 		c.Rol(c.absoluteIndexedAddress(c.X))
+		c.CycleCount = 7
 	// ROR
 	case 0x6a:
 		c.CycleCount = 2
@@ -1462,8 +1466,8 @@ func (c *Cpu) Step() int {
 		c.CycleCount = 6
 		c.Ror(c.absoluteAddress())
 	case 0x7e:
-		c.CycleCount = 7
 		c.Ror(c.absoluteIndexedAddress(c.X))
+		c.CycleCount = 7
 	// BIT
 	case 0x24:
 		c.CycleCount = 3

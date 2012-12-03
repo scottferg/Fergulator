@@ -68,7 +68,7 @@ Tests forward (positive) branch timing.
 6) Branch from $E7FE to $E801 is too long
 7) Branch from $E7FE to $E801 is too short
 8) Branch from $E8FF to $E902 is too long
-9) Branch from $E8FF wto $E902 is too short
+9) Branch from $E8FF to $E902 is too short
 
 -- 
 Shay Green <gblargg@gmail.com>
