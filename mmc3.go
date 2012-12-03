@@ -80,12 +80,13 @@ func (m *Mmc3) LoadRom() {
 	// http://forums.nesdev.com/viewtopic.php?p=38182#p38182
 
 	// Write hardwired PRG banks (0xC000 and 0xE000) 
-	m.Write8kRamBank((len(m.RomBanks)-1)*2, 0xC000)
+	// Second to last bank
+	m.Write8kRamBank(0, 0xC000)
+	// Last bank
 	m.Write8kRamBank(((len(m.RomBanks)-1)*2)+1, 0xE000)
 
 	// Write swappable PRG banks (0x8000 and 0xA000)
-	m.Write8kRamBank(0, 0x8000)
-	m.Write8kRamBank(1, 0xA000)
+	WriteRamBank(m.RomBanks, 0, 0x8000, Size16k)
 }
 
 func (m *Mmc3) BatteryBacked() bool {

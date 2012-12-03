@@ -202,7 +202,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	// Check mapper, get the proper type
 	mapper := (Word(rom[6])>>4 | (Word(rom[7]) & 0xF0))
-	fmt.Printf("Mapper: ")
+	fmt.Printf("Mapper: 0x%X -> ", mapper)
 	switch mapper {
 	case 0x00:
 		fallthrough
@@ -237,6 +237,8 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 			Battery:      r.Battery,
 			Data:         r.Data,
 		}
+	case 0x43:
+        fallthrough
 	case 0x03:
 		// Cnrom
 		fmt.Printf("CNROM\n")

@@ -129,7 +129,7 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			} else {
 				bank = v & 0xF
 			}
-			WriteVramBank(m.VromBanks, bank%len(m.VromBanks), 0x0, Size4k)
+			WriteVramBank(m.VromBanks, bank, 0x0, Size4k)
 		}
 		// CHR Bank 1
 	case 2:
@@ -147,7 +147,7 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 			} else {
 				bank = v & 0xF
 			}
-			WriteVramBank(m.VromBanks, bank%len(m.VromBanks), 0x1000, Size4k)
+			WriteVramBank(m.VromBanks, bank, 0x1000, Size4k)
 		}
 		// PRG Bank
 	case 3:
