@@ -33,6 +33,11 @@ var (
 	cpuprofile = flag.String("cprof", "", "write cpu profile to file")
 )
 
+const (
+	SaveState = iota
+	LoadState
+)
+
 func setResetVector() {
 	high, _ := Ram.Read(0xFFFD)
 	low, _ := Ram.Read(0xFFFC)
@@ -40,7 +45,7 @@ func setResetVector() {
 	ProgramCounter = (uint16(high) << 8) + uint16(low)
 }
 
-func LoadState() {
+func LoadGameState() {
 	fmt.Println("Loading state")
 
 	state, err := ioutil.ReadFile(saveStateFile)
@@ -94,7 +99,7 @@ func LoadState() {
 	}
 }
 
-func SaveState() {
+func SaveGameState() {
 	fmt.Println("Saving state")
 	buf := new(bytes.Buffer)
 
@@ -231,21 +236,33 @@ func main() {
 		return
 	}
 
+	interrupt := make(chan int)
+
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
-	go func() {
+	go func(c <-chan int) {
 		for {
-			cycles := cpu.Step()
+			select {
+			case s := <-c:
+				switch s {
+				case LoadState:
+					LoadGameState()
+				case SaveState:
+					SaveGameState()
+				}
+			default:
+				cycles := cpu.Step()
 
-			for i := 0; i < 3*cycles; i++ {
-				ppu.Step()
+				for i := 0; i < 3*cycles; i++ {
+					ppu.Step()
+				}
 			}
 		}
-	}()
+	}(interrupt)
 
 	r := video.Init(v, gamename)
 
-	go ReadInput(r)
+	go ReadInput(r, interrupt)
 
 	// This needs to happen on the main thread for OSX
 	runtime.LockOSThread()

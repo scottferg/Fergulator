@@ -166,7 +166,7 @@ func (c *Controller) Init() {
 	}
 }
 
-func ReadInput(r chan [2]int) {
+func ReadInput(r chan [2]int, i chan int) {
 	for {
 		select {
 		case ev := <-sdl.Events:
@@ -215,8 +215,7 @@ func ReadInput(r chan [2]int) {
 					}
 				case sdl.K_l:
 					if e.Type == sdl.KEYDOWN {
-						// Trigger reset interrupt
-						LoadState()
+						i <- LoadState
 					}
 				case sdl.K_p:
 					if e.Type == sdl.KEYDOWN {
@@ -225,8 +224,7 @@ func ReadInput(r chan [2]int) {
 					}
 				case sdl.K_s:
 					if e.Type == sdl.KEYDOWN {
-						// Trigger reset interrupt
-						SaveState()
+						i <- SaveState
 					}
 				case sdl.K_o:
 					if e.Type == sdl.KEYDOWN {
