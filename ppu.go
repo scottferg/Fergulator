@@ -94,7 +94,7 @@ func (p *Ppu) Init() chan []uint32 {
 	p.OverscanEnabled = true
 	p.SpriteLimitEnabled = true
 	p.Cycle = 0
-	p.Scanline = -1
+	p.Scanline = 241
 	p.FrameCount = 0
 
 	p.VblankTime = 20 * 341 * 5 // NTSC
@@ -248,7 +248,9 @@ func (p *Ppu) Step() {
 			}
 		} else if p.Cycle == 260 {
 			if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
-				rom.Hook()
+				if v, ok := rom.(*Mmc3); ok {
+					v.Hook()
+				}
 			}
 		}
 	case p.Scanline == -1:
@@ -517,10 +519,16 @@ func (p *Ppu) WriteData(v Word) {
 		p.Vram[p.VramAddress&0x3FFF] = v
 		// MMC2 latch trigger
 		t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
-		rom.LatchTrigger(t)
+		triggerMapperLatch(t)
 	}
 
 	p.incrementVramAddress()
+}
+
+func triggerMapperLatch(i int) {
+	if v, ok := rom.(*Mmc2); ok {
+		v.LatchTrigger(i)
+	}
 }
 
 // $2007
@@ -537,7 +545,7 @@ func (p *Ppu) ReadData() (r Word, err error) {
 		if p.VramAddress < 0x2000 {
 			// MMC2 latch trigger
 			t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
-			rom.LatchTrigger(t)
+			triggerMapperLatch(t)
 		}
 	} else {
 		bufferAddress := p.VramAddress - 0x1000
@@ -558,7 +566,7 @@ func (p *Ppu) ReadData() (r Word, err error) {
 		if p.VramAddress < 0x2000 {
 			// MMC2 latch trigger
 			t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
-			rom.LatchTrigger(t)
+			triggerMapperLatch(t)
 		}
 	}
 
@@ -633,7 +641,7 @@ func (p *Ppu) renderTileRow() {
 		}
 
 		// MMC2 latch trigger
-		rom.LatchTrigger(p.bgPatternTableAddress(index))
+		triggerMapperLatch(p.bgPatternTableAddress(index))
 
 		return uint16(p.Vram[t]), uint16(p.Vram[t+8]), attr
 	}

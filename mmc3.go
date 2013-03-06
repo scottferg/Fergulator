@@ -334,5 +334,3 @@ func (m *Mmc3) Hook() {
 		m.IrqReset = true
 	}
 }
-
-func (m *Mmc3) LatchTrigger(a int) {}

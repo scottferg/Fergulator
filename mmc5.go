@@ -30,10 +30,6 @@ func (m *Mmc5) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc5) Hook() {}
-
-func (m *Mmc5) LatchTrigger(a int) {}
-
 func (m *Mmc5) BatteryBacked() bool {
 	return m.Battery
 }
