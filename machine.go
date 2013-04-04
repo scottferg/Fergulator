@@ -24,6 +24,7 @@ var (
 	apu   Apu
 	rom   Mapper
 	video Video
+	audio Audio
 	pads  [2]*Controller
 
 	gamename       string
@@ -209,8 +210,8 @@ func main() {
 
 	Ram.Init()
 	cpu.Init()
-	apu.Init()
 	v := ppu.Init()
+	al := apu.Init()
 
 	if contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1]); err == nil {
 
@@ -238,9 +239,16 @@ func main() {
 
 	interrupt := make(chan int)
 
+	a := NewAudio(al)
+	defer a.Close()
+
+	go a.Run()
+
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
 	go func(c <-chan int) {
+		var cycles int
+
 		for {
 			select {
 			case s := <-c:
@@ -251,10 +259,14 @@ func main() {
 					SaveGameState()
 				}
 			default:
-				cycles := cpu.Step()
+				cycles = cpu.Step()
 
 				for i := 0; i < 3*cycles; i++ {
 					ppu.Step()
+				}
+
+				for i := 0; i < cycles/4; i++ {
+					apu.Step()
 				}
 			}
 		}
