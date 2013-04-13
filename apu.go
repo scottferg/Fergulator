@@ -90,7 +90,7 @@ func (s *Square) Clock() {
 		if s.TimerCount == 0 {
 			s.DutyCount = (s.DutyCount + 1) & 0x7
 
-			s.TimerCount = s.Timer
+			s.TimerCount = (s.Timer + 1) * 2
 		}
 
 		if SquareLookup[s.DutyCycle][s.DutyCount] == 1 {

@@ -8,7 +8,7 @@ import (
 )
 
 var (
-    SampleSize = 8192
+	SampleSize = 2048
 )
 
 type Audio struct {
@@ -22,9 +22,18 @@ func NewAudio(s <-chan int16) *Audio {
 	a := Audio{
 		sample: s,
 	}
-    a.samples = make([]int16, SampleSize)
+	a.samples = make([]int16, SampleSize)
 
 	return &a
+}
+
+func (a *Audio) AppendSample(s int16) {
+	a.samples[a.sampleIndex] = s
+	a.sampleIndex++
+	if a.sampleIndex == SampleSize {
+		sdl_audio.SendAudio_int16(a.samples)
+		a.sampleIndex = 0
+	}
 }
 
 func (a *Audio) Run() {
@@ -33,7 +42,7 @@ func (a *Audio) Run() {
 		Format:      sdl_audio.AUDIO_S16SYS,
 		Channels:    1,
 		Out_Silence: 0,
-		Samples:     SampleSize,
+		Samples:     uint16(SampleSize),
 		Out_Size:    0,
 	}
 
@@ -46,13 +55,7 @@ func (a *Audio) Run() {
 	for {
 		select {
 		case s := <-a.sample:
-            a.samples[a.sampleIndex] = s
-
-            a.sampleIndex++
-            if a.sampleIndex == SampleSize {
-                sdl_audio.SendAudio_int16(a.samples)
-                a.sampleIndex = 0
-            }
+			a.AppendSample(s)
 		}
 	}
 }
