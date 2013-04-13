@@ -2,10 +2,10 @@ package main
 
 var (
 	SquareLookup = [][]int{
-		[]int { 0, 1, 0, 0, 0, 0, 0, 0, },
-		[]int { 0, 1, 1, 0, 0, 0, 0, 0, },
-		[]int { 0, 1, 1, 1, 1, 0, 0, 0, },
-		[]int { 1, 0, 0, 1, 1, 1, 1, 1, },
+		[]int{0, 1, 0, 0, 0, 0, 0, 0},
+		[]int{0, 1, 1, 0, 0, 0, 0, 0},
+		[]int{0, 1, 1, 1, 1, 0, 0, 0},
+		[]int{1, 0, 0, 1, 1, 1, 1, 1},
 	}
 
 	TriangleLookup = []int{
@@ -125,11 +125,11 @@ func (a *Apu) Step() {
 }
 
 func (a *Apu) PushSample() {
-    v := 95.52 / ((8128.0 / (float64(a.Square1.Sample + a.Square2.Sample))) + 100.0)
-    v *= 0.98411;
-    v *= 50000.0;
+	v := 95.52 / ((8128.0 / (float64(a.Square1.Sample + a.Square2.Sample))) + 100.0)
+	v *= 0.98411
+	v *= 50000.0
 
-    sample := int16(v)
+	sample := int16(v)
 
 	a.Output <- sample
 }
@@ -139,16 +139,16 @@ func (a *Apu) FrameSequencerStep() {
 		if a.Square1.Length > 0 {
 			a.Square1.Length--
 		}
-        if a.Square1.Sweep > 0 {
-            a.Square1.Sweep--
-        }
+		if a.Square1.Sweep > 0 {
+			a.Square1.Sweep--
+		}
 
 		if a.Square2.Length > 0 {
 			a.Square2.Length--
 		}
-        if a.Square2.Sweep > 0 {
-            a.Square2.Sweep--
-        }
+		if a.Square2.Sweep > 0 {
+			a.Square2.Sweep--
+		}
 	}
 
 	if a.FrameCounter < 5 {
@@ -156,13 +156,13 @@ func (a *Apu) FrameSequencerStep() {
 			a.Square1.Timer = a.Square1.Timer - (a.Square1.Timer >> a.Square1.Shift)
 		} else if a.Square1.SweepEnabled && a.Square1.Sweep > 0 {
 			a.Square1.Timer = a.Square1.Timer + (a.Square1.Timer >> a.Square1.Shift)
-        }
+		}
 
 		if a.Square2.SweepEnabled && a.Square2.Sweep > 0 && a.Square2.Negative {
 			a.Square2.Timer = a.Square2.Timer - (a.Square2.Timer >> a.Square2.Shift)
 		} else if a.Square2.SweepEnabled && a.Square2.Sweep > 0 {
 			a.Square2.Timer = a.Square2.Timer + (a.Square2.Timer >> a.Square2.Shift)
-        }
+		}
 	}
 
 	a.FrameCounter--
