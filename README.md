@@ -8,19 +8,19 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 
 ## To build on Linux
 
+From your GOPATH:
+
         $ sudo apt-get install libsdl1.2-dev libsdl-gfx1.2-dev libsdl-image1.2-dev libglew1.6-dev libxrandr-dev
-        $ go get -u github.com/scottferg/Go-SDL/sdl
-        $ go get -u github.com/scottferg/Go-SDL/gfx
-        $ go get -u github.com/banthar/gl
+        $ go get
         $ go test
         $ go build
 
 ## To build on OSX
 
+From your GOPATH:
+
         $ brew install sdl sdl_gfx sdl_image glew
-        $ PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get -u github.com/scottferg/Go-SDL/sdl
-        $ PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get -u github.com/scottferg/Go-SDL/gfx
-        $ PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get -u github.com/banthar/gl
+        $ PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get
         $ go test
         $ go build
 
@@ -47,6 +47,7 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
         4:1 aspect ratio - 4
 
         Emulate overscan - O
+        Toggle audio - I
 
 ## Supported Mappers
 
@@ -61,12 +62,6 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 ## Tested games that run well or are playable
 
 [List is in the wiki](https://github.com/scottferg/Fergulator/wiki/Tested-Games)
-
-## What isn't working
-
-* Sound
-* Save states for some MMC1 games
-* Some minor graphical glitches on screen boundary
 
 ## Next planned mappers
 
