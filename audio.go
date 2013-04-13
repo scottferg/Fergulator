@@ -2,66 +2,59 @@ package main
 
 import (
 	"fmt"
-	"github.com/timshannon/go-openal/openal"
+	"github.com/scottferg/Go-SDL/sdl"
+	sdl_audio "github.com/scottferg/Go-SDL/sdl/audio"
+	"log"
 )
 
 type Audio struct {
-	samples <-chan []byte
-	source  openal.Source
-	device  *openal.Device
-	context *openal.Context
+	sample      <-chan int16
+	samples     []int16
+	sampleIndex int
 }
 
-func NewAudio(s <-chan []byte) *Audio {
+func NewAudio(s <-chan int16) *Audio {
 
 	a := Audio{
-		samples: s,
+		sample: s,
 	}
+    a.samples = make([]int16, 2048)
 
 	return &a
 }
 
 func (a *Audio) Run() {
-	a.device = openal.OpenDevice("")
-	a.context = a.device.CreateContext()
-	a.context.Activate()
+	as := sdl_audio.AudioSpec{
+		Freq:        44100,
+		Format:      sdl_audio.AUDIO_S16SYS,
+		Channels:    1,
+		Out_Silence: 0,
+		Samples:     2048,
+		Out_Size:    0,
+	}
 
-	a.source = openal.NewSource()
-	a.source.SetLooping(false)
+	if sdl_audio.OpenAudio(&as, nil) < 0 {
+		log.Fatal(sdl.GetError())
+	}
 
-    bufferIndex := 0
-    buffers := []openal.Buffer{
-        openal.NewBuffer(), 
-        openal.NewBuffer(),
-        openal.NewBuffer(),
-    }
+	sdl_audio.PauseAudio(false)
 
 	for {
-		v := <-a.samples
-        fmt.Println(v)
-		buffers[bufferIndex].SetData(openal.FormatMono8, v, 44100)
+		select {
+		case s := <-a.sample:
+            a.samples[a.sampleIndex] = s
 
-		a.source.QueueBuffer(buffers[bufferIndex])
-
-        bufferIndex = bufferIndex + 1
-        if bufferIndex == 3 {
-            bufferIndex = 0
-        }
-
-        a.source.Play()
-
-        for a.source.State() == openal.Playing {
-            //loop long enough to let the wave file finish
-        }
-
-        a.source.Pause()
-
-        buffers[bufferIndex] = a.source.UnqueueBuffer()
+            a.sampleIndex++
+            if a.sampleIndex == 2048 {
+                sdl_audio.SendAudio_int16(a.samples)
+                a.sampleIndex = 0
+            }
+		}
 	}
 }
 
 func (a *Audio) Close() {
 	fmt.Println("Closing!")
-	a.source.Pause()
-	a.context.Destroy()
+	sdl_audio.PauseAudio(true)
+	sdl_audio.CloseAudio()
 }

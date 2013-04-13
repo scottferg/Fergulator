@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 var (
 	SquareLookup = []int{
 		0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -28,12 +32,16 @@ type Square struct {
 	EnvelopeDisabled bool
 	LengthDisabled   bool
 	DutyCycle        Word
+	DutyCount        Word
 	Timer            int
+	TimerCount       int
 	Length           Word
-	DutyLength       int
-	Frequency        Word
-	Samples          []byte
-	SampleIndex      int
+	LastTick         int
+	SweepEnabled     bool
+	Sweep            Word
+	Shift            Word
+	Negative         bool
+	Sample           int16
 }
 
 type Triangle struct {
@@ -55,8 +63,17 @@ type Apu struct {
 	Square1         Square
 	Square2         Square
 	Triangle
+	FrameCounter  int
+	LastFrameTick int
 
-	Output chan []byte
+	Output chan int16
+}
+
+func (s *Square) WriteSweeps(v Word) {
+	s.SweepEnabled = v&0x80 == 0x80
+	s.Sweep = ((v >> 4) & 0x7) + 1
+	s.Negative = v&0x10 == 0x10
+	s.Shift = v & 0x7
 }
 
 func (s *Square) WriteLow(v Word) {
@@ -64,8 +81,8 @@ func (s *Square) WriteLow(v Word) {
 }
 
 func (s *Square) WriteHigh(v Word) {
-	s.Timer = (s.Timer & 0xFF) | int((v&0xF)<<8)
-	s.Length = LengthTable[v>>3]
+	s.Timer = (s.Timer & 0xFF) | int((v&0x7)<<8)
+	s.Length = LengthTable[(v&0xF8)>>3]
 }
 
 func (s *Square) Clock() {
@@ -74,32 +91,26 @@ func (s *Square) Clock() {
 			s.Envelope = 0xF
 		}
 
-		if s.Length > 0 {
-			dutyRow := 8 * s.DutyCycle
+		if s.TimerCount == 0 {
+			s.DutyCount = (s.DutyCount + 1) & 0xF
 
-			if SquareLookup[int(dutyRow)+s.DutyLength] == 1 {
-				s.Samples[s.SampleIndex] = byte(s.Envelope*s.Length+Word(s.Timer))
-			} else {
-				s.Samples[s.SampleIndex] = byte(0)
-			}
-
-			s.DutyLength = (s.DutyLength + 1) & 0xF
+			s.TimerCount = (s.Timer + 1) * 2
 		}
-	} else {
-		s.Samples[s.SampleIndex] = byte(0)
-	}
 
-	s.SampleIndex++
-	if s.SampleIndex == 0xAC44 {
-		s.SampleIndex = 0
+		if SquareLookup[s.DutyCycle<<3+s.DutyCount] == 1 {
+			s.Sample = int16(s.Envelope) * 1000
+		} else {
+			s.Sample = int16(0)
+		}
+
+		s.TimerCount--
+	} else {
+		s.Sample = int16(0)
 	}
 }
 
-func (a *Apu) Init() <-chan []byte {
-	al := make(chan []byte, 20)
-
-	a.Square1.Samples = make([]byte, 44100)
-	a.Square2.Samples = make([]byte, 44100)
+func (a *Apu) Init() <-chan int16 {
+	al := make(chan int16, 100)
 	a.Output = al
 
 	return al
@@ -110,10 +121,27 @@ func (a *Apu) Step() {
 	if a.Square1Enabled {
 		a.Square1.Clock()
 	}
+}
 
-	if a.Square1.SampleIndex == 0xAC43 {
-		a.Output <- a.Square1.Samples
+func (a *Apu) PushSample() {
+	a.Output <- a.Square1.Sample
+}
+
+func (a *Apu) FrameSequencerStep() {
+	if a.FrameCounter == 4 {
+		if a.Square1.Length > 0 {
+			a.Square1.Length--
+		}
 	}
+
+	if a.FrameCounter == 5 {
+		if a.Square1.SweepEnabled && a.Square1.Sweep > 0 {
+			a.Square1.Timer = a.Square1.Timer - (a.Square1.Timer >> a.Square1.Shift)
+			fmt.Printf("Timer shift: 0x%X\r", a.Square1.Timer)
+		}
+	}
+
+	a.FrameCounter--
 }
 
 func (a *Apu) RegRead(addr int) (Word, error) {
@@ -198,17 +226,9 @@ func (a *Apu) ReadStatus() Word {
 	// if-d nt21   DMC IRQ, frame IRQ, length counter statuses
 	var status Word
 
-	if a.Square1.Length > 0 {
-		status |= 0x1
-	}
-
-	if a.Square2.Length > 0 {
-		status |= 0x2
-	}
-
-	if a.Triangle.Length > 0 {
-		status |= 0x8
-	}
+	status |= a.Square1.Length
+	status |= a.Square2.Length << 1
+	status |= a.Triangle.Length << 3
 
 	// TODO: Noise -> 0x10
 
@@ -217,13 +237,17 @@ func (a *Apu) ReadStatus() Word {
 	// If an interrupt flag was set at the same moment of 
 	// the read, it will read back as 1 but it will not be cleared.
 
-	return status
+	return status & 0xFF
 }
 
 // $4017
 func (a *Apu) WriteControlFlags2(v Word) {
 	// fd-- ----   5-frame cycle, disable frame interrupt
-	// fmt.Println("WriteControl2!")
+	if v&0x80 == 1 {
+		a.FrameCounter = 5
+	} else {
+		a.FrameCounter = 4
+	}
 }
 
 // $4000
@@ -243,6 +267,7 @@ func (a *Apu) WriteSquare1Control(v Word) {
 
 // $4001
 func (a *Apu) WriteSquare1Sweeps(v Word) {
+	a.Square1.WriteSweeps(v)
 }
 
 // $4002
@@ -272,6 +297,7 @@ func (a *Apu) WriteSquare2Control(v Word) {
 
 // $4005
 func (a *Apu) WriteSquare2Sweeps(v Word) {
+	a.Square2.WriteSweeps(v)
 }
 
 // $4006

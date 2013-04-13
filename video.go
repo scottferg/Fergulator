@@ -22,7 +22,7 @@ func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
 	v.tick = t
 	v.resize = make(chan [2]int)
 
-	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK) != 0 {
+	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK|sdl.INIT_AUDIO) != 0 {
 		log.Fatal(sdl.GetError())
 	}
 

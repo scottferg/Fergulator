@@ -1,9 +1,5 @@
 package main
 
-import (
-	"fmt"
-)
-
 const (
 	BankUpper = iota
 	BankLower
@@ -155,7 +151,6 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 		case Size32k:
 			// Swap 32k ROM (in 32k mode, ignore first bit D0)
 			bank := ((v >> 0x1) & 0x7) * 2
-			fmt.Printf("32k write to: %d\n", bank/2)
 
 			WriteRamBank(m.RomBanks, bank, 0x8000, Size16k)
 			WriteRamBank(m.RomBanks, bank+1, 0xC000, Size16k)

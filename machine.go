@@ -10,14 +10,11 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
-	"time"
 )
 
 var (
-	cycle         = "559ns"
-	clockspeed, _ = time.ParseDuration(cycle)
-
-	running = true
+	cpuClocksPerSecond = 1789773
+	running            = true
 
 	cpu   Cpu
 	ppu   Ppu
@@ -26,6 +23,8 @@ var (
 	video Video
 	audio Audio
 	pads  [2]*Controller
+
+	totalCpuCycles int
 
 	gamename       string
 	saveStateFile  string
@@ -260,13 +259,25 @@ func main() {
 				}
 			default:
 				cycles = cpu.Step()
+				totalCpuCycles += cycles
 
 				for i := 0; i < 3*cycles; i++ {
 					ppu.Step()
 				}
 
-				for i := 0; i < cycles/4; i++ {
+				for i := 0; i < cycles; i++ {
 					apu.Step()
+				}
+
+				//if apu.Square1.TimerMax <= totalCpuCycles-apu.Square1.LastTick {
+				if cycles > 4 {
+					apu.PushSample()
+					apu.Square1.LastTick = totalCpuCycles
+				}
+
+				if (cpuClocksPerSecond / 240) <= (totalCpuCycles - apu.LastFrameTick) {
+					apu.FrameSequencerStep()
+					apu.LastFrameTick = totalCpuCycles
 				}
 			}
 		}
