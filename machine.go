@@ -13,8 +13,9 @@ import (
 )
 
 var (
-	cpuClocksPerSecond = 1789773
-	running            = true
+	cpuClockSpeed = 1789773
+	running       = true
+	audioEnabled  = true
 
 	cpu   Cpu
 	ppu   Ppu
@@ -246,7 +247,9 @@ func main() {
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
 	go func(c <-chan int) {
+		var lastApuTick int
 		var cycles int
+		var flip int
 
 		for {
 			select {
@@ -269,15 +272,19 @@ func main() {
 					apu.Step()
 				}
 
-				//if apu.Square1.TimerMax <= totalCpuCycles-apu.Square1.LastTick {
-				if cycles > 4 {
-					apu.PushSample()
-					apu.Square1.LastTick = totalCpuCycles
-				}
+				if audioEnabled {
+					if (cpuClockSpeed / 240) <= (totalCpuCycles - apu.LastFrameTick) {
+						apu.FrameSequencerStep()
+						apu.LastFrameTick = totalCpuCycles
+					}
 
-				if (cpuClocksPerSecond / 240) <= (totalCpuCycles - apu.LastFrameTick) {
-					apu.FrameSequencerStep()
-					apu.LastFrameTick = totalCpuCycles
+					if totalCpuCycles-lastApuTick >= ((cpuClockSpeed / 44100) + flip) {
+						apu.PushSample()
+						apu.Square1.LastTick = totalCpuCycles
+						lastApuTick = totalCpuCycles
+
+						flip = (flip + 1) & 0x1
+					}
 				}
 			}
 		}

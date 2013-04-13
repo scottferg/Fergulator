@@ -230,6 +230,10 @@ func ReadInput(r chan [2]int, i chan int) {
 					if e.Type == sdl.KEYDOWN {
 						ppu.OverscanEnabled = !ppu.OverscanEnabled
 					}
+				case sdl.K_i:
+					if e.Type == sdl.KEYDOWN {
+						audioEnabled = !audioEnabled
+					}
 				case sdl.K_1:
 					if e.Type == sdl.KEYDOWN {
 						r <- [2]int{256, 240}

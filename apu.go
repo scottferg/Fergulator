@@ -1,15 +1,11 @@
 package main
 
-import (
-	"fmt"
-)
-
 var (
-	SquareLookup = []int{
-		0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-		1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+	SquareLookup = [][]int{
+		[]int { 0, 1, 0, 0, 0, 0, 0, 0, },
+		[]int { 0, 1, 1, 0, 0, 0, 0, 0, },
+		[]int { 0, 1, 1, 1, 1, 0, 0, 0, },
+		[]int { 1, 0, 0, 1, 1, 1, 1, 1, },
 	}
 
 	TriangleLookup = []int{
@@ -92,13 +88,13 @@ func (s *Square) Clock() {
 		}
 
 		if s.TimerCount == 0 {
-			s.DutyCount = (s.DutyCount + 1) & 0xF
+			s.DutyCount = (s.DutyCount + 1) & 0x7
 
-			s.TimerCount = (s.Timer + 1) * 2
+			s.TimerCount = s.Timer
 		}
 
-		if SquareLookup[s.DutyCycle<<3+s.DutyCount] == 1 {
-			s.Sample = int16(s.Envelope) * 1000
+		if SquareLookup[s.DutyCycle][s.DutyCount] == 1 {
+			s.Sample = int16(s.Envelope)
 		} else {
 			s.Sample = int16(0)
 		}
@@ -118,13 +114,24 @@ func (a *Apu) Init() <-chan int16 {
 
 func (a *Apu) Step() {
 	// Square1
-	if a.Square1Enabled {
+	if a.Square1Enabled && a.Square1.Timer >= 8 {
 		a.Square1.Clock()
+	}
+
+	// Square2
+	if a.Square2Enabled && a.Square2.Timer >= 8 {
+		a.Square2.Clock()
 	}
 }
 
 func (a *Apu) PushSample() {
-	a.Output <- a.Square1.Sample
+    v := 95.52 / ((8128.0 / (float64(a.Square1.Sample + a.Square2.Sample))) + 100.0)
+    v *= 0.98411;
+    v *= 50000.0;
+
+    sample := int16(v)
+
+	a.Output <- sample
 }
 
 func (a *Apu) FrameSequencerStep() {
@@ -132,13 +139,30 @@ func (a *Apu) FrameSequencerStep() {
 		if a.Square1.Length > 0 {
 			a.Square1.Length--
 		}
+        if a.Square1.Sweep > 0 {
+            a.Square1.Sweep--
+        }
+
+		if a.Square2.Length > 0 {
+			a.Square2.Length--
+		}
+        if a.Square2.Sweep > 0 {
+            a.Square2.Sweep--
+        }
 	}
 
-	if a.FrameCounter == 5 {
-		if a.Square1.SweepEnabled && a.Square1.Sweep > 0 {
+	if a.FrameCounter < 5 {
+		if a.Square1.SweepEnabled && a.Square1.Sweep > 0 && a.Square1.Negative {
 			a.Square1.Timer = a.Square1.Timer - (a.Square1.Timer >> a.Square1.Shift)
-			fmt.Printf("Timer shift: 0x%X\r", a.Square1.Timer)
-		}
+		} else if a.Square1.SweepEnabled && a.Square1.Sweep > 0 {
+			a.Square1.Timer = a.Square1.Timer + (a.Square1.Timer >> a.Square1.Shift)
+        }
+
+		if a.Square2.SweepEnabled && a.Square2.Sweep > 0 && a.Square2.Negative {
+			a.Square2.Timer = a.Square2.Timer - (a.Square2.Timer >> a.Square2.Shift)
+		} else if a.Square2.SweepEnabled && a.Square2.Sweep > 0 {
+			a.Square2.Timer = a.Square2.Timer + (a.Square2.Timer >> a.Square2.Shift)
+        }
 	}
 
 	a.FrameCounter--
