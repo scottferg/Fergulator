@@ -7,6 +7,10 @@ import (
 	"log"
 )
 
+var (
+    SampleSize = 8192
+)
+
 type Audio struct {
 	sample      <-chan int16
 	samples     []int16
@@ -18,7 +22,7 @@ func NewAudio(s <-chan int16) *Audio {
 	a := Audio{
 		sample: s,
 	}
-    a.samples = make([]int16, 2048)
+    a.samples = make([]int16, SampleSize)
 
 	return &a
 }
@@ -29,7 +33,7 @@ func (a *Audio) Run() {
 		Format:      sdl_audio.AUDIO_S16SYS,
 		Channels:    1,
 		Out_Silence: 0,
-		Samples:     2048,
+		Samples:     SampleSize,
 		Out_Size:    0,
 	}
 
@@ -45,7 +49,7 @@ func (a *Audio) Run() {
             a.samples[a.sampleIndex] = s
 
             a.sampleIndex++
-            if a.sampleIndex == 2048 {
+            if a.sampleIndex == SampleSize {
                 sdl_audio.SendAudio_int16(a.samples)
                 a.sampleIndex = 0
             }
