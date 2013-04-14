@@ -8,7 +8,7 @@ var (
 		[]int{1, 0, 0, 1, 1, 1, 1, 1},
 	}
 
-	TriangleLookup = []int{
+	TriangleLookup = []int16{
 		8, 9, 10, 11, 12, 13, 14,
 		15, 15, 14, 13, 12, 11, 10,
 		9, 8, 7, 6, 5, 4, 3, 2, 1,
@@ -47,21 +47,24 @@ type Square struct {
 }
 
 type Triangle struct {
-	Value                    Word
-	InternalCountersDisabled bool
-	Timer                    int
-	Length                   Word
-	Frequency                Word
-	Counter                  int
-	Sample                   int
+	ReloadValue   Word
+	Control       bool
+	Enabled       bool
+	LengthEnabled bool
+	Halt          bool
+	Timer         int
+	TimerCount    int
+	Length        Word
+	Counter       int
+	LookupCounter int
+	Sample        int16
 }
 
 type Apu struct {
-	TriangleEnabled bool
-	NoiseEnabled    bool
-	DmcEnabled      bool
-	Square1         Square
-	Square2         Square
+	NoiseEnabled bool
+	DmcEnabled   bool
+	Square1      Square
+	Square2      Square
 	Triangle
 	FrameCounter  int
 	FrameTick     int
@@ -119,18 +122,18 @@ func (s *Square) Clock() {
 		}
 
 		if !s.Negative && (s.Timer+(s.Timer>>s.Shift)) > 0x7FF {
-			s.Sample = int16(0)
+			s.Sample = 0
 		} else if s.Timer < 8 {
-			s.Sample = int16(0)
+			s.Sample = 0
 		} else if SquareLookup[s.DutyCycle][s.DutyCount] == 1 {
 			s.Sample = int16(s.Envelope)
 		} else {
-			s.Sample = int16(0)
+			s.Sample = 0
 		}
 
 		s.TimerCount--
 	} else {
-		s.Sample = int16(0)
+		s.Sample = 0
 	}
 }
 
@@ -148,6 +151,34 @@ func (s *Square) ClockEnvelopeDecay() {
 		}
 	} else {
 		s.EnvelopeDecayCounter--
+	}
+}
+
+func (t *Triangle) Clock() {
+	if t.Length > 0 && t.Counter > 0 {
+		if t.TimerCount == 0 {
+			t.LookupCounter = (t.LookupCounter + 1) % 32
+
+			t.TimerCount = (t.Timer + 1) * 2
+		}
+
+		t.Sample = TriangleLookup[t.LookupCounter]
+
+		t.TimerCount--
+	} else {
+		t.Sample = 0
+	}
+}
+
+func (t *Triangle) ClockLinearCounter() {
+	if t.Halt {
+		t.Counter = int(t.ReloadValue)
+	} else if t.Counter > 0 {
+		t.Counter--
+	}
+
+	if !t.Control {
+		t.Halt = false
 	}
 }
 
@@ -169,6 +200,11 @@ func (a *Apu) Step() {
 		a.Square2.Clock()
 	}
 
+	// Triangle
+	if a.Triangle.Enabled {
+		a.Triangle.Clock()
+	}
+
 	index := a.tickCount
 	if a.tickCount > 40 {
 		index = a.tickCount - 40
@@ -181,7 +217,8 @@ func (a *Apu) Step() {
 func (a *Apu) ComputeSample() int16 {
 	// v := 95.52 / ((8128.0 / (float64(a.Square1.Sample + a.Square2.Sample))) + 100.0)
 
-	v := a.Square1.Sample + a.Square2.Sample
+	v := a.Square1.Sample + a.Square2.Sample + a.Triangle.Sample
+	// v := a.Triangle.Sample
 
 	return v
 }
@@ -213,6 +250,10 @@ func (a *Apu) FrameSequencerStep() {
 			a.Square2.Length--
 		}
 
+		if a.Triangle.LengthEnabled && a.Triangle.Length > 0 {
+			a.Triangle.Length--
+		}
+
 		if a.Square1.SweepEnabled && a.Square1.Sweep > 0 {
 			a.Square1.Sweep--
 		}
@@ -236,6 +277,7 @@ func (a *Apu) FrameSequencerStep() {
 	if a.FrameTick >= 0 && a.FrameTick <= 4 {
 		a.Square1.ClockEnvelopeDecay()
 		a.Square2.ClockEnvelopeDecay()
+		a.Triangle.ClockLinearCounter()
 	}
 
 	if a.FrameTick >= a.FrameCounter {
@@ -296,7 +338,7 @@ func (a *Apu) WriteControlFlags1(v Word) {
 	//    +----- DMC
 	a.Square1.Enabled = (v & 0x1) != 0x0
 	a.Square2.Enabled = ((v >> 1) & 0x1) != 0x0
-	a.TriangleEnabled = ((v >> 2) & 0x1) != 0x0
+	a.Triangle.Enabled = ((v >> 2) & 0x1) != 0x0
 	a.NoiseEnabled = ((v >> 3) & 0x1) != 0x0
 	a.DmcEnabled = ((v >> 4) & 0x1) != 0x0
 
@@ -310,7 +352,7 @@ func (a *Apu) WriteControlFlags1(v Word) {
 		a.Square1.Sample = 0
 	}
 
-	if !a.TriangleEnabled {
+	if !a.Triangle.Enabled {
 		a.Triangle.Length = 0
 		a.Square1.Sample = 0
 	}
@@ -397,10 +439,11 @@ func (a *Apu) WriteSquare2High(v Word) {
 func (a *Apu) WriteTriangleControl(v Word) {
 	// 76543210
 	// ||||||||
-	// |+++++++- Value
+	// |+++++++- ReloadValue
 	// +-------- Control Flag (0: use internal counters; 1: disable internal counters)
-	a.Triangle.Value = v & 0x7F
-	a.Triangle.InternalCountersDisabled = (v>>7)&0x1 == 1
+	a.Triangle.ReloadValue = v & 0x7F
+	a.Triangle.Control = (v & 0x80) != 0
+	a.Triangle.LengthEnabled = !a.Triangle.Control
 }
 
 // $400A
@@ -411,13 +454,16 @@ func (a *Apu) WriteTriangleLow(v Word) {
 // $400B
 func (a *Apu) WriteTriangleHigh(v Word) {
 	a.Triangle.Timer = (a.Triangle.Timer & 0xFF) | int((v&0xF)<<8)
-	a.Triangle.Length = v >> 3
 
-	// a.Triangle.Frequency = 1789773 / (32*(a.Triangle.Timer) + 1)
+	if a.Triangle.Enabled {
+		a.Triangle.Length = LengthTable[v>>3]
+	}
+
+	a.Triangle.Halt = true
 }
 
 func (a *Apu) ClockTriangle() {
-	if !a.TriangleEnabled || a.Triangle.Timer <= 0 {
+	if !a.Triangle.Enabled || a.Triangle.Timer <= 0 {
 		return
 	}
 
