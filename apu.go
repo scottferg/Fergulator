@@ -210,9 +210,9 @@ func (n *Noise) Clock() {
 		tmp = n.Shift & 0x2 >> 1
 	}
 
-	feedback = n.Shift&0x1 | tmp
+	feedback = n.Shift&0x1 ^ tmp
 
-	n.Shift = (n.Shift >> 1) + (feedback << 14)
+	n.Shift = (n.Shift >> 1) | (feedback << 14)
 
 	if n.Length > 0 && n.Shift&0x1 != 0 {
 		n.Sample = float64(n.Envelope)
@@ -261,12 +261,10 @@ func (a *Apu) Step() {
 }
 
 func (a *Apu) ComputeSample() int16 {
-	// v := 95.52 / ((8128.0 / (float64(a.Square1.Sample + a.Square2.Sample))) + 100.0)
+	pulse_out := 0.00752 * float64(a.Square1.Sample+a.Square2.Sample)
+	tnd_out := 0.00851*float64(a.Triangle.Sample) + 0.00494*float64(a.Noise.Sample)
 
-	v := a.Square1.Sample + a.Square2.Sample + a.Triangle.Sample + int16(0.2*a.Noise.Sample)
-	// v := a.Noise.Sample
-
-	return v
+	return int16((pulse_out + tnd_out) * 10000)
 }
 
 func (a *Apu) PushSample() {
@@ -278,8 +276,8 @@ func (a *Apu) PushSample() {
 	sample /= int16(len(a.Buffer))
 	//sample *= 0.98411
 
-	a.Output <- int16(sample * 500)
-	// a.Output <- int16(a.ComputeSample() * 1000)
+	// a.Output <- sample
+	a.Output <- int16(a.ComputeSample())
 
 	a.tickCount = 0
 }
