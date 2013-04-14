@@ -251,7 +251,7 @@ func main() {
 		var cycles int
 		var flip int
 
-		for {
+		for running {
 			select {
 			case s := <-c:
 				switch s {
@@ -273,14 +273,13 @@ func main() {
 				}
 
 				if audioEnabled {
-					if (cpuClockSpeed / 240) <= (totalCpuCycles - apu.LastFrameTick) {
+					if totalCpuCycles-apu.LastFrameTick >= (cpuClockSpeed / 240) {
 						apu.FrameSequencerStep()
 						apu.LastFrameTick = totalCpuCycles
 					}
 
 					if totalCpuCycles-lastApuTick >= ((cpuClockSpeed / 44100) + flip) {
 						apu.PushSample()
-						apu.Square1.LastTick = totalCpuCycles
 						lastApuTick = totalCpuCycles
 
 						flip = (flip + 1) & 0x1

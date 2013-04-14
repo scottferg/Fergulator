@@ -30,6 +30,7 @@ func NewAudio(s <-chan int16) *Audio {
 func (a *Audio) AppendSample(s int16) {
 	a.samples[a.sampleIndex] = s
 	a.sampleIndex++
+
 	if a.sampleIndex == SampleSize {
 		sdl_audio.SendAudio_int16(a.samples)
 		a.sampleIndex = 0

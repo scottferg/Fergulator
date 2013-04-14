@@ -24,20 +24,26 @@ var (
 )
 
 type Square struct {
-	Envelope         Word
-	EnvelopeDisabled bool
-	LengthDisabled   bool
-	DutyCycle        Word
-	DutyCount        Word
-	Timer            int
-	TimerCount       int
-	Length           Word
-	LastTick         int
-	SweepEnabled     bool
-	Sweep            Word
-	Shift            Word
-	Negative         bool
-	Sample           int16
+	Envelope             Word
+	EnvelopeDecayRate    Word
+	EnvelopeDecayCounter Word
+	EnvelopeDecayEnabled bool
+	EnvelopeDisabled     bool
+	EnvelopeReset        bool
+	Enabled              bool
+	LengthDisabled       bool
+	DutyCycle            Word
+	DutyCount            Word
+	Timer                int
+	TimerCount           int
+	Length               Word
+	LastTick             int
+	SweepEnabled         bool
+	Sweep                Word
+	SweepMode            Word
+	Shift                Word
+	Negative             bool
+	Sample               int16
 }
 
 type Triangle struct {
@@ -51,8 +57,6 @@ type Triangle struct {
 }
 
 type Apu struct {
-	Square1Enabled  bool
-	Square2Enabled  bool
 	TriangleEnabled bool
 	NoiseEnabled    bool
 	DmcEnabled      bool
@@ -60,14 +64,32 @@ type Apu struct {
 	Square2         Square
 	Triangle
 	FrameCounter  int
+	FrameTick     int
 	LastFrameTick int
 
+	Buffer []int16
 	Output chan int16
+}
+
+func (s *Square) WriteControl(v Word) {
+	// 76543210
+	// ||||||||
+	// ||||++++- Envelope
+	// |||+----- Saw Envelope Disable (0: use internal counter for volume; 1: use Envelope for volume)
+	// ||+------ Length Counter Disable (0: use Length Counter; 1: disable Length Counter)
+	// ++------- Duty Cycle
+	s.EnvelopeDisabled = (v>>4)&0x1 == 1
+	s.LengthDisabled = (v>>5)&0x1 == 1
+	s.DutyCycle = (v >> 6) & 0x3
+	s.EnvelopeDecayRate = v & 0xF
+	s.EnvelopeDecayEnabled = (v & 0x10) == 0
+	s.Envelope = s.Envelope + ((v >> 1) & 0x10)
 }
 
 func (s *Square) WriteSweeps(v Word) {
 	s.SweepEnabled = v&0x80 == 0x80
-	s.Sweep = ((v >> 4) & 0x7) + 1
+	s.Sweep = ((v >> 4) & 0x7)
+	s.SweepMode = (v >> 3) & 1
 	s.Negative = v&0x10 == 0x10
 	s.Shift = v & 0x7
 }
@@ -78,22 +100,26 @@ func (s *Square) WriteLow(v Word) {
 
 func (s *Square) WriteHigh(v Word) {
 	s.Timer = (s.Timer & 0xFF) | int((v&0x7)<<8)
-	s.Length = LengthTable[(v&0xF8)>>3]
+
+	if s.Enabled {
+		s.Length = LengthTable[v>>3]
+	}
+
+	s.DutyCount = 0
+	s.EnvelopeReset = true
 }
 
 func (s *Square) Clock() {
-	if s.Length > 0 {
-		if s.EnvelopeDisabled {
-			s.Envelope = 0xF
-		}
-
+	if s.Length > 0 && s.Timer > 7 {
 		if s.TimerCount == 0 {
 			s.DutyCount = (s.DutyCount + 1) & 0x7
 
 			s.TimerCount = (s.Timer + 1) * 2
 		}
 
-		if SquareLookup[s.DutyCycle][s.DutyCount] == 1 {
+		if s.SweepMode == 0 && (s.Timer+(s.Timer>>s.Shift)) > 4095 {
+			s.Sample = int16(0)
+		} else if SquareLookup[s.DutyCycle][s.DutyCount] == 1 {
 			s.Sample = int16(s.Envelope)
 		} else {
 			s.Sample = int16(0)
@@ -105,37 +131,78 @@ func (s *Square) Clock() {
 	}
 }
 
+func (s *Square) ClockEnvelopeDecay() {
+	if s.EnvelopeReset {
+		s.EnvelopeReset = false
+		s.EnvelopeDecayCounter = s.EnvelopeDecayRate + 1
+		s.Envelope = 0xF
+	} else if s.EnvelopeDecayCounter-1 <= 0 {
+		s.EnvelopeDecayCounter = s.EnvelopeDecayRate + 1
+		if s.Envelope > 0 {
+			s.Envelope--
+		} else if s.EnvelopeDisabled {
+			s.Envelope = 0xF
+		} else {
+			s.Envelope = 0
+		}
+	} else {
+		s.EnvelopeDecayCounter--
+	}
+}
+
 func (a *Apu) Init() <-chan int16 {
 	al := make(chan int16, 100)
 	a.Output = al
+
+	a.InitBuffer()
 
 	return al
 }
 
 func (a *Apu) Step() {
 	// Square1
-	if a.Square1Enabled && a.Square1.Timer >= 8 {
+	if a.Square1.Enabled {
 		a.Square1.Clock()
 	}
 
 	// Square2
-	if a.Square2Enabled && a.Square2.Timer >= 8 {
+	if a.Square2.Enabled {
 		a.Square2.Clock()
 	}
+
+	a.Buffer = append(a.Buffer, a.ComputeSample())
 }
 
-func (a *Apu) PushSample() {
+func (a *Apu) InitBuffer() {
+	a.Buffer = make([]int16, 40, 41)
+}
+
+func (a *Apu) ComputeSample() int16 {
+	// v := 95.52 / ((8128.0 / (float64(a.Square1.Sample + a.Square2.Sample))) + 100.0)
 	v := 95.52 / ((8128.0 / (float64(a.Square1.Sample + a.Square2.Sample))) + 100.0)
 	v *= 0.98411
 	v *= 50000.0
 
-	sample := int16(v)
+	return int16(v)
+}
 
-	a.Output <- sample
+func (a *Apu) PushSample() {
+	var sample int
+	for _, v := range a.Buffer {
+		sample = sample + int(v)
+	}
+
+	sample /= len(a.Buffer)
+
+	a.Output <- int16(sample)
+
+	a.InitBuffer()
 }
 
 func (a *Apu) FrameSequencerStep() {
-	if a.FrameCounter == 4 {
+	a.FrameTick++
+
+	if a.FrameTick == 1 || a.FrameTick == a.FrameCounter-1 {
 		if a.Square1.Length > 0 {
 			a.Square1.Length--
 		}
@@ -149,9 +216,7 @@ func (a *Apu) FrameSequencerStep() {
 		if a.Square2.Sweep > 0 {
 			a.Square2.Sweep--
 		}
-	}
 
-	if a.FrameCounter < 5 {
 		if a.Square1.SweepEnabled && a.Square1.Sweep > 0 && a.Square1.Negative {
 			a.Square1.Timer = a.Square1.Timer - (a.Square1.Timer >> a.Square1.Shift)
 		} else if a.Square1.SweepEnabled && a.Square1.Sweep > 0 {
@@ -165,7 +230,14 @@ func (a *Apu) FrameSequencerStep() {
 		}
 	}
 
-	a.FrameCounter--
+	if a.FrameTick >= 0 && a.FrameTick <= 4 {
+		a.Square1.ClockEnvelopeDecay()
+		a.Square2.ClockEnvelopeDecay()
+	}
+
+	if a.FrameTick >= a.FrameCounter {
+		a.FrameTick = 0
+	}
 }
 
 func (a *Apu) RegRead(addr int) (Word, error) {
@@ -219,22 +291,25 @@ func (a *Apu) WriteControlFlags1(v Word) {
 	//    ||+--- Triangle
 	//    |+---- Noise
 	//    +----- DMC
-	a.Square1Enabled = (v & 0x1) == 0x1
-	a.Square2Enabled = ((v >> 1) & 0x1) == 0x1
+	a.Square1.Enabled = (v & 0x1) == 0x1
+	a.Square2.Enabled = ((v >> 1) & 0x1) == 0x1
 	a.TriangleEnabled = ((v >> 2) & 0x1) == 0x1
 	a.NoiseEnabled = ((v >> 3) & 0x1) == 0x1
 	a.DmcEnabled = ((v >> 4) & 0x1) == 0x1
 
-	if !a.Square1Enabled {
+	if !a.Square1.Enabled {
 		a.Square1.Length = 0
+		a.Square1.Sample = 0
 	}
 
-	if !a.Square2Enabled {
+	if !a.Square2.Enabled {
 		a.Square2.Length = 0
+		a.Square1.Sample = 0
 	}
 
 	if !a.TriangleEnabled {
 		a.Triangle.Length = 0
+		a.Square1.Sample = 0
 	}
 
 	// TODO:
@@ -269,6 +344,7 @@ func (a *Apu) WriteControlFlags2(v Word) {
 	// fd-- ----   5-frame cycle, disable frame interrupt
 	if v&0x80 == 1 {
 		a.FrameCounter = 5
+		a.FrameSequencerStep()
 	} else {
 		a.FrameCounter = 4
 	}
@@ -276,17 +352,7 @@ func (a *Apu) WriteControlFlags2(v Word) {
 
 // $4000
 func (a *Apu) WriteSquare1Control(v Word) {
-	// 76543210
-	// ||||||||
-	// ||||++++- Envelope
-	// |||+----- Saw Envelope Disable (0: use internal counter for volume; 1: use Envelope for volume)
-	// ||+------ Length Counter Disable (0: use Length Counter; 1: disable Length Counter)
-	// ++------- Duty Cycle
-	a.Square1.EnvelopeDisabled = (v>>4)&0x1 == 1
-	a.Square1.LengthDisabled = (v>>5)&0x1 == 1
-	a.Square1.DutyCycle = (v >> 6) & 0x3
-	a.Square1.Envelope = v & 0xF
-	a.Square1.Envelope = a.Square1.Envelope + ((v >> 1) & 0x10)
+	a.Square1.WriteControl(v)
 }
 
 // $4001
@@ -306,17 +372,7 @@ func (a *Apu) WriteSquare1High(v Word) {
 
 // $4004
 func (a *Apu) WriteSquare2Control(v Word) {
-	// 76543210
-	// ||||||||
-	// ||||++++- Envelope
-	// |||+----- Saw Envelope Disable (0: use internal counter for volume; 1: use Envelope for volume)
-	// ||+------ Length Counter Disable (0: use Length Counter; 1: disable Length Counter)
-	// ++------- Duty Cycle
-	a.Square2.EnvelopeDisabled = (v>>4)&0x1 == 1
-	a.Square2.LengthDisabled = (v>>5)&0x1 == 1
-	a.Square2.DutyCycle = (v >> 6) & 0x3
-	a.Square2.Envelope = v & 0xF
-	a.Square2.Envelope = a.Square2.Envelope + ((v >> 1) & 0x10)
+	a.Square2.WriteControl(v)
 }
 
 // $4005
