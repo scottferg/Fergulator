@@ -15,6 +15,11 @@ var (
 		0, 0, 1, 2, 3, 4, 5, 6, 7,
 	}
 
+	NoiseLookup = []int{
+		4, 8, 16, 32, 64, 96, 128, 160, 202,
+		254, 380, 508, 762, 1016, 2034, 4068,
+	}
+
 	LengthTable = []Word{
 		10, 254, 20, 2, 40, 4, 80, 6,
 		160, 8, 60, 10, 14, 12, 26, 14,
@@ -60,12 +65,26 @@ type Triangle struct {
 	Sample        int16
 }
 
+type Noise struct {
+	LengthEnabled bool
+	Enabled       bool
+	BaseEnvelope  Word
+	Envelope      Word
+	Mode          bool
+	Timer         int
+	TimerCount    int
+	Length        Word
+	Shift         int
+	Sample        float64
+}
+
 type Apu struct {
-	NoiseEnabled bool
-	DmcEnabled   bool
-	Square1      Square
-	Square2      Square
+	DmcEnabled bool
+	Square1    Square
+	Square2    Square
 	Triangle
+	Noise
+
 	FrameCounter  int
 	FrameTick     int
 	LastFrameTick int
@@ -182,9 +201,31 @@ func (t *Triangle) ClockLinearCounter() {
 	}
 }
 
+func (n *Noise) Clock() {
+	var feedback, tmp int
+
+	if n.Mode {
+		tmp = n.Shift & 0x40 >> 6
+	} else {
+		tmp = n.Shift & 0x2 >> 1
+	}
+
+	feedback = n.Shift&0x1 | tmp
+
+	n.Shift = (n.Shift >> 1) + (feedback << 14)
+
+	if n.Length > 0 && n.Shift&0x1 != 0 {
+		n.Sample = float64(n.Envelope)
+	} else {
+		n.Sample = 0
+	}
+}
+
 func (a *Apu) Init() <-chan int16 {
 	al := make(chan int16, 100)
 	a.Output = al
+
+	a.Noise.Shift = 1
 
 	return al
 }
@@ -205,6 +246,11 @@ func (a *Apu) Step() {
 		a.Triangle.Clock()
 	}
 
+	// Noise
+	if a.Noise.Enabled {
+		a.Noise.Clock()
+	}
+
 	index := a.tickCount
 	if a.tickCount > 40 {
 		index = a.tickCount - 40
@@ -217,8 +263,8 @@ func (a *Apu) Step() {
 func (a *Apu) ComputeSample() int16 {
 	// v := 95.52 / ((8128.0 / (float64(a.Square1.Sample + a.Square2.Sample))) + 100.0)
 
-	v := a.Square1.Sample + a.Square2.Sample + a.Triangle.Sample
-	// v := a.Triangle.Sample
+	v := a.Square1.Sample + a.Square2.Sample + a.Triangle.Sample + int16(0.2*a.Noise.Sample)
+	// v := a.Noise.Sample
 
 	return v
 }
@@ -252,6 +298,10 @@ func (a *Apu) FrameSequencerStep() {
 
 		if a.Triangle.LengthEnabled && a.Triangle.Length > 0 {
 			a.Triangle.Length--
+		}
+
+		if a.Noise.LengthEnabled && a.Noise.Length > 0 {
+			a.Noise.Length--
 		}
 
 		if a.Square1.SweepEnabled && a.Square1.Sweep > 0 {
@@ -320,6 +370,12 @@ func (a *Apu) RegWrite(v Word, addr int) {
 		a.WriteTriangleLow(v)
 	case 0xB:
 		a.WriteTriangleHigh(v)
+	case 0xC:
+		a.WriteNoiseBase(v)
+	case 0xE:
+		a.WriteNoisePeriod(v)
+	case 0xF:
+		a.WriteNoiseLength(v)
 	case 0x15:
 		a.WriteControlFlags1(v)
 	case 0x17:
@@ -339,7 +395,7 @@ func (a *Apu) WriteControlFlags1(v Word) {
 	a.Square1.Enabled = (v & 0x1) != 0x0
 	a.Square2.Enabled = ((v >> 1) & 0x1) != 0x0
 	a.Triangle.Enabled = ((v >> 2) & 0x1) != 0x0
-	a.NoiseEnabled = ((v >> 3) & 0x1) != 0x0
+	a.Noise.Enabled = ((v >> 3) & 0x1) != 0x0
 	a.DmcEnabled = ((v >> 4) & 0x1) != 0x0
 
 	if !a.Square1.Enabled {
@@ -349,12 +405,17 @@ func (a *Apu) WriteControlFlags1(v Word) {
 
 	if !a.Square2.Enabled {
 		a.Square2.Length = 0
-		a.Square1.Sample = 0
+		a.Square2.Sample = 0
 	}
 
 	if !a.Triangle.Enabled {
 		a.Triangle.Length = 0
-		a.Square1.Sample = 0
+		a.Triangle.Sample = 0
+	}
+
+	if !a.Noise.Enabled {
+		a.Noise.Length = 0
+		a.Noise.Sample = 0
 	}
 
 	// TODO:
@@ -462,15 +523,24 @@ func (a *Apu) WriteTriangleHigh(v Word) {
 	a.Triangle.Halt = true
 }
 
-func (a *Apu) ClockTriangle() {
-	if !a.Triangle.Enabled || a.Triangle.Timer <= 0 {
-		return
-	}
+// $400C
+func (a *Apu) WriteNoiseBase(v Word) {
+	// --LC NNNN	 Envelope loop / length counter disable (L), constant volume (C), volume/envelope (V)
+	a.Noise.LengthEnabled = (v & 0x20) != 0x20
+	a.Noise.Envelope = v & 0x1F
+	a.Noise.BaseEnvelope = a.Noise.Envelope
+}
 
-	a.Triangle.Sample = TriangleLookup[a.Triangle.Counter]
-	if a.Triangle.Sample > 15 {
-		a.Triangle.Sample = 31 - a.Triangle.Sample
-	}
+// $400E
+func (a *Apu) WriteNoisePeriod(v Word) {
+	// L--- PPPP	 Mode noise (L), noise period (P)
+	a.Noise.Mode = v&0x80 == 0x80
+	a.Noise.Timer = NoiseLookup[v&0xF]
+}
 
-	a.Triangle.Counter = (a.Triangle.Counter + 1) % 32
+// $400F
+func (a *Apu) WriteNoiseLength(v Word) {
+	// LLLL L---	 Length counter load (L)
+	a.Noise.Length = LengthTable[v>>3]
+	a.Noise.Envelope = a.Noise.BaseEnvelope
 }
