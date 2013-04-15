@@ -175,6 +175,7 @@ func ReadInput(r chan [2]int, i chan int) {
 				r <- [2]int{int(e.W), int(e.H)}
 			case sdl.QuitEvent:
 				running = false
+                video.Close()
 			case sdl.JoyAxisEvent:
 				joy := int(e.Which)
 

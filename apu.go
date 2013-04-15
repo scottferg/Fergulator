@@ -84,13 +84,15 @@ type Apu struct {
 	Square2    Square
 	Triangle
 	Noise
+	IrqEnabled bool
+	IrqActive  bool
 
 	FrameCounter  int
 	FrameTick     int
 	LastFrameTick int
-	tickCount     int
 
-	Buffer [41]int16
+	Sample int16
+
 	Output chan int16
 }
 
@@ -122,7 +124,7 @@ func (s *Square) WriteLow(v Word) {
 }
 
 func (s *Square) WriteHigh(v Word) {
-	s.Timer = (s.Timer & 0xFF) | int((v&0x7)<<8)
+	s.Timer = (s.Timer & 0xFF) | (int(v&0x7) << 8)
 
 	if s.Enabled {
 		s.Length = LengthTable[v>>3]
@@ -132,27 +134,43 @@ func (s *Square) WriteHigh(v Word) {
 	s.EnvelopeReset = true
 }
 
+func (s *Square) UpdateSample(v int16) {
+	s.Sample = v
+}
+
 func (s *Square) Clock() {
 	if s.Length > 0 && s.Timer > 7 {
 		if s.TimerCount == 0 {
 			s.DutyCount = (s.DutyCount + 1) & 0x7
 
-			s.TimerCount = (s.Timer + 1) * 2
+			s.TimerCount = (s.Timer + 1) << 1
 		}
 
 		if !s.Negative && (s.Timer+(s.Timer>>s.Shift)) > 0x7FF {
-			s.Sample = 0
+			s.UpdateSample(0)
 		} else if s.Timer < 8 {
-			s.Sample = 0
+			s.UpdateSample(0)
 		} else if SquareLookup[s.DutyCycle][s.DutyCount] == 1 {
-			s.Sample = int16(s.Envelope)
+			s.UpdateSample(int16(s.Envelope))
 		} else {
-			s.Sample = 0
+			s.UpdateSample(0)
 		}
 
 		s.TimerCount--
 	} else {
-		s.Sample = 0
+		s.UpdateSample(0)
+	}
+}
+
+func (s *Square) ClockSweep() {
+	if s.SweepEnabled && s.Sweep > 0 {
+		s.Sweep--
+
+		if s.Negative {
+			s.Timer = s.Timer - (s.Timer >> s.Shift)
+		} else {
+			s.Timer = s.Timer + (s.Timer >> s.Shift)
+		}
 	}
 }
 
@@ -181,11 +199,11 @@ func (t *Triangle) Clock() {
 			t.TimerCount = (t.Timer + 1) * 2
 		}
 
-		t.Sample = TriangleLookup[t.LookupCounter]
+		t.UpdateSample(TriangleLookup[t.LookupCounter])
 
 		t.TimerCount--
 	} else {
-		t.Sample = 0
+		t.UpdateSample(0)
 	}
 }
 
@@ -199,6 +217,10 @@ func (t *Triangle) ClockLinearCounter() {
 	if !t.Control {
 		t.Halt = false
 	}
+}
+
+func (t *Triangle) UpdateSample(v int16) {
+	t.Sample = v
 }
 
 func (n *Noise) Clock() {
@@ -215,10 +237,14 @@ func (n *Noise) Clock() {
 	n.Shift = (n.Shift >> 1) | (feedback << 14)
 
 	if n.Length > 0 && n.Shift&0x1 != 0 {
-		n.Sample = float64(n.Envelope)
+		n.UpdateSample(float64(n.Envelope))
 	} else {
-		n.Sample = 0
+		n.UpdateSample(0)
 	}
+}
+
+func (n *Noise) UpdateSample(v float64) {
+	n.Sample = v
 }
 
 func (a *Apu) Init() <-chan int16 {
@@ -251,35 +277,18 @@ func (a *Apu) Step() {
 		a.Noise.Clock()
 	}
 
-	index := a.tickCount
-	if a.tickCount > 40 {
-		index = a.tickCount - 40
-	}
-
-	a.Buffer[index] = a.ComputeSample()
-	a.tickCount++
+	a.Sample = (a.Sample + a.ComputeSample()) / 2
 }
 
 func (a *Apu) ComputeSample() int16 {
 	pulse_out := 0.00752 * float64(a.Square1.Sample+a.Square2.Sample)
 	tnd_out := 0.00851*float64(a.Triangle.Sample) + 0.00494*float64(a.Noise.Sample)
 
-	return int16((pulse_out + tnd_out) * 10000)
+	return int16((pulse_out + tnd_out) * 20000)
 }
 
 func (a *Apu) PushSample() {
-	var sample int16
-	for i := 0; i < len(a.Buffer); i++ {
-		sample = sample + a.Buffer[i]
-	}
-
-	sample /= int16(len(a.Buffer))
-	//sample *= 0.98411
-
-	// a.Output <- sample
-	a.Output <- int16(a.ComputeSample())
-
-	a.tickCount = 0
+	a.Output <- a.Sample
 }
 
 func (a *Apu) FrameSequencerStep() {
@@ -302,24 +311,8 @@ func (a *Apu) FrameSequencerStep() {
 			a.Noise.Length--
 		}
 
-		if a.Square1.SweepEnabled && a.Square1.Sweep > 0 {
-			a.Square1.Sweep--
-		}
-		if a.Square2.SweepEnabled && a.Square2.Sweep > 0 {
-			a.Square2.Sweep--
-		}
-
-		if a.Square1.SweepEnabled && a.Square1.Sweep > 0 && a.Square1.Negative {
-			a.Square1.Timer = a.Square1.Timer - (a.Square1.Timer >> a.Square1.Shift)
-		} else if a.Square1.SweepEnabled && a.Square1.Sweep > 0 {
-			a.Square1.Timer = a.Square1.Timer + (a.Square1.Timer >> a.Square1.Shift)
-		}
-
-		if a.Square2.SweepEnabled && a.Square2.Sweep > 0 && a.Square2.Negative {
-			a.Square2.Timer = a.Square2.Timer - (a.Square2.Timer >> a.Square2.Shift)
-		} else if a.Square2.SweepEnabled && a.Square2.Sweep > 0 {
-			a.Square2.Timer = a.Square2.Timer + (a.Square2.Timer >> a.Square2.Shift)
-		}
+		a.Square1.ClockSweep()
+		a.Square2.ClockSweep()
 	}
 
 	if a.FrameTick >= 0 && a.FrameTick <= 4 {
@@ -398,22 +391,22 @@ func (a *Apu) WriteControlFlags1(v Word) {
 
 	if !a.Square1.Enabled {
 		a.Square1.Length = 0
-		a.Square1.Sample = 0
+		a.Square1.UpdateSample(0)
 	}
 
 	if !a.Square2.Enabled {
 		a.Square2.Length = 0
-		a.Square2.Sample = 0
+		a.Square2.UpdateSample(0)
 	}
 
 	if !a.Triangle.Enabled {
 		a.Triangle.Length = 0
-		a.Triangle.Sample = 0
+		a.Triangle.UpdateSample(0)
 	}
 
 	if !a.Noise.Enabled {
 		a.Noise.Length = 0
-		a.Noise.Sample = 0
+		a.Noise.UpdateSample(0)
 	}
 
 	// TODO:
@@ -431,7 +424,14 @@ func (a *Apu) ReadStatus() Word {
 
 	status |= a.Square1.Length
 	status |= a.Square2.Length << 1
-	status |= a.Triangle.Length << 3
+	status |= a.Triangle.Length << 2
+	status |= a.Noise.Length << 3
+
+	if a.IrqActive && a.IrqEnabled {
+		status |= 1 << 6
+	} else {
+		status |= 0 << 6
+	}
 
 	// TODO: Noise -> 0x10
 
@@ -446,12 +446,14 @@ func (a *Apu) ReadStatus() Word {
 // $4017
 func (a *Apu) WriteControlFlags2(v Word) {
 	// fd-- ----   5-frame cycle, disable frame interrupt
-	if v&0x80 == 1 {
+	if v&0x80 == 0x80 {
 		a.FrameCounter = 5
 		a.FrameSequencerStep()
 	} else {
 		a.FrameCounter = 4
 	}
+
+	a.IrqEnabled = v&0x40 != 0x40
 }
 
 // $4000

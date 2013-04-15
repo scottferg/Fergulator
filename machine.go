@@ -295,7 +295,6 @@ func main() {
 
 	// This needs to happen on the main thread for OSX
 	runtime.LockOSThread()
-	defer video.Close()
 	video.Render()
 
 	return

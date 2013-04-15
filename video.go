@@ -35,7 +35,7 @@ func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
 	sdl.WM_SetCaption(fmt.Sprintf("Fergulator - %s", n), "")
 
 	if gl.Init() != 0 {
-		panic("gl error")
+		panic(sdl.GetError())
 	}
 
 	gl.Enable(gl.TEXTURE_2D)
