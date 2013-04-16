@@ -1,5 +1,10 @@
 package main
 
+const (
+	HiPassStrong = 225574
+	HiPassWeak   = 57593
+)
+
 var (
 	SquareLookup = [][]int{
 		[]int{0, 1, 0, 0, 0, 0, 0, 0},
@@ -84,8 +89,10 @@ type Apu struct {
 	Square2    Square
 	Triangle
 	Noise
-	IrqEnabled bool
-	IrqActive  bool
+	IrqEnabled   bool
+	IrqActive    bool
+	HipassStrong int64
+	HipassWeak   int64
 
 	FrameCounter  int
 	FrameTick     int
@@ -108,7 +115,12 @@ func (s *Square) WriteControl(v Word) {
 	s.DutyCycle = (v >> 6) & 0x3
 	s.EnvelopeDecayRate = v & 0xF
 	s.EnvelopeDecayEnabled = (v & 0x10) == 0
-	s.Envelope = s.Envelope + ((v >> 1) & 0x10)
+
+	if s.EnvelopeDecayEnabled {
+		s.Envelope = s.EnvelopeDecayRate
+	} else {
+		s.Envelope = v & 0xF
+	}
 }
 
 func (s *Square) WriteSweeps(v Word) {
@@ -146,7 +158,7 @@ func (s *Square) Clock() {
 			s.TimerCount = (s.Timer + 1) << 1
 		}
 
-		if !s.Negative && (s.Timer+(s.Timer>>s.Shift)) > 0x7FF {
+		if !s.Negative && (s.Timer+(s.Timer>>s.Shift)) > 0xFFF {
 			s.UpdateSample(0)
 		} else if s.Timer < 8 {
 			s.UpdateSample(0)
@@ -236,15 +248,15 @@ func (n *Noise) Clock() {
 
 	n.Shift = (n.Shift >> 1) | (feedback << 14)
 
-	if n.Length > 0 && n.Shift&0x1 != 0 {
-		n.UpdateSample(float64(n.Envelope))
-	} else {
+	if n.Length == 0 || n.Shift&0x1 == 0x1 {
 		n.UpdateSample(0)
+	} else {
+		n.UpdateSample(float64(n.Envelope))
 	}
 }
 
 func (n *Noise) UpdateSample(v float64) {
-	n.Sample = v
+	n.Sample = v * 0.2
 }
 
 func (a *Apu) Init() <-chan int16 {
@@ -277,14 +289,26 @@ func (a *Apu) Step() {
 		a.Noise.Clock()
 	}
 
-	a.Sample = (a.Sample + a.ComputeSample()) / 2
+	a.Sample = a.ComputeSample()
+	a.Sample = a.RunHipassStrong(a.Sample)
+	a.Sample = a.RunHipassWeak(a.Sample)
+}
+
+func (a *Apu) RunHipassStrong(s int16) int16 {
+	a.HipassStrong += (((int64(s) << 16) - (a.HipassStrong >> 16)) * HiPassStrong) >> 16
+	return int16(int64(s) - (a.HipassStrong >> 32))
+}
+
+func (a *Apu) RunHipassWeak(s int16) int16 {
+	a.HipassWeak += (((int64(s) << 16) - (a.HipassWeak >> 16)) * HiPassWeak) >> 16
+	return int16(int64(s) - (a.HipassWeak >> 32))
 }
 
 func (a *Apu) ComputeSample() int16 {
 	pulse_out := 0.00752 * float64(a.Square1.Sample+a.Square2.Sample)
 	tnd_out := 0.00851*float64(a.Triangle.Sample) + 0.00494*float64(a.Noise.Sample)
 
-	return int16((pulse_out + tnd_out) * 20000)
+	return int16((pulse_out + tnd_out) * 40000)
 }
 
 func (a *Apu) PushSample() {
@@ -315,11 +339,9 @@ func (a *Apu) FrameSequencerStep() {
 		a.Square2.ClockSweep()
 	}
 
-	if a.FrameTick >= 0 && a.FrameTick <= 4 {
-		a.Square1.ClockEnvelopeDecay()
-		a.Square2.ClockEnvelopeDecay()
-		a.Triangle.ClockLinearCounter()
-	}
+	a.Square1.ClockEnvelopeDecay()
+	a.Square2.ClockEnvelopeDecay()
+	a.Triangle.ClockLinearCounter()
 
 	if a.FrameTick >= a.FrameCounter {
 		a.FrameTick = 0
