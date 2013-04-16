@@ -33,28 +33,32 @@ var (
 	}
 )
 
+type Envelope struct {
+	Volume       Word
+	DecayRate    Word
+	DecayCounter Word
+	DecayEnabled bool
+	LoopEnabled  bool
+	Disabled     bool
+	Reset        bool
+}
+
 type Square struct {
-	Envelope             Word
-	EnvelopeDecayRate    Word
-	EnvelopeDecayCounter Word
-	EnvelopeDecayEnabled bool
-	EnvelopeLoopEnabled  bool
-	EnvelopeDisabled     bool
-	EnvelopeReset        bool
-	Enabled              bool
-	LengthEnabled        bool
-	DutyCycle            Word
-	DutyCount            Word
-	Timer                int
-	TimerCount           int
-	Length               Word
-	LastTick             int
-	SweepEnabled         bool
-	Sweep                Word
-	SweepMode            Word
-	Shift                Word
-	Negative             bool
-	Sample               int16
+	Enabled       bool
+	LengthEnabled bool
+	DutyCycle     Word
+	DutyCount     Word
+	Timer         int
+	TimerCount    int
+	Length        Word
+	LastTick      int
+	SweepEnabled  bool
+	Sweep         Word
+	SweepMode     Word
+	Shift         Word
+	Negative      bool
+	Sample        int16
+	Envelope
 }
 
 type Triangle struct {
@@ -72,22 +76,16 @@ type Triangle struct {
 }
 
 type Noise struct {
-	LengthEnabled        bool
-	Enabled              bool
-	BaseEnvelope         Word
-	Envelope             Word
-	EnvelopeDecayRate    Word
-	EnvelopeDecayCounter Word
-	EnvelopeLoopEnabled  bool
-	EnvelopeDecayEnabled bool
-	EnvelopeDisabled     bool
-	EnvelopeReset        bool
-	Mode                 bool
-	Timer                int
-	TimerCount           int
-	Length               Word
-	Shift                int
-	Sample               float64
+	LengthEnabled bool
+	Enabled       bool
+	BaseEnvelope  Word
+	Mode          bool
+	Timer         int
+	TimerCount    int
+	Length        Word
+	Shift         int
+	Sample        float64
+	Envelope
 }
 
 type Apu struct {
@@ -117,17 +115,17 @@ func (s *Square) WriteControl(v Word) {
 	// |||+----- Saw Envelope Disable (0: use internal counter for volume; 1: use Envelope for volume)
 	// ||+------ Length Counter Disable (0: use Length Counter; 1: disable Length Counter)
 	// ++------- Duty Cycle
-	s.EnvelopeDisabled = (v>>4)&0x1 == 1
+	s.Envelope.Disabled = (v>>4)&0x1 == 1
 	s.LengthEnabled = v&0x20 != 0x20
-	s.EnvelopeLoopEnabled = v&0x20 == 0x20
+	s.Envelope.LoopEnabled = v&0x20 == 0x20
 	s.DutyCycle = (v >> 6) & 0x3
-	s.EnvelopeDecayRate = v & 0xF
-	s.EnvelopeDecayEnabled = (v & 0x10) == 0
+	s.Envelope.DecayRate = v & 0xF
+	s.Envelope.DecayEnabled = (v & 0x10) == 0
 
-	if s.EnvelopeDecayEnabled {
-		s.Envelope = s.EnvelopeDecayRate
+	if s.Envelope.DecayEnabled {
+		s.Envelope.Volume = s.Envelope.DecayRate
 	} else {
-		s.Envelope = v & 0xF
+		s.Envelope.Volume = v & 0xF
 	}
 }
 
@@ -151,7 +149,7 @@ func (s *Square) WriteHigh(v Word) {
 	}
 
 	s.DutyCount = 0
-	s.EnvelopeReset = true
+	s.Envelope.Reset = true
 }
 
 func (s *Square) UpdateSample(v int16) {
@@ -171,7 +169,7 @@ func (s *Square) Clock() {
 		} else if s.Timer < 8 {
 			s.UpdateSample(0)
 		} else if SquareLookup[s.DutyCycle][s.DutyCount] == 1 {
-			s.UpdateSample(int16(s.Envelope))
+			s.UpdateSample(int16(s.Volume))
 		} else {
 			s.UpdateSample(0)
 		}
@@ -194,18 +192,18 @@ func (s *Square) ClockSweep() {
 	}
 }
 
-func (s *Square) ClockEnvelopeDecay() {
-	if s.EnvelopeReset {
-		s.EnvelopeReset = false
-		s.EnvelopeDecayCounter = s.EnvelopeDecayRate + 1
-		s.Envelope = 0xF
-	} else if s.EnvelopeDecayCounter-1 <= 0 {
-		s.EnvelopeDecayCounter = s.EnvelopeDecayRate + 1
-		if s.Envelope > 0 {
-			s.Envelope--
+func (e *Envelope) ClockDecay() {
+	if e.Reset {
+		e.Reset = false
+		e.DecayCounter = e.DecayRate + 1
+		e.Volume = 0xF
+	} else if e.DecayCounter-1 <= 0 {
+		e.DecayCounter = e.DecayRate + 1
+		if e.Volume > 0 {
+			e.Volume--
 		}
 	} else {
-		s.EnvelopeDecayCounter--
+		e.DecayCounter--
 	}
 }
 
@@ -250,7 +248,7 @@ func (n *Noise) Clock() {
 	}
 
 	if n.Shift&0x1 == 0x0 {
-		n.UpdateSample(float64(n.Envelope))
+		n.UpdateSample(float64(n.Envelope.Volume))
 	} else {
 		n.UpdateSample(0)
 	}
@@ -269,21 +267,6 @@ func (n *Noise) Clock() {
 		n.Shift = (n.Shift >> 1) | (feedback << 14)
 
 		n.TimerCount = n.Timer
-	}
-}
-
-func (n *Noise) ClockEnvelopeDecay() {
-	if n.EnvelopeReset {
-		n.EnvelopeReset = false
-		n.EnvelopeDecayCounter = n.EnvelopeDecayRate + 1
-		n.Envelope = 0xF
-	} else if n.EnvelopeDecayCounter-1 <= 0 {
-		n.EnvelopeDecayCounter = n.EnvelopeDecayRate + 1
-		if n.Envelope > 0 {
-			n.Envelope--
-		}
-	} else {
-		n.EnvelopeDecayCounter--
 	}
 }
 
@@ -371,8 +354,9 @@ func (a *Apu) FrameSequencerStep() {
 		a.Square2.ClockSweep()
 	}
 
-	a.Square1.ClockEnvelopeDecay()
-	a.Square2.ClockEnvelopeDecay()
+	a.Square1.Envelope.ClockDecay()
+	a.Square2.Envelope.ClockDecay()
+	a.Noise.Envelope.ClockDecay()
 	a.Triangle.ClockLinearCounter()
 
 	if a.FrameTick >= a.FrameCounter {
@@ -581,16 +565,16 @@ func (a *Apu) WriteTriangleHigh(v Word) {
 func (a *Apu) WriteNoiseBase(v Word) {
 	// --LC NNNN	 Envelope loop / length counter disable (L), constant volume (C), volume/envelope (V)
 	a.Noise.LengthEnabled = (v & 0x20) != 0x20
-	a.Noise.Envelope = v & 0x1F
-	a.Noise.BaseEnvelope = a.Noise.Envelope
-	a.Noise.EnvelopeLoopEnabled = v&0x20 == 0x20
-	a.Noise.EnvelopeDecayRate = v & 0xF
-	a.Noise.EnvelopeDecayEnabled = (v & 0x10) == 0
+	a.Noise.Envelope.Volume = v & 0x1F
+	a.Noise.BaseEnvelope = a.Noise.Envelope.Volume
+	a.Noise.Envelope.LoopEnabled = v&0x20 == 0x20
+	a.Noise.Envelope.DecayRate = v & 0xF
+	a.Noise.Envelope.DecayEnabled = (v & 0x10) == 0
 
-	if a.Noise.EnvelopeDecayEnabled {
-		a.Noise.Envelope = a.Noise.EnvelopeDecayRate
+	if a.Noise.Envelope.DecayEnabled {
+		a.Noise.Envelope.Volume = a.Noise.Envelope.DecayRate
 	} else {
-		a.Noise.Envelope = v & 0xF
+		a.Noise.Envelope.Volume = v & 0xF
 	}
 }
 
@@ -606,5 +590,5 @@ func (a *Apu) WriteNoisePeriod(v Word) {
 func (a *Apu) WriteNoiseLength(v Word) {
 	// LLLL L---	 Length counter load (L)
 	a.Noise.Length = LengthTable[v>>3]
-	a.Noise.Envelope = a.Noise.BaseEnvelope
+	a.Noise.Envelope.Volume = a.Noise.BaseEnvelope
 }
