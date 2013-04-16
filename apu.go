@@ -38,6 +38,7 @@ type Square struct {
 	EnvelopeDecayRate    Word
 	EnvelopeDecayCounter Word
 	EnvelopeDecayEnabled bool
+	EnvelopeLoopEnabled  bool
 	EnvelopeDisabled     bool
 	EnvelopeReset        bool
 	Enabled              bool
@@ -71,16 +72,22 @@ type Triangle struct {
 }
 
 type Noise struct {
-	LengthEnabled bool
-	Enabled       bool
-	BaseEnvelope  Word
-	Envelope      Word
-	Mode          bool
-	Timer         int
-	TimerCount    int
-	Length        Word
-	Shift         int
-	Sample        float64
+	LengthEnabled        bool
+	Enabled              bool
+	BaseEnvelope         Word
+	Envelope             Word
+	EnvelopeDecayRate    Word
+	EnvelopeDecayCounter Word
+	EnvelopeLoopEnabled  bool
+	EnvelopeDecayEnabled bool
+	EnvelopeDisabled     bool
+	EnvelopeReset        bool
+	Mode                 bool
+	Timer                int
+	TimerCount           int
+	Length               Word
+	Shift                int
+	Sample               float64
 }
 
 type Apu struct {
@@ -111,7 +118,8 @@ func (s *Square) WriteControl(v Word) {
 	// ||+------ Length Counter Disable (0: use Length Counter; 1: disable Length Counter)
 	// ++------- Duty Cycle
 	s.EnvelopeDisabled = (v>>4)&0x1 == 1
-	s.LengthEnabled = (v>>5)&0x1 != 1
+	s.LengthEnabled = v&0x20 != 0x20
+	s.EnvelopeLoopEnabled = v&0x20 == 0x20
 	s.DutyCycle = (v >> 6) & 0x3
 	s.EnvelopeDecayRate = v & 0xF
 	s.EnvelopeDecayEnabled = (v & 0x10) == 0
@@ -195,8 +203,6 @@ func (s *Square) ClockEnvelopeDecay() {
 		s.EnvelopeDecayCounter = s.EnvelopeDecayRate + 1
 		if s.Envelope > 0 {
 			s.Envelope--
-		} else {
-			s.Envelope = 0
 		}
 	} else {
 		s.EnvelopeDecayCounter--
@@ -238,20 +244,46 @@ func (t *Triangle) UpdateSample(v int16) {
 func (n *Noise) Clock() {
 	var feedback, tmp int
 
-	if n.Mode {
-		tmp = n.Shift & 0x40 >> 6
-	} else {
-		tmp = n.Shift & 0x2 >> 1
+	if n.Length == 0 {
+		n.UpdateSample(0)
+		return
 	}
 
-	feedback = n.Shift&0x1 ^ tmp
-
-	n.Shift = (n.Shift >> 1) | (feedback << 14)
-
-	if n.Length == 0 || n.Shift&0x1 == 0x1 {
-		n.UpdateSample(0)
-	} else {
+	if n.Shift&0x1 == 0x0 {
 		n.UpdateSample(float64(n.Envelope))
+	} else {
+		n.UpdateSample(0)
+	}
+
+	n.TimerCount--
+
+	if n.TimerCount == 0 {
+		if n.Mode {
+			tmp = n.Shift & 0x40 >> 6
+		} else {
+			tmp = n.Shift & 0x2 >> 1
+		}
+
+		feedback = n.Shift&0x1 ^ tmp
+
+		n.Shift = (n.Shift >> 1) | (feedback << 14)
+
+		n.TimerCount = n.Timer
+	}
+}
+
+func (n *Noise) ClockEnvelopeDecay() {
+	if n.EnvelopeReset {
+		n.EnvelopeReset = false
+		n.EnvelopeDecayCounter = n.EnvelopeDecayRate + 1
+		n.Envelope = 0xF
+	} else if n.EnvelopeDecayCounter-1 <= 0 {
+		n.EnvelopeDecayCounter = n.EnvelopeDecayRate + 1
+		if n.Envelope > 0 {
+			n.Envelope--
+		}
+	} else {
+		n.EnvelopeDecayCounter--
 	}
 }
 
@@ -551,6 +583,15 @@ func (a *Apu) WriteNoiseBase(v Word) {
 	a.Noise.LengthEnabled = (v & 0x20) != 0x20
 	a.Noise.Envelope = v & 0x1F
 	a.Noise.BaseEnvelope = a.Noise.Envelope
+	a.Noise.EnvelopeLoopEnabled = v&0x20 == 0x20
+	a.Noise.EnvelopeDecayRate = v & 0xF
+	a.Noise.EnvelopeDecayEnabled = (v & 0x10) == 0
+
+	if a.Noise.EnvelopeDecayEnabled {
+		a.Noise.Envelope = a.Noise.EnvelopeDecayRate
+	} else {
+		a.Noise.Envelope = v & 0xF
+	}
 }
 
 // $400E
@@ -558,6 +599,7 @@ func (a *Apu) WriteNoisePeriod(v Word) {
 	// L--- PPPP	 Mode noise (L), noise period (P)
 	a.Noise.Mode = v&0x80 == 0x80
 	a.Noise.Timer = NoiseLookup[v&0xF]
+	a.Noise.TimerCount = a.Noise.Timer
 }
 
 // $400F
