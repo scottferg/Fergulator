@@ -35,6 +35,7 @@ var (
 
 type Envelope struct {
 	Volume       Word
+	Counter      Word
 	DecayRate    Word
 	DecayCounter Word
 	DecayEnabled bool
@@ -193,17 +194,34 @@ func (s *Square) ClockSweep() {
 }
 
 func (e *Envelope) ClockDecay() {
+	// When the divider outputs a clock, one of two actions occurs: 
+	// If the counter is non-zero, it is decremented, otherwise if 
+	// the loop flag is set, the counter is loaded with 15.
+
+	// The envelope unit's volume output depends on the constant volume 
+	// flag: if set, the envelope parameter directly sets the volume, 
+	// otherwise the counter's value is the current volume.
+
+	e.DecayCounter--
+
 	if e.Reset {
 		e.Reset = false
 		e.DecayCounter = e.DecayRate + 1
-		e.Volume = 0xF
-	} else if e.DecayCounter-1 <= 0 {
+		e.Counter = 0xF
+	} else if e.DecayCounter == 0 {
 		e.DecayCounter = e.DecayRate + 1
-		if e.Volume > 0 {
-			e.Volume--
+
+		if e.Counter > 0 {
+			e.Counter--
+		} else if e.LoopEnabled {
+			e.Counter = 0xF
 		}
+	}
+
+	if e.DecayEnabled {
+		e.Volume = e.Counter
 	} else {
-		e.DecayCounter--
+		e.Volume = e.DecayRate
 	}
 }
 
@@ -367,8 +385,6 @@ func (a *Apu) FrameSequencerStep() {
 func (a *Apu) RegRead(addr int) (Word, error) {
 	switch addr {
 	case 0x4015:
-		// TODO: When a status read occurrs, emulate the APU up to that point.
-		// http://forums.nesdev.com/viewtopic.php?t=2123
 		return a.ReadStatus(), nil
 	}
 
@@ -471,8 +487,6 @@ func (a *Apu) ReadStatus() Word {
 		status |= 0 << 6
 	}
 
-	// TODO: Noise -> 0x10
-
 	// Reading this register clears the frame interrupt 
 	// flag (but not the DMC interrupt flag).
 	// If an interrupt flag was set at the same moment of 
@@ -565,10 +579,10 @@ func (a *Apu) WriteTriangleHigh(v Word) {
 func (a *Apu) WriteNoiseBase(v Word) {
 	// --LC NNNN	 Envelope loop / length counter disable (L), constant volume (C), volume/envelope (V)
 	a.Noise.LengthEnabled = (v & 0x20) != 0x20
-	a.Noise.Envelope.Volume = v & 0x1F
-	a.Noise.BaseEnvelope = a.Noise.Envelope.Volume
+	a.Noise.Envelope.Counter = v & 0x1F
 	a.Noise.Envelope.LoopEnabled = v&0x20 == 0x20
 	a.Noise.Envelope.DecayRate = v & 0xF
+	a.Noise.BaseEnvelope = a.Noise.Envelope.DecayRate
 	a.Noise.Envelope.DecayEnabled = (v & 0x10) == 0
 
 	if a.Noise.Envelope.DecayEnabled {
@@ -590,5 +604,4 @@ func (a *Apu) WriteNoisePeriod(v Word) {
 func (a *Apu) WriteNoiseLength(v Word) {
 	// LLLL L---	 Length counter load (L)
 	a.Noise.Length = LengthTable[v>>3]
-	a.Noise.Envelope.Volume = a.Noise.BaseEnvelope
 }
