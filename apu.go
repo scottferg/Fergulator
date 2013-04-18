@@ -14,10 +14,8 @@ var (
 	}
 
 	TriangleLookup = []int16{
-		8, 9, 10, 11, 12, 13, 14,
-		15, 15, 14, 13, 12, 11, 10,
-		9, 8, 7, 6, 5, 4, 3, 2, 1,
-		0, 0, 1, 2, 3, 4, 5, 6, 7,
+		15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0,
+		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
 	}
 
 	NoiseLookup = []int{
@@ -85,7 +83,7 @@ type Noise struct {
 	TimerCount    int
 	Length        Word
 	Shift         int
-	Sample        float64
+	Sample        int16
 	Envelope
 }
 
@@ -103,6 +101,9 @@ type Apu struct {
 	FrameCounter  int
 	FrameTick     int
 	LastFrameTick int
+
+	PulseOut []float64
+	TndOut   []float64
 
 	Sample int16
 
@@ -266,7 +267,7 @@ func (n *Noise) Clock() {
 	}
 
 	if n.Shift&0x1 == 0x0 {
-		n.UpdateSample(float64(n.Envelope.Volume))
+		n.UpdateSample(int16(n.Envelope.Volume))
 	} else {
 		n.UpdateSample(0)
 	}
@@ -288,8 +289,8 @@ func (n *Noise) Clock() {
 	}
 }
 
-func (n *Noise) UpdateSample(v float64) {
-	n.Sample = v * 0.2
+func (n *Noise) UpdateSample(v int16) {
+	n.Sample = v
 }
 
 func (a *Apu) Init() <-chan int16 {
@@ -297,6 +298,16 @@ func (a *Apu) Init() <-chan int16 {
 	a.Output = al
 
 	a.Noise.Shift = 1
+
+	a.PulseOut = make([]float64, 31)
+	for i := 0; i < len(a.PulseOut); i++ {
+		a.PulseOut[i] = 95.52 / (8128.0/float64(i) + 100.0)
+	}
+
+	a.TndOut = make([]float64, 203)
+	for i := 0; i < len(a.TndOut); i++ {
+		a.TndOut[i] = 163.67 / (24329.0/float64(i) + 100.0)
+	}
 
 	return al
 }
@@ -338,10 +349,10 @@ func (a *Apu) RunHipassWeak(s int16) int16 {
 }
 
 func (a *Apu) ComputeSample() int16 {
-	pulse_out := 0.00752 * float64(a.Square1.Sample+a.Square2.Sample)
-	tnd_out := 0.00851*float64(a.Triangle.Sample) + 0.00494*float64(a.Noise.Sample)
+	pulse := a.PulseOut[a.Square1.Sample+a.Square2.Sample]
+	tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)]
 
-	return int16((pulse_out + tnd_out) * 40000)
+	return int16((pulse + tnd) * 40000)
 }
 
 func (a *Apu) PushSample() {
