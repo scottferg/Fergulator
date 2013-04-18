@@ -552,7 +552,7 @@ func (a *Apu) WriteTriangleLow(v Word) {
 
 // $400B
 func (a *Apu) WriteTriangleHigh(v Word) {
-	a.Triangle.Timer = (a.Triangle.Timer & 0xFF) | int((v&0xF)<<8)
+	a.Triangle.Timer = (a.Triangle.Timer & 0xFF) | (int(v&0xF) << 8)
 
 	if a.Triangle.Enabled {
 		a.Triangle.Length = LengthTable[v>>3]
