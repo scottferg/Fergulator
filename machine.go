@@ -205,8 +205,8 @@ func main() {
 
 	pads[0] = new(Controller)
 	pads[1] = new(Controller)
-	pads[0].Init()
-	pads[1].Init()
+	pads[0].Init(0)
+	pads[1].Init(0)
 
 	Ram.Init()
 	cpu.Init()

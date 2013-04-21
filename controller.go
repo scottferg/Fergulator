@@ -20,11 +20,12 @@ const (
 )
 
 type Controller struct {
-	ButtonState [8]Word
+	ButtonState [16]Word
 	StrobeState int
 	LastWrite   Word
 	LastYAxis   int
 	LastXAxis   int
+	BitOffset   int
 }
 
 func (c *Controller) SetJoypadAxisState(a, d int, v Word) {
@@ -85,24 +86,26 @@ func (c *Controller) SetJoypadButtonState(k int, v Word) {
 	}
 }
 
-func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word) {
+func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word, offset int) {
 	switch k.Keysym.Sym {
 	case sdl.K_z: // A
-		c.ButtonState[0] = v
+		c.ButtonState[0+offset] = v
 	case sdl.K_x: // B
-		c.ButtonState[1] = v
+		c.ButtonState[1+offset] = v
 	case sdl.K_RSHIFT: // Select
-		c.ButtonState[2] = v
+		c.ButtonState[2+offset] = v
 	case sdl.K_RETURN: // Start
-		c.ButtonState[3] = v
+		c.ButtonState[3+offset] = v
+	case sdl.K_m: // Start
+		c.ButtonState[11] = v
 	case sdl.K_UP: // Up
-		c.ButtonState[4] = v
+		c.ButtonState[4+offset] = v
 	case sdl.K_DOWN: // Down
-		c.ButtonState[5] = v
+		c.ButtonState[5+offset] = v
 	case sdl.K_LEFT: // Left
-		c.ButtonState[6] = v
+		c.ButtonState[6+offset] = v
 	case sdl.K_RIGHT: // Right
-		c.ButtonState[7] = v
+		c.ButtonState[7+offset] = v
 	}
 }
 
@@ -122,16 +125,16 @@ func (c *Controller) ButtonUp(b int) {
 	c.SetJoypadButtonState(b, 0x40)
 }
 
-func (c *Controller) KeyDown(e sdl.KeyboardEvent) {
-	c.SetButtonState(e, 0x41)
+func (c *Controller) KeyDown(e sdl.KeyboardEvent, offset int) {
+	c.SetButtonState(e, 0x41, offset)
 }
 
-func (c *Controller) KeyUp(e sdl.KeyboardEvent) {
-	c.SetButtonState(e, 0x40)
+func (c *Controller) KeyUp(e sdl.KeyboardEvent, offset int) {
+	c.SetButtonState(e, 0x40, offset)
 }
 
 func (c *Controller) Write(v Word) {
-	if v == 0 && c.LastWrite == 1 {
+	if v == 1 {
 		// 0x4016 writes manage strobe state for
 		// both controllers. 0x4017 is reserved for
 		// APU
@@ -143,10 +146,12 @@ func (c *Controller) Write(v Word) {
 }
 
 func (c *Controller) Read() (r Word) {
-	if c.StrobeState < 8 {
+	if c.StrobeState < 16 {
 		r = c.ButtonState[c.StrobeState]
+	} else if c.StrobeState == 18 {
+		r = 0x0
 	} else if c.StrobeState == 19 {
-		r = 0x1
+		r = 0x0
 	} else {
 		r = 0x0
 	}
@@ -154,13 +159,13 @@ func (c *Controller) Read() (r Word) {
 	c.StrobeState++
 
 	if c.StrobeState == 24 {
-		c.StrobeState = 0x0
+		c.StrobeState = 0
 	}
 
-	return r
+	return
 }
 
-func (c *Controller) Init() {
+func (c *Controller) Init(offset int) {
 	for i := 0; i < len(c.ButtonState); i++ {
 		c.ButtonState[i] = 0x40
 	}
@@ -175,12 +180,12 @@ func ReadInput(r chan [2]int, i chan int) {
 				r <- [2]int{int(e.W), int(e.H)}
 			case sdl.QuitEvent:
 				running = false
-                video.Close()
+				video.Close()
 			case sdl.JoyAxisEvent:
-				joy := int(e.Which)
+				j := int(e.Which)
 
-				if joy > 0 {
-					joy = 1
+				if j > 3 {
+					j = 1
 				}
 
 				switch e.Value {
@@ -188,18 +193,18 @@ func ReadInput(r chan [2]int, i chan int) {
 				case JoypadAxisUp:
 					fallthrough
 				case JoypadAxisDown:
-					pads[joy].AxisDown(int(e.Axis), int(e.Value))
+					pads[j].AxisDown(int(e.Axis), int(e.Value))
 				default:
-					pads[joy].AxisUp(int(e.Axis), int(e.Value))
+					pads[j].AxisUp(int(e.Axis), int(e.Value))
 				}
 			case sdl.JoyButtonEvent:
 				j := int(e.Which)
 
-				if j > 0 {
+				if j > 3 {
 					j = 1
 				}
 
-				switch joy[int(e.Which)].GetButton(int(e.Button)) {
+				switch joy[j].GetButton(int(e.Button)) {
 				case 1:
 					pads[j].ButtonDown(int(e.Button))
 				case 0:
@@ -255,9 +260,9 @@ func ReadInput(r chan [2]int, i chan int) {
 
 				switch e.Type {
 				case sdl.KEYDOWN:
-					pads[0].KeyDown(e)
+					pads[0].KeyDown(e, 0)
 				case sdl.KEYUP:
-					pads[0].KeyUp(e)
+					pads[0].KeyUp(e, 0)
 				}
 			}
 		}

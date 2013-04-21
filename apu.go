@@ -1,5 +1,9 @@
 package main
 
+import (
+	"fmt"
+)
+
 const (
 	HiPassStrong = 225574
 	HiPassWeak   = 57593
@@ -21,6 +25,12 @@ var (
 	NoiseLookup = []int{
 		4, 8, 16, 32, 64, 96, 128, 160, 202,
 		254, 380, 508, 762, 1016, 2034, 4068,
+	}
+
+	DmcFrequency = []int{
+		428, 380, 340, 320, 286,
+		254, 226, 214, 190, 160,
+		142, 128, 106, 84, 72, 54,
 	}
 
 	LengthTable = []Word{
@@ -53,8 +63,10 @@ type Square struct {
 	LastTick      int
 	SweepEnabled  bool
 	Sweep         Word
+	SweepCounter  Word
 	SweepMode     Word
 	Shift         Word
+	SweepReload   bool
 	Negative      bool
 	Sample        int16
 	Envelope
@@ -87,12 +99,31 @@ type Noise struct {
 	Envelope
 }
 
+type Dmc struct {
+	Enabled        bool
+	IrqEnabled     bool
+	LoopEnabled    bool
+	RateIndex      int
+	RateCounter    int
+	DirectLoad     int
+	DirectCounter  int
+	Data           Word
+	Sample         int16
+	SampleAddress  int
+	CurrentAddress int
+	SampleLength   int
+	SampleCounter  int
+	ShiftCounter   int
+	Frequency      int
+	HasSample      bool
+}
+
 type Apu struct {
-	DmcEnabled bool
-	Square1    Square
-	Square2    Square
+	Square1 Square
+	Square2 Square
 	Triangle
 	Noise
+	Dmc
 	IrqEnabled   bool
 	IrqActive    bool
 	HipassStrong int64
@@ -137,6 +168,8 @@ func (s *Square) WriteSweeps(v Word) {
 	s.SweepMode = (v >> 3) & 1
 	s.Negative = v&0x10 == 0x10
 	s.Shift = v & 0x7
+
+	s.SweepReload = true
 }
 
 func (s *Square) WriteLow(v Word) {
@@ -166,9 +199,7 @@ func (s *Square) Clock() {
 			s.TimerCount = (s.Timer + 1) << 1
 		}
 
-		if !s.Negative && (s.Timer+(s.Timer>>s.Shift)) > 0xFFF {
-			s.UpdateSample(0)
-		} else if s.Timer < 8 {
+		if s.Timer < 8 {
 			s.UpdateSample(0)
 		} else if SquareLookup[s.DutyCycle][s.DutyCount] == 1 {
 			s.UpdateSample(int16(s.Volume))
@@ -183,14 +214,23 @@ func (s *Square) Clock() {
 }
 
 func (s *Square) ClockSweep() {
-	if s.SweepEnabled && s.Sweep > 0 {
-		s.Sweep--
+	if s.SweepEnabled && s.SweepCounter > 0 {
+		s.SweepCounter--
 
-		if s.Negative {
-			s.Timer = s.Timer - (s.Timer >> s.Shift)
-		} else {
-			s.Timer = s.Timer + (s.Timer >> s.Shift)
+		delta := (s.Timer >> s.Shift)
+
+		if s.SweepCounter == 0 {
+			if s.Negative {
+				s.Timer = s.Timer - delta
+			} else if s.Timer+delta < 0x800 {
+				s.Timer = s.Timer + delta
+			}
 		}
+	}
+
+	if s.SweepReload {
+		s.SweepReload = false
+		s.SweepCounter = s.Sweep
 	}
 }
 
@@ -237,8 +277,6 @@ func (t *Triangle) Clock() {
 		t.UpdateSample(TriangleLookup[t.LookupCounter])
 
 		t.TimerCount--
-	} else {
-		t.UpdateSample(0)
 	}
 }
 
@@ -293,6 +331,65 @@ func (n *Noise) UpdateSample(v int16) {
 	n.Sample = v
 }
 
+func (d *Dmc) Clock() {
+	if d.HasSample {
+		if d.Data&1 == 0 {
+			if d.DirectCounter > 0 {
+				d.DirectCounter--
+			}
+		} else {
+			if d.DirectCounter < 0x3F {
+				d.DirectCounter++
+			}
+		}
+
+		if d.Enabled {
+			d.Sample = (int16((d.DirectCounter)<<1) + int16(d.DirectLoad&0x1))
+		} else {
+			d.Sample = 0
+		}
+
+		d.Data = d.Data >> 1
+	}
+
+	d.RateCounter--
+	if d.RateCounter <= 0 {
+		d.HasSample = false
+
+		if d.SampleCounter == 0 && d.LoopEnabled {
+			d.CurrentAddress = d.SampleAddress
+			d.SampleCounter = d.SampleLength
+		}
+
+		if d.SampleCounter > 0 {
+			d.FillSample()
+
+			// TODO: Generate IRQ
+		}
+
+		d.RateCounter = 8
+	}
+}
+
+func (d *Dmc) FillSample() {
+	cpu.CyclesToWait += 4
+
+	val, _ := Ram.Read(d.CurrentAddress)
+	d.Data = val
+
+	d.SampleCounter--
+	if d.SampleCounter == 0 && d.LoopEnabled {
+		d.SampleCounter = d.SampleLength
+	}
+
+	d.CurrentAddress++
+	if d.CurrentAddress >= 0xFFFF {
+		d.CurrentAddress = 0x8000
+	}
+
+	d.HasSample = true
+}
+
 func (a *Apu) Init() <-chan int16 {
 	al := make(chan int16, 100)
 	a.Output = al
@@ -333,6 +430,14 @@ func (a *Apu) Step() {
 		a.Noise.Clock()
 	}
 
+	if a.Dmc.Enabled {
+		a.Dmc.ShiftCounter--
+		if a.Dmc.ShiftCounter <= 0 && a.Dmc.Frequency > 0 {
+			a.Dmc.ShiftCounter += a.Dmc.Frequency
+			// a.Dmc.Clock()
+		}
+	}
+
 	a.Sample = a.ComputeSample()
 	a.Sample = a.RunHipassStrong(a.Sample)
 	a.Sample = a.RunHipassWeak(a.Sample)
@@ -349,7 +454,11 @@ func (a *Apu) RunHipassWeak(s int16) int16 {
 }
 
 func (a *Apu) ComputeSample() int16 {
+	if false && a.Dmc.Sample > 100 {
+		fmt.Printf("DMC: %d\n", a.Dmc.Sample)
+	}
 	pulse := a.PulseOut[a.Square1.Sample+a.Square2.Sample]
+	// tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)+a.Dmc.Sample]
 	tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)]
 
 	return int16((pulse + tnd) * 40000)
@@ -432,6 +541,14 @@ func (a *Apu) RegWrite(v Word, addr int) {
 		a.WriteNoisePeriod(v)
 	case 0xF:
 		a.WriteNoiseLength(v)
+	case 0x10:
+		a.WriteDmcFlags(v)
+	case 0x11:
+		a.WriteDmcDirectLoad(v)
+	case 0x12:
+		a.WriteDmcSampleAddress(v)
+	case 0x13:
+		a.WriteDmcSampleLength(v)
 	case 0x15:
 		a.WriteControlFlags1(v)
 	case 0x17:
@@ -452,7 +569,7 @@ func (a *Apu) WriteControlFlags1(v Word) {
 	a.Square2.Enabled = ((v >> 1) & 0x1) != 0x0
 	a.Triangle.Enabled = ((v >> 2) & 0x1) != 0x0
 	a.Noise.Enabled = ((v >> 3) & 0x1) != 0x0
-	a.DmcEnabled = ((v >> 4) & 0x1) != 0x0
+	a.Dmc.Enabled = ((v >> 4) & 0x1) != 0x0
 
 	if !a.Square1.Enabled {
 		a.Square1.Length = 0
@@ -466,7 +583,7 @@ func (a *Apu) WriteControlFlags1(v Word) {
 
 	if !a.Triangle.Enabled {
 		a.Triangle.Length = 0
-		a.Triangle.UpdateSample(0)
+		// a.Triangle.UpdateSample(0)
 	}
 
 	if !a.Noise.Enabled {
@@ -474,12 +591,17 @@ func (a *Apu) WriteControlFlags1(v Word) {
 		a.Noise.UpdateSample(0)
 	}
 
-	// TODO:
 	// If the DMC bit is clear, the DMC bytes remaining will be 
 	// set to 0 and the DMC will silence when it empties.
 	// If the DMC bit is set, the DMC sample will be restarted 
 	// only if its bytes remaining is 0. Writing to this register 
 	// clears the DMC interrupt flag.
+	if v>>4&0x1 == 0x0 {
+		a.Dmc.SampleCounter = 0
+	} else {
+		a.Dmc.CurrentAddress = a.Dmc.SampleAddress
+		a.Dmc.SampleCounter = a.Dmc.SampleLength
+	}
 }
 
 // $4015 (r)
@@ -615,4 +737,31 @@ func (a *Apu) WriteNoisePeriod(v Word) {
 func (a *Apu) WriteNoiseLength(v Word) {
 	// LLLL L---	 Length counter load (L)
 	a.Noise.Length = LengthTable[v>>3]
+}
+
+// $4010
+func (a *Apu) WriteDmcFlags(v Word) {
+	a.Dmc.IrqEnabled = v&0x80 == 0x80
+	a.Dmc.LoopEnabled = v&0x40 == 0x40
+	a.Dmc.RateIndex = int(v & 0xF)
+	a.Dmc.Frequency = DmcFrequency[v&0xF]
+}
+
+// $4011
+func (a *Apu) WriteDmcDirectLoad(v Word) {
+	a.Dmc.DirectLoad = int(v & 0x7F)
+	a.Dmc.DirectCounter = a.Dmc.DirectLoad
+
+	a.Dmc.Sample = (int16(a.Dmc.DirectCounter) << 1) + int16(v)&0x1
+}
+
+// $4012
+func (a *Apu) WriteDmcSampleAddress(v Word) {
+	a.Dmc.SampleAddress = int(v) << 6
+}
+
+// $4013
+func (a *Apu) WriteDmcSampleLength(v Word) {
+	a.Dmc.SampleLength = (int(v) << 4) + 1
+	a.Dmc.SampleCounter = a.Dmc.SampleLength
 }
