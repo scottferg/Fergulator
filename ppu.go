@@ -208,7 +208,8 @@ func (p *Ppu) raster() {
 func (p *Ppu) Step() {
 	switch {
 	case p.Scanline == 240:
-		if p.Cycle == 1 {
+		switch p.Cycle {
+		case 1:
 			if !p.SuppressVbl {
 				// We're in VBlank
 				p.setStatus(StatusVblankStarted)
@@ -223,18 +224,20 @@ func (p *Ppu) Step() {
 			p.raster()
 		}
 	case p.Scanline == 260: // End of vblank
-		if p.Cycle == 1 {
+		switch p.Cycle {
+		case 1:
 			// Clear VBlank flag
 			p.clearStatus(StatusVblankStarted)
 			p.CycleCount = 0
-		} else if p.Cycle == 341 {
+		case 341:
 			p.Scanline = -1
 			p.Cycle = 1
 			p.FrameCount++
 			return
 		}
 	case p.Scanline < 240 && p.Scanline > -1:
-		if p.Cycle == 254 {
+		switch p.Cycle {
+		case 254:
 			if p.ShowBackground {
 				p.renderTileRow()
 			}
@@ -242,11 +245,11 @@ func (p *Ppu) Step() {
 			if p.ShowSprites {
 				p.evaluateScanlineSprites(p.Scanline)
 			}
-		} else if p.Cycle == 256 {
+		case 256:
 			if p.ShowBackground {
 				p.updateEndScanlineRegisters()
 			}
-		} else if p.Cycle == 260 {
+		case 260:
 			if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
 				if v, ok := rom.(*Mmc3); ok {
 					v.Hook()
@@ -254,10 +257,11 @@ func (p *Ppu) Step() {
 			}
 		}
 	case p.Scanline == -1:
-		if p.Cycle == 1 {
+		switch p.Cycle {
+        case 1:
 			p.clearStatus(StatusSprite0Hit)
 			p.clearStatus(StatusSpriteOverflow)
-		} else if p.Cycle == 304 {
+        case 304:
 			// Copy scroll latch into VRAMADDR register
 			if p.ShowBackground || p.ShowSprites {
 				// p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
