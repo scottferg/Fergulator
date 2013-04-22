@@ -939,7 +939,6 @@ func (c *Cpu) RequestInterrupt(i int) {
 }
 
 func (c *Cpu) Init() {
-	c.InstrInit()
 	c.Reset()
 	c.InterruptRequested = InterruptNone
 }
@@ -954,6 +953,8 @@ func (c *Cpu) Reset() {
 
 	c.Accurate = true
 	c.InterruptRequested = InterruptNone
+
+	c.InstrInit()
 }
 
 func (c *Cpu) Step() int {
