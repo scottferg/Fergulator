@@ -147,7 +147,7 @@ func (c *Controller) Write(v Word) {
 
 func (c *Controller) Read() (r Word) {
 	if c.StrobeState < 16 {
-		r = c.ButtonState[c.StrobeState]
+		r = ((c.ButtonState[c.StrobeState+8] & 1) << 1) | c.ButtonState[c.StrobeState]
 	} else if c.StrobeState == 18 {
 		r = 0x0
 	} else if c.StrobeState == 19 {
