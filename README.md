@@ -1,6 +1,6 @@
 Fergulator
 ==========
-![alt text](https://secure.travis-ci.org/scottferg/Fergulator.png "Travis build status")
+[![Build Status](https://travis-ci.org/scottferg/Fergulator.png?branch=master)](https://travis-ci.org/scottferg/Fergulator)
 
 This is an NES emulator, written in Go. It's fairly new and very much a work in progress, so not all games run yet and not all features are implemented. Details are below.
 
