@@ -28,16 +28,16 @@ type Controller struct {
 	BitOffset   int
 }
 
-func (c *Controller) SetJoypadAxisState(a, d int, v Word) {
+func (c *Controller) SetJoypadAxisState(a, d int, v Word, offset int) {
 	resetAxis := func(d int) {
 		switch d {
 		case 0:
 			if c.LastYAxis != -1 {
-				c.ButtonState[c.LastYAxis] = 0x40
+				c.ButtonState[c.LastYAxis+offset] = 0x40
 			}
 		case 1:
 			if c.LastXAxis != -1 {
-				c.ButtonState[c.LastXAxis] = 0x40
+				c.ButtonState[c.LastXAxis+offset] = 0x40
 			}
 		}
 	}
@@ -46,11 +46,11 @@ func (c *Controller) SetJoypadAxisState(a, d int, v Word) {
 		switch d {
 		case JoypadAxisUp: // Up
 			resetAxis(0)
-			c.ButtonState[4] = v
+			c.ButtonState[4+offset] = v
 			c.LastYAxis = 4
 		case JoypadAxisDown: // Down
 			resetAxis(0)
-			c.ButtonState[5] = v
+			c.ButtonState[5+offset] = v
 			c.LastYAxis = 5
 		default:
 			resetAxis(0)
@@ -60,11 +60,11 @@ func (c *Controller) SetJoypadAxisState(a, d int, v Word) {
 		switch d {
 		case JoypadAxisLeft: // Left
 			resetAxis(1)
-			c.ButtonState[6] = v
+			c.ButtonState[6+offset] = v
 			c.LastXAxis = 6
 		case JoypadAxisRight: // Right
 			resetAxis(1)
-			c.ButtonState[7] = v
+			c.ButtonState[7+offset] = v
 			c.LastXAxis = 7
 		default:
 			resetAxis(1)
@@ -73,16 +73,16 @@ func (c *Controller) SetJoypadAxisState(a, d int, v Word) {
 	}
 }
 
-func (c *Controller) SetJoypadButtonState(k int, v Word) {
+func (c *Controller) SetJoypadButtonState(k int, v Word, offset int) {
 	switch k {
 	case JoypadButtonA: // A
-		c.ButtonState[0] = v
+		c.ButtonState[0+offset] = v
 	case JoypadButtonB: // B
-		c.ButtonState[1] = v
+		c.ButtonState[1+offset] = v
 	case JoypadButtonSelect: // Select
-		c.ButtonState[2] = v
+		c.ButtonState[2+offset] = v
 	case JoypadButtonStart: // Start
-		c.ButtonState[3] = v
+		c.ButtonState[3+offset] = v
 	}
 }
 
@@ -109,20 +109,20 @@ func (c *Controller) SetButtonState(k sdl.KeyboardEvent, v Word, offset int) {
 	}
 }
 
-func (c *Controller) AxisDown(a, d int) {
-	c.SetJoypadAxisState(a, d, 0x41)
+func (c *Controller) AxisDown(a, d int, offset int) {
+	c.SetJoypadAxisState(a, d, 0x41, offset)
 }
 
-func (c *Controller) AxisUp(a, d int) {
-	c.SetJoypadAxisState(a, d, 0x40)
+func (c *Controller) AxisUp(a, d int, offset int) {
+	c.SetJoypadAxisState(a, d, 0x40, offset)
 }
 
-func (c *Controller) ButtonDown(b int) {
-	c.SetJoypadButtonState(b, 0x41)
+func (c *Controller) ButtonDown(b int, offset int) {
+	c.SetJoypadButtonState(b, 0x41, offset)
 }
 
-func (c *Controller) ButtonUp(b int) {
-	c.SetJoypadButtonState(b, 0x40)
+func (c *Controller) ButtonUp(b int, offset int) {
+	c.SetJoypadButtonState(b, 0x40, offset)
 }
 
 func (c *Controller) KeyDown(e sdl.KeyboardEvent, offset int) {
@@ -184,8 +184,11 @@ func ReadInput(r chan [2]int, i chan int) {
 			case sdl.JoyAxisEvent:
 				j := int(e.Which)
 
-				if j > 3 {
-					j = 1
+				index := j
+				var offset int
+				if j > 1 {
+					offset = 8
+					index = j%2
 				}
 
 				switch e.Value {
@@ -193,22 +196,25 @@ func ReadInput(r chan [2]int, i chan int) {
 				case JoypadAxisUp:
 					fallthrough
 				case JoypadAxisDown:
-					pads[j].AxisDown(int(e.Axis), int(e.Value))
+					pads[index].AxisDown(int(e.Axis), int(e.Value), offset)
 				default:
-					pads[j].AxisUp(int(e.Axis), int(e.Value))
+					pads[index].AxisUp(int(e.Axis), int(e.Value), offset)
 				}
 			case sdl.JoyButtonEvent:
 				j := int(e.Which)
 
-				if j > 3 {
-					j = 1
+				index := j
+				var offset int
+				if j > 1 {
+					offset = 8
+					index = j%2
 				}
 
 				switch joy[j].GetButton(int(e.Button)) {
 				case 1:
-					pads[j].ButtonDown(int(e.Button))
+					pads[index].ButtonDown(int(e.Button), offset)
 				case 0:
-					pads[j].ButtonUp(int(e.Button))
+					pads[index].ButtonUp(int(e.Button), offset)
 				}
 			case sdl.KeyboardEvent:
 				switch e.Keysym.Sym {
