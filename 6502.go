@@ -961,7 +961,7 @@ func (c *Cpu) Step() int {
 	// Used during a DMA
 	if c.CyclesToWait > 0 {
 		c.CyclesToWait--
-		return 0
+		return 1
 	}
 
 	// Check if an interrupt was requested
