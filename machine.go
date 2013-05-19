@@ -210,7 +210,7 @@ func main() {
 
 	Ram.Init()
 	cpu.Init()
-	v := ppu.Init()
+	v, ft := ppu.Init()
 	al := apu.Init()
 
 	if contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1]); err == nil {
@@ -236,6 +236,8 @@ func main() {
 		fmt.Println(err.Error())
 		return
 	}
+
+	r := video.Init(v, ft, gamename)
 
 	interrupt := make(chan int)
 
@@ -288,8 +290,6 @@ func main() {
 			}
 		}
 	}(interrupt)
-
-	r := video.Init(v, gamename)
 
 	go ReadInput(r, interrupt)
 

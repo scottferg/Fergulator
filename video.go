@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/go-gl/gl"
-	"github.com/scottferg/Go-SDL/gfx"
 	"github.com/scottferg/Go-SDL/sdl"
 	"log"
 	"math"
@@ -11,15 +10,16 @@ import (
 
 type Video struct {
 	tick       <-chan []uint32
+	frametick  chan bool
 	resize     chan [2]int
-	fpsmanager *gfx.FPSmanager
 	screen     *sdl.Surface
 	tex        gl.Texture
 	Fullscreen bool
 }
 
-func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
+func (v *Video) Init(t <-chan []uint32, ft chan bool, n string) chan [2]int {
 	v.tick = t
+	v.frametick = ft
 	v.resize = make(chan [2]int)
 
 	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK|sdl.INIT_AUDIO) != 0 {
@@ -42,9 +42,6 @@ func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
 	v.Reshape(int(v.screen.W), int(v.screen.H))
 
 	v.tex = gl.GenTexture()
-
-	v.fpsmanager = gfx.NewFramerate()
-	v.fpsmanager.SetFramerate(70)
 
 	joy = make([]*sdl.Joystick, sdl.NumJoysticks())
 
@@ -154,8 +151,9 @@ func (v *Video) Render() {
 
 			if v.screen != nil {
 				sdl.GL_SwapBuffers()
-				v.fpsmanager.FramerateDelay()
 			}
+
+			v.frametick <- true
 		}
 	}
 }

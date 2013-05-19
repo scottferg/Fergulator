@@ -71,13 +71,14 @@ type Ppu struct {
 	Palettebuffer []Pixel
 	Framebuffer   []uint32
 
-	Output      chan []uint32
-	Cycle       int
-	Scanline    int
-	Timestamp   int
-	VblankTime  int
-	FrameCount  int
-	FrameCycles int
+	Output        chan []uint32
+	FrameRendered chan bool
+	Cycle         int
+	Scanline      int
+	Timestamp     int
+	VblankTime    int
+	FrameCount    int
+	FrameCycles   int
 
 	SuppressNmi        bool
 	SuppressVbl        bool
@@ -87,9 +88,10 @@ type Ppu struct {
 	CycleCount int
 }
 
-func (p *Ppu) Init() chan []uint32 {
+func (p *Ppu) Init() (chan []uint32, chan bool) {
 	p.WriteLatch = true
 	p.Output = make(chan []uint32)
+	p.FrameRendered = make(chan bool)
 
 	p.OverscanEnabled = true
 	p.SpriteLimitEnabled = true
@@ -116,7 +118,7 @@ func (p *Ppu) Init() chan []uint32 {
 	p.Palettebuffer = make([]Pixel, 0xF000)
 	p.Framebuffer = make([]uint32, 0xEFE0)
 
-	return p.Output
+	return p.Output, p.FrameRendered
 }
 
 func (p *Ppu) PpuRegRead(a int) (Word, error) {
@@ -203,6 +205,7 @@ func (p *Ppu) raster() {
 	}
 
 	p.Output <- p.Framebuffer
+	<-p.FrameRendered
 }
 
 func (p *Ppu) Step() {
@@ -258,10 +261,10 @@ func (p *Ppu) Step() {
 		}
 	case p.Scanline == -1:
 		switch p.Cycle {
-        case 1:
+		case 1:
 			p.clearStatus(StatusSprite0Hit)
 			p.clearStatus(StatusSpriteOverflow)
-        case 304:
+		case 304:
 			// Copy scroll latch into VRAMADDR register
 			if p.ShowBackground || p.ShowSprites {
 				// p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
@@ -821,7 +824,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 			if p.Palettebuffer[fbRow].Value != 0 && spZero && !hit {
 				// Since we render background first, if we're placing an opaque
 				// pixel here and the existing pixel is opaque, we've hit
-				// Sprite 0 
+				// Sprite 0
 				p.setStatus(StatusSprite0Hit)
 			}
 
