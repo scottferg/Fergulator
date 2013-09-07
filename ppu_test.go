@@ -18,7 +18,7 @@ func TestVerticalNametableMirroring(test *testing.T) {
 	p = new(Ppu)
 	p.Init()
 
-    p.Nametables.SetMirroring(MirroringVertical)
+	p.Nametables.SetMirroring(MirroringVertical)
 
 	p.VramAddress = 0x2000
 	p.WriteData(0x11)
@@ -77,7 +77,7 @@ func TestHorizontalNametableMirroring(test *testing.T) {
 	p = new(Ppu)
 	p.Init()
 
-    p.Nametables.SetMirroring(MirroringHorizontal)
+	p.Nametables.SetMirroring(MirroringHorizontal)
 
 	p.VramAddress = 0x2000
 	p.WriteData(0x11)

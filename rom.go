@@ -212,7 +212,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 			Data:         r.Data,
 		}
 	case 0x43:
-        fallthrough
+		fallthrough
 	case 0x03:
 		// Cnrom
 		fmt.Printf("CNROM\n")

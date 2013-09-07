@@ -72,14 +72,14 @@ func NewMmc3(r *Rom) *Mmc3 {
 }
 
 func (m *Mmc3) LoadRom() {
-	// The PRG banks are 8192 bytes in size, half the size of an 
-	// iNES PRG bank. If your emulator or copier handles PRG data 
-	// in 16384 byte chunks, you can think of the lower bit as 
+	// The PRG banks are 8192 bytes in size, half the size of an
+	// iNES PRG bank. If your emulator or copier handles PRG data
+	// in 16384 byte chunks, you can think of the lower bit as
 	// selecting the first or second half of the bank
 	//
 	// http://forums.nesdev.com/viewtopic.php?p=38182#p38182
 
-	// Write hardwired PRG banks (0xC000 and 0xE000) 
+	// Write hardwired PRG banks (0xC000 and 0xE000)
 	// Second to last bank
 	m.Write8kRamBank(0, 0xC000)
 	// Last bank

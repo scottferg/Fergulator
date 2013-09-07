@@ -235,12 +235,12 @@ func (s *Square) ClockSweep() {
 }
 
 func (e *Envelope) ClockDecay() {
-	// When the divider outputs a clock, one of two actions occurs: 
-	// If the counter is non-zero, it is decremented, otherwise if 
+	// When the divider outputs a clock, one of two actions occurs:
+	// If the counter is non-zero, it is decremented, otherwise if
 	// the loop flag is set, the counter is loaded with 15.
 
-	// The envelope unit's volume output depends on the constant volume 
-	// flag: if set, the envelope parameter directly sets the volume, 
+	// The envelope unit's volume output depends on the constant volume
+	// flag: if set, the envelope parameter directly sets the volume,
 	// otherwise the counter's value is the current volume.
 
 	e.DecayCounter--
@@ -591,10 +591,10 @@ func (a *Apu) WriteControlFlags1(v Word) {
 		a.Noise.UpdateSample(0)
 	}
 
-	// If the DMC bit is clear, the DMC bytes remaining will be 
+	// If the DMC bit is clear, the DMC bytes remaining will be
 	// set to 0 and the DMC will silence when it empties.
-	// If the DMC bit is set, the DMC sample will be restarted 
-	// only if its bytes remaining is 0. Writing to this register 
+	// If the DMC bit is set, the DMC sample will be restarted
+	// only if its bytes remaining is 0. Writing to this register
 	// clears the DMC interrupt flag.
 	if v>>4&0x1 == 0x0 {
 		a.Dmc.SampleCounter = 0
@@ -620,9 +620,9 @@ func (a *Apu) ReadStatus() Word {
 		status |= 0 << 6
 	}
 
-	// Reading this register clears the frame interrupt 
+	// Reading this register clears the frame interrupt
 	// flag (but not the DMC interrupt flag).
-	// If an interrupt flag was set at the same moment of 
+	// If an interrupt flag was set at the same moment of
 	// the read, it will read back as 1 but it will not be cleared.
 
 	return status & 0xFF

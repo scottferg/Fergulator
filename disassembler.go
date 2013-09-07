@@ -15,7 +15,7 @@ func immediateAddress() int {
 }
 
 func absoluteAddress() (result int) {
-	// Switch to an int (or more appropriately uint16) since we 
+	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(pc + 1)
 	low, _ := Ram.Read(pc)
@@ -39,7 +39,7 @@ func indirectAbsoluteAddress() (result int) {
 }
 
 func absoluteIndexedAddress(index Word) (result int) {
-	// Switch to an int (or more appropriately uint16) since we 
+	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(pc + 1)
 	low, _ := Ram.Read(pc)
@@ -56,7 +56,7 @@ func indexedIndirectAddress() int {
 	location, _ := Ram.Read(pc)
 	location = location + c.X
 
-	// Switch to an int (or more appropriately uint16) since we 
+	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
@@ -67,7 +67,7 @@ func indexedIndirectAddress() int {
 func indirectIndexedAddress() int {
 	location, _ := Ram.Read(pc)
 
-	// Switch to an int (or more appropriately uint16) since we 
+	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)

@@ -183,7 +183,7 @@ func (c *Cpu) immediateAddress() uint16 {
 }
 
 func (c *Cpu) absoluteAddress() (result uint16) {
-	// Switch to an int (or more appropriately uint16) since we 
+	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(ProgramCounter + 1)
 	low, _ := Ram.Read(ProgramCounter)
@@ -203,9 +203,9 @@ func (c *Cpu) indirectAbsoluteAddress(addr uint16) (result uint16) {
 	high, _ := Ram.Read(addr + 1)
 	low, _ := Ram.Read(addr)
 
-	// Indirect jump is bugged on the 6502, it doesn't add 1 to 
-	// the full 16-bit value when it reads the second byte, it 
-	// adds 1 to the low byte only. So JMP (03FF) reads from 3FF 
+	// Indirect jump is bugged on the 6502, it doesn't add 1 to
+	// the full 16-bit value when it reads the second byte, it
+	// adds 1 to the low byte only. So JMP (03FF) reads from 3FF
 	// and 300, not 3FF and 400.
 	laddr := (uint16(high) << 8) + uint16(low)
 	haddr := (uint16(high) << 8) + ((uint16(low) + 1) & 0xFF)
@@ -218,7 +218,7 @@ func (c *Cpu) indirectAbsoluteAddress(addr uint16) (result uint16) {
 }
 
 func (c *Cpu) absoluteIndexedAddress(index Word) (result uint16) {
-	// Switch to an int (or more appropriately uint16) since we 
+	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(ProgramCounter + 1)
 	low, _ := Ram.Read(ProgramCounter)
@@ -251,7 +251,7 @@ func (c *Cpu) indexedIndirectAddress() uint16 {
 
 	ProgramCounter++
 
-	// Switch to an int (or more appropriately uint16) since we 
+	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
@@ -262,7 +262,7 @@ func (c *Cpu) indexedIndirectAddress() uint16 {
 func (c *Cpu) indirectIndexedAddress() uint16 {
 	location, _ := Ram.Read(ProgramCounter)
 
-	// Switch to an int (or more appropriately uint16) since we 
+	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(location + 1)
 	low, _ := Ram.Read(location)
@@ -550,7 +550,7 @@ func (c *Cpu) Pla() {
 }
 
 func (c *Cpu) Php() {
-	// BRK and PHP push P OR #$10, so that the IRQ handler can tell 
+	// BRK and PHP push P OR #$10, so that the IRQ handler can tell
 	// whether the entry was from a BRK or from an /IRQ.
 	c.pushToStack(c.P | 0x10)
 }
@@ -675,15 +675,15 @@ func (c *Cpu) Inc(location uint16) {
 }
 
 func (c *Cpu) Brk() {
-	// perfect example of the confusion the "B flag exists in status register" 
-	// causes (pdq, nothing specific to you; this confusion is present in 
-	// almost every 6502 book and web page). 
+	// perfect example of the confusion the "B flag exists in status register"
+	// causes (pdq, nothing specific to you; this confusion is present in
+	// almost every 6502 book and web page).
 	//
-	// As pdq said, BRK does the following: 
-	// 
-	// 1. Push address of BRK instruction + 2 
-	// 2. PHP 
-	// 3. SEI 
+	// As pdq said, BRK does the following:
+	//
+	// 1. Push address of BRK instruction + 2
+	// 2. PHP
+	// 3. SEI
 	// 4. JMP ($FFFE)
 	ProgramCounter = ProgramCounter + 1
 

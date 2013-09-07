@@ -99,7 +99,7 @@ func TestGoldLog(test *testing.T) {
 }
 
 func verifyCpuState(pc uint16, c *Cpu, p *Ppu, e CpuState, test *testing.T) {
-	if pc != e.Op {
+	if true || pc != e.Op {
 		test.Errorf("PC was 0x%X, expected 0x%X\n", pc, e.Op)
 	}
 

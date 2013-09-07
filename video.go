@@ -117,22 +117,17 @@ func (v *Video) Render() {
 		select {
 		case dimensions := <-v.resize:
 			v.ResizeEvent(dimensions[0], dimensions[1])
-		case val := <-v.tick:
-			slice := make([]uint8, len(val)*3)
-			for i := 0; i < len(val); i = i + 1 {
-				slice[i*3+0] = (uint8)((val[i] >> 16) & 0xff)
-				slice[i*3+1] = (uint8)((val[i] >> 8) & 0xff)
-				slice[i*3+2] = (uint8)((val[i]) & 0xff)
-			}
-
+		case buf := <-v.tick:
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 			v.tex.Bind(gl.TEXTURE_2D)
 
 			if ppu.OverscanEnabled {
-				gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 240, 224, 0, gl.RGB, gl.UNSIGNED_BYTE, slice)
+				gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 240, 224, 0, gl.RGBA,
+					gl.UNSIGNED_INT_8_8_8_8, buf)
 			} else {
-				gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 256, 240, 0, gl.RGB, gl.UNSIGNED_BYTE, slice)
+				gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 256, 240, 0, gl.RGBA,
+					gl.UNSIGNED_INT_8_8_8_8, buf)
 			}
 
 			gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)

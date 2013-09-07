@@ -199,7 +199,7 @@ func (p *Ppu) raster() {
 			}
 		}
 
-		p.Framebuffer[(y*width)+x] = color
+		p.Framebuffer[(y*width)+x] = color << 8
 		p.Palettebuffer[i].Value = 0
 		p.Palettebuffer[i].Pindex = -1
 	}
