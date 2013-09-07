@@ -84,7 +84,6 @@ func RunSystem(c <-chan int) {
 }
 
 func main() {
-	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	if len(os.Args) < 2 {
 		fmt.Println("Please specify a ROM file")
@@ -100,13 +99,15 @@ func main() {
 
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
+	} else {
+		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
 	// Init the hardware, get communication channels
 	// from the PPU and APU
 	Ram.Init()
 	cpu.Init()
-	videoTick, frameTick := ppu.Init()
+	videoTick := ppu.Init()
 	audioTick := apu.Init()
 
 	pads[0] = NewController()
@@ -136,7 +137,7 @@ func main() {
 
 	setResetVector()
 
-	r := videoOut.Init(videoTick, frameTick, gamename)
+	r := videoOut.Init(videoTick, gamename)
 
 	controllerInterrupt := make(chan int)
 

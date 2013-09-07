@@ -134,7 +134,7 @@ type Apu struct {
 	LastFrameTick int
 
 	PulseOut []float64
-	TndOut   []float64
+	TndOut   [203]float64
 
 	Sample int16
 
@@ -401,7 +401,6 @@ func (a *Apu) Init() <-chan int16 {
 		a.PulseOut[i] = 95.52 / (8128.0/float64(i) + 100.0)
 	}
 
-	a.TndOut = make([]float64, 203)
 	for i := 0; i < len(a.TndOut); i++ {
 		a.TndOut[i] = 163.67 / (24329.0/float64(i) + 100.0)
 	}

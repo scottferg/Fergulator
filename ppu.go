@@ -71,14 +71,13 @@ type Ppu struct {
 	Palettebuffer []Pixel
 	Framebuffer   []uint32
 
-	Output        chan []uint32
-	FrameRendered chan bool
-	Cycle         int
-	Scanline      int
-	Timestamp     int
-	VblankTime    int
-	FrameCount    int
-	FrameCycles   int
+	Output      chan []uint32
+	Cycle       int
+	Scanline    int
+	Timestamp   int
+	VblankTime  int
+	FrameCount  int
+	FrameCycles int
 
 	SuppressNmi        bool
 	SuppressVbl        bool
@@ -88,10 +87,9 @@ type Ppu struct {
 	CycleCount int
 }
 
-func (p *Ppu) Init() (chan []uint32, chan bool) {
+func (p *Ppu) Init() chan []uint32 {
 	p.WriteLatch = true
 	p.Output = make(chan []uint32)
-	p.FrameRendered = make(chan bool)
 
 	p.OverscanEnabled = true
 	p.SpriteLimitEnabled = true
@@ -118,7 +116,7 @@ func (p *Ppu) Init() (chan []uint32, chan bool) {
 	p.Palettebuffer = make([]Pixel, 0xF000)
 	p.Framebuffer = make([]uint32, 0xEFE0)
 
-	return p.Output, p.FrameRendered
+	return p.Output
 }
 
 func (p *Ppu) PpuRegRead(a int) (Word, error) {
@@ -205,7 +203,6 @@ func (p *Ppu) raster() {
 	}
 
 	p.Output <- p.Framebuffer
-	<-p.FrameRendered
 }
 
 func (p *Ppu) Step() {
@@ -848,56 +845,19 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 	}
 }
 
-func (p *Ppu) bgPaletteEntry(a Word, pix uint16) (pal int) {
+func (p *Ppu) bgPaletteEntry(a Word, pix uint16) int {
 	if pix == 0x0 {
 		return int(p.PaletteRam[0x00])
 	}
 
-	switch a {
-	case 0x0:
-		return int(p.PaletteRam[0x00+pix])
-	case 0x4:
-		return int(p.PaletteRam[0x04+pix])
-	case 0x8:
-		return int(p.PaletteRam[0x08+pix])
-	case 0xC:
-		return int(p.PaletteRam[0x0C+pix])
-	}
-
-	return
+	return int(p.PaletteRam[uint16(a)+pix])
 }
 
-func (p *Ppu) sprPaletteEntry(a uint) (pal []Word) {
-	switch a {
-	case 0x0:
-		pal = []Word{
-			p.PaletteRam[0x10],
-			p.PaletteRam[0x11],
-			p.PaletteRam[0x12],
-			p.PaletteRam[0x13],
-		}
-	case 0x1:
-		pal = []Word{
-			p.PaletteRam[0x10],
-			p.PaletteRam[0x15],
-			p.PaletteRam[0x16],
-			p.PaletteRam[0x17],
-		}
-	case 0x2:
-		pal = []Word{
-			p.PaletteRam[0x10],
-			p.PaletteRam[0x19],
-			p.PaletteRam[0x1A],
-			p.PaletteRam[0x1B],
-		}
-	case 0x3:
-		pal = []Word{
-			p.PaletteRam[0x10],
-			p.PaletteRam[0x1D],
-			p.PaletteRam[0x1E],
-			p.PaletteRam[0x1F],
-		}
+func (p *Ppu) sprPaletteEntry(a uint) []Word {
+	return []Word{
+		p.PaletteRam[0x10],
+		p.PaletteRam[0x11+(a*0x4)],
+		p.PaletteRam[0x12+(a*0x4)],
+		p.PaletteRam[0x13+(a*0x4)],
 	}
-
-	return
 }

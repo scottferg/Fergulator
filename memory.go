@@ -91,17 +91,18 @@ func (m *Memory) Write(address interface{}, val Word) error {
 func (m *Memory) Read(address interface{}) (Word, error) {
 	a, _ := fitAddressSize(address)
 
-	if a >= 0x2008 && a < 0x4000 {
+	switch {
+	case a >= 0x2008 && a < 0x4000:
 		offset := a % 0x8
 		return ppu.PpuRegRead(0x2000 + offset)
-	} else if a <= 0x2007 && a >= 0x2000 {
+	case a <= 0x2007 && a >= 0x2000:
 		//ppu.Run(cpu.Timestamp)
 		return ppu.PpuRegRead(a)
-	} else if a == 0x4016 {
+	case a == 0x4016:
 		return pads[0].Read(), nil
-	} else if a == 0x4017 {
+	case a == 0x4017:
 		return pads[1].Read(), nil
-	} else if a&0xF000 == 0x4000 {
+	case a&0xF000 == 0x4000:
 		return apu.RegRead(a)
 	}
 

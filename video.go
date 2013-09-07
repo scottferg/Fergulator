@@ -10,24 +10,21 @@ import (
 
 type Video struct {
 	tick       <-chan []uint32
-	frametick  chan bool
 	resize     chan [2]int
 	screen     *sdl.Surface
 	tex        gl.Texture
 	Fullscreen bool
 }
 
-func (v *Video) Init(t <-chan []uint32, ft chan bool, n string) chan [2]int {
+func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
 	v.tick = t
-	v.frametick = ft
 	v.resize = make(chan [2]int)
 
 	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK|sdl.INIT_AUDIO) != 0 {
 		log.Fatal(sdl.GetError())
 	}
 
-	v.screen = sdl.SetVideoMode(512, 480, 32, sdl.OPENGL|sdl.RESIZABLE)
-
+	v.screen = sdl.SetVideoMode(512, 480, 32, sdl.OPENGL|sdl.RESIZABLE|sdl.GL_DOUBLEBUFFER)
 	if v.screen == nil {
 		log.Fatal(sdl.GetError())
 	}
@@ -147,8 +144,6 @@ func (v *Video) Render() {
 			if v.screen != nil {
 				sdl.GL_SwapBuffers()
 			}
-
-			v.frametick <- true
 		}
 	}
 }
