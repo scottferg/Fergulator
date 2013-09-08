@@ -23,8 +23,7 @@ From your GOPATH:
         $ brew install sdl sdl_gfx sdl_image glew
         $ brew edit sdl
 
-Remove the line that says:
-        args << '--without-x'
+Remove the line that says: `args << '--without-x'`
 
         $ brew reinstall sdl
         $ go get github.com/scottferg/Fergulator
