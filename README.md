@@ -11,22 +11,27 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 From your GOPATH:
 
         $ sudo apt-get install libsdl1.2-dev libsdl-gfx1.2-dev libsdl-image1.2-dev libglew1.6-dev libxrandr-dev
-        $ go get
-        $ go test
-        $ go build
+        $ go get github.com/scottferg/Fergulator
 
 ## To build on OSX
+
+You'll need to install [XQuartz](http://xquartz.macosforge.org/landing/) in order
+to run on OSX.
 
 From your GOPATH:
 
         $ brew install sdl sdl_gfx sdl_image glew
-        $ PKG_CONFIG_PATH=/usr/local/lib/pkgconfig go get
-        $ go test
-        $ go build
+        $ brew edit sdl
+
+Remove the line that says:
+        args << '--without-x'
+
+        $ brew reinstall sdl
+        $ go get github.com/scottferg/Fergulator
 
 ## Run the emulator
 
-        $ ./Fergulator path/to/game.nes
+        $ Fergulator path/to/game.nes
 
 ## Controls
 
