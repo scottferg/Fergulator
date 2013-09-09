@@ -910,28 +910,28 @@ func (c *Cpu) PerformIrq() {
 }
 
 func (c *Cpu) PerformNmi() {
-	high := ProgramCounter >> 8
-	low := ProgramCounter & 0xFF
+	// $2000.7 enables/disables NMIs
+	if ppu.NmiOnVblank != 0x0 {
+		high := ProgramCounter >> 8
+		low := ProgramCounter & 0xFF
 
-	c.pushToStack(Word(high))
-	c.pushToStack(Word(low))
+		c.pushToStack(Word(high))
+		c.pushToStack(Word(low))
 
-	c.pushToStack(c.P)
+		c.pushToStack(c.P)
 
-	h, _ := Ram.Read(0xFFFB)
-	l, _ := Ram.Read(0xFFFA)
+		h, _ := Ram.Read(0xFFFB)
+		l, _ := Ram.Read(0xFFFA)
 
-	ProgramCounter = uint16(h)<<8 + uint16(l)
+		ProgramCounter = uint16(h)<<8 + uint16(l)
+	}
 }
 
 func (c *Cpu) PerformReset() {
-	// $2000.7 enables/disables NMIs
-	if ppu.NmiOnVblank != 0x0 {
-		high, _ := Ram.Read(0xFFFD)
-		low, _ := Ram.Read(0xFFFC)
+	high, _ := Ram.Read(0xFFFD)
+	low, _ := Ram.Read(0xFFFC)
 
-		ProgramCounter = uint16(high)<<8 + uint16(low)
-	}
+	ProgramCounter = uint16(high)<<8 + uint16(low)
 }
 
 func (c *Cpu) RequestInterrupt(i int) {
