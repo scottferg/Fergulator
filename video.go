@@ -11,14 +11,16 @@ import (
 type Video struct {
 	tick       <-chan []uint32
 	resize     chan [2]int
+	shutdown   chan bool
 	screen     *sdl.Surface
 	tex        gl.Texture
 	Fullscreen bool
 }
 
-func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
+func (v *Video) Init(t <-chan []uint32, n string) (chan [2]int, chan bool) {
 	v.tick = t
 	v.resize = make(chan [2]int)
+	v.shutdown = make(chan bool)
 
 	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK|sdl.INIT_AUDIO) != 0 {
 		log.Fatal(sdl.GetError())
@@ -57,7 +59,7 @@ func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
 		}
 	}
 
-	return v.resize
+	return v.resize, v.shutdown
 }
 
 func (v *Video) ResizeEvent(w, h int) {
@@ -112,6 +114,8 @@ func quit_event() int {
 func (v *Video) Render() {
 	for running {
 		select {
+		case _ = <-v.shutdown:
+			running = false
 		case dimensions := <-v.resize:
 			v.ResizeEvent(dimensions[0], dimensions[1])
 		case buf := <-v.tick:
@@ -142,6 +146,8 @@ func (v *Video) Render() {
 			gl.End()
 
 			if v.screen != nil {
+				gl.Flush()
+				gl.Finish()
 				sdl.GL_SwapBuffers()
 			}
 		}

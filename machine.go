@@ -9,6 +9,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"time"
 )
 
 var (
@@ -30,6 +31,7 @@ var (
 	saveStateFile  string
 	batteryRamFile string
 
+	memprofile = flag.String("memprofile", "", "write memory profile to this file")
 	cpuprofile = flag.String("cprof", "", "write cpu profile to file")
 )
 
@@ -58,8 +60,8 @@ func RunSystem(c <-chan int) {
 			cycles = cpu.Step()
 			totalCpuCycles += cycles
 
-			for i := 0; i < 3*cycles; i++ {
-				ppu.Step()
+			if cpu.Timestamp >= 13000 {
+				ppu.Step(cpu.Timestamp)
 			}
 
 			for i := 0; i < cycles; i++ {
@@ -90,6 +92,8 @@ func main() {
 		return
 	}
 
+	var shutdown chan bool
+
 	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -99,6 +103,14 @@ func main() {
 
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
+
+		// We need to kill the server gracefully (i.e. not with Ctrl-C)
+		// if we're profiling. 2 minutes is a nice amount of time to
+		// gather samples.
+		go func() {
+			time.Sleep(120 * time.Second)
+			shutdown <- true
+		}()
 	} else {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
@@ -137,7 +149,7 @@ func main() {
 
 	setResetVector()
 
-	r := videoOut.Init(videoTick, gamename)
+	r, shutdown := videoOut.Init(videoTick, gamename)
 
 	controllerInterrupt := make(chan int)
 
@@ -147,7 +159,7 @@ func main() {
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
 	go audioOut.Run()
-	go ReadInput(r, controllerInterrupt)
+	go ReadInput(r, controllerInterrupt, shutdown)
 	go RunSystem(controllerInterrupt)
 
 	// This needs to happen on the main thread for OSX
@@ -155,6 +167,16 @@ func main() {
 
 	defer videoOut.Close()
 	videoOut.Render()
+
+	if *memprofile != "" {
+		f, err := os.Create(*memprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.WriteHeapProfile(f)
+		f.Close()
+		return
+	}
 
 	return
 }

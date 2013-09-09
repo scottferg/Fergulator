@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/scottferg/Go-SDL/sdl"
-	"os"
 )
 
 var (
@@ -178,7 +177,7 @@ func NewController() *Controller {
 	return c
 }
 
-func ReadInput(r chan [2]int, i chan int) {
+func ReadInput(r chan [2]int, i chan int, s chan bool) {
 	for {
 		select {
 		case ev := <-sdl.Events:
@@ -186,7 +185,7 @@ func ReadInput(r chan [2]int, i chan int) {
 			case sdl.ResizeEvent:
 				r <- [2]int{int(e.W), int(e.H)}
 			case sdl.QuitEvent:
-				os.Exit(0)
+				s <- true
 			case sdl.JoyAxisEvent:
 				j := int(e.Which)
 

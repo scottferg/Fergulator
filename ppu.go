@@ -120,6 +120,7 @@ func (p *Ppu) Init() chan []uint32 {
 }
 
 func (p *Ppu) PpuRegRead(a int) (Word, error) {
+	p.Step(cpu.Timestamp)
 	switch a & 0x7 {
 	case 0x2:
 		return p.ReadStatus()
@@ -133,6 +134,7 @@ func (p *Ppu) PpuRegRead(a int) (Word, error) {
 }
 
 func (p *Ppu) PpuRegWrite(v Word, a int) {
+	p.Step(cpu.Timestamp)
 	switch a & 0x7 {
 	case 0x0:
 		p.WriteControl(v)
@@ -205,78 +207,82 @@ func (p *Ppu) raster() {
 	p.Output <- p.Framebuffer
 }
 
-func (p *Ppu) Step() {
-	switch {
-	case p.Scanline == 240:
-		switch p.Cycle {
-		case 1:
-			if !p.SuppressVbl {
-				// We're in VBlank
-				p.setStatus(StatusVblankStarted)
+func (p *Ppu) Step(cycleRunCount int) {
+	for i := 0; i < (cycleRunCount * 3); i++ {
+		switch {
+		case p.Scanline == 240:
+			switch p.Cycle {
+			case 1:
+				if !p.SuppressVbl {
+					// We're in VBlank
+					p.setStatus(StatusVblankStarted)
+					p.CycleCount = 0
+				}
+
+				// $2000.7 enables/disables NMIs
+				if p.NmiOnVblank == 0x1 && !p.SuppressNmi {
+					// Request NMI
+					cpu.RequestInterrupt(InterruptNmi)
+				}
+				p.raster()
+			}
+		case p.Scanline == 260: // End of vblank
+			switch p.Cycle {
+			case 1:
+				// Clear VBlank flag
+				p.clearStatus(StatusVblankStarted)
 				p.CycleCount = 0
+			case 341:
+				p.Scanline = -1
+				p.Cycle = 1
+				p.FrameCount++
+				continue
 			}
+		case p.Scanline < 240 && p.Scanline > -1:
+			switch p.Cycle {
+			case 254:
+				if p.ShowBackground {
+					p.renderTileRow()
+				}
 
-			// $2000.7 enables/disables NMIs
-			if p.NmiOnVblank == 0x1 && !p.SuppressNmi {
-				// Request NMI
-				cpu.RequestInterrupt(InterruptNmi)
+				if p.ShowSprites {
+					p.evaluateScanlineSprites(p.Scanline)
+				}
+			case 256:
+				if p.ShowBackground {
+					p.updateEndScanlineRegisters()
+				}
+			case 260:
+				if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
+					if v, ok := rom.(*Mmc3); ok {
+						v.Hook()
+					}
+				}
 			}
-			p.raster()
-		}
-	case p.Scanline == 260: // End of vblank
-		switch p.Cycle {
-		case 1:
-			// Clear VBlank flag
-			p.clearStatus(StatusVblankStarted)
-			p.CycleCount = 0
-		case 341:
-			p.Scanline = -1
-			p.Cycle = 1
-			p.FrameCount++
-			return
-		}
-	case p.Scanline < 240 && p.Scanline > -1:
-		switch p.Cycle {
-		case 254:
-			if p.ShowBackground {
-				p.renderTileRow()
-			}
-
-			if p.ShowSprites {
-				p.evaluateScanlineSprites(p.Scanline)
-			}
-		case 256:
-			if p.ShowBackground {
-				p.updateEndScanlineRegisters()
-			}
-		case 260:
-			if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
-				if v, ok := rom.(*Mmc3); ok {
-					v.Hook()
+		case p.Scanline == -1:
+			switch p.Cycle {
+			case 1:
+				p.clearStatus(StatusSprite0Hit)
+				p.clearStatus(StatusSpriteOverflow)
+			case 304:
+				// Copy scroll latch into VRAMADDR register
+				if p.ShowBackground || p.ShowSprites {
+					// p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
+					p.VramAddress = p.VramLatch
 				}
 			}
 		}
-	case p.Scanline == -1:
-		switch p.Cycle {
-		case 1:
-			p.clearStatus(StatusSprite0Hit)
-			p.clearStatus(StatusSpriteOverflow)
-		case 304:
-			// Copy scroll latch into VRAMADDR register
-			if p.ShowBackground || p.ShowSprites {
-				// p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
-				p.VramAddress = p.VramLatch
-			}
+
+		if p.Cycle == 341 {
+			p.Cycle = 0
+			p.Scanline++
 		}
+
+		p.Cycle++
+		p.CycleCount++
 	}
 
-	if p.Cycle == 341 {
-		p.Cycle = 0
-		p.Scanline++
-	}
-
-	p.Cycle++
-	p.CycleCount++
+	cpu.Timestamp = 0
 }
 
 func (p *Ppu) renderingEnabled() bool {
@@ -686,14 +692,12 @@ func (p *Ppu) renderTileRow() {
 				continue
 			}
 
-			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[palette%64],
-				int(pixel),
-				-1,
-			}
+			palindex := palette % 64
+			p.Palettebuffer[fbRow].Color = PaletteRgb[palindex]
+			p.Palettebuffer[fbRow].Value = int(pixel)
+			p.Palettebuffer[fbRow].Pindex = -1
 		}
 
-		// xcoord = p.VramAddress & 0x1F
 		attr = attrBuf
 
 		// Shift the first tile out, bring the new tile in
@@ -815,32 +819,31 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 		// Set the color of the pixel in the buffer
 		//
 		if fbRow < 0xF000 && !trans {
+			pix := p.Palettebuffer[fbRow]
 			priority := (*attr >> 5) & 0x1
 
 			hit := (Ram[0x2002]&0x40 == 0x40)
-			if p.Palettebuffer[fbRow].Value != 0 && spZero && !hit {
+			if pix.Value != 0 && spZero && !hit {
 				// Since we render background first, if we're placing an opaque
 				// pixel here and the existing pixel is opaque, we've hit
 				// Sprite 0
 				p.setStatus(StatusSprite0Hit)
 			}
 
-			if p.Palettebuffer[fbRow].Pindex > -1 && p.Palettebuffer[fbRow].Pindex < index {
+			if pix.Pindex > -1 && pix.Pindex < index {
 				// Pixel with a higher sprite priority (lower index)
 				// is already here, so don't render this pixel
 				continue
-			} else if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
+			} else if pix.Value != 0 && priority == 1 {
 				// Pixel is already rendered and priority
 				// 1 means show behind background
 				// unless background pixel is not transparent
 				continue
 			}
 
-			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[int(pal[pixel])%64],
-				int(pixel),
-				index,
-			}
+			p.Palettebuffer[fbRow].Color = PaletteRgb[int(pal[pixel])%64]
+			p.Palettebuffer[fbRow].Value = int(pixel)
+			p.Palettebuffer[fbRow].Pindex = index
 		}
 	}
 }

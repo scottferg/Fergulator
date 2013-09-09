@@ -990,7 +990,7 @@ func (c *Cpu) Step() int {
 	}
 
 	c.InstrOpcodes[opcode]()
-	c.Timestamp = (c.CycleCount * 15)
+	c.Timestamp += c.CycleCount
 
 	return c.CycleCount
 }

@@ -96,7 +96,6 @@ func (m *Memory) Read(address interface{}) (Word, error) {
 		offset := a % 0x8
 		return ppu.PpuRegRead(0x2000 + offset)
 	case a <= 0x2007 && a >= 0x2000:
-		//ppu.Run(cpu.Timestamp)
 		return ppu.PpuRegRead(a)
 	case a == 0x4016:
 		return pads[0].Read(), nil

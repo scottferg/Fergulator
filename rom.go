@@ -50,6 +50,7 @@ func WriteOffsetRamBank(rom [][]Word, bank, dest, size, offset int) {
 }
 
 func WriteVramBank(rom [][]Word, bank, dest, size int) {
+	ppu.Step(cpu.Timestamp)
 	bank %= len(rom)
 
 	for i := 0; i < size; i++ {
@@ -58,6 +59,7 @@ func WriteVramBank(rom [][]Word, bank, dest, size int) {
 }
 
 func WriteOffsetVramBank(rom [][]Word, bank, dest, size, offset int) {
+	ppu.Step(cpu.Timestamp)
 	bank %= len(rom)
 
 	for i := 0; i < size; i++ {
@@ -82,6 +84,7 @@ func (m *Unrom) BatteryBacked() bool {
 }
 
 func (m *Cnrom) Write(v Word, a int) {
+	ppu.Step(cpu.Timestamp)
 	bank := int(v&0x3) * 2
 	WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
 	WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
