@@ -436,10 +436,6 @@ func (a *Apu) Step() {
 			// a.Dmc.Clock()
 		}
 	}
-
-	a.Sample = a.ComputeSample()
-	a.Sample = a.RunHipassStrong(a.Sample)
-	a.Sample = a.RunHipassWeak(a.Sample)
 }
 
 func (a *Apu) RunHipassStrong(s int16) int16 {
@@ -464,6 +460,10 @@ func (a *Apu) ComputeSample() int16 {
 }
 
 func (a *Apu) PushSample() {
+	a.Sample = a.ComputeSample()
+	a.Sample = a.RunHipassStrong(a.Sample)
+	a.Sample = a.RunHipassWeak(a.Sample)
+
 	a.Output <- a.Sample
 }
 
