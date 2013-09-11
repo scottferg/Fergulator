@@ -21,7 +21,7 @@ var (
 	apu      Apu
 	rom      Mapper
 	videoOut Video
-	audioOut Audio
+	audioOut *Audio
 	pads     [2]*Controller
 
 	totalCpuCycles int
@@ -40,51 +40,40 @@ func setResetVector() {
 	ProgramCounter = (uint16(high) << 8) + uint16(low)
 }
 
-func RunSystem(c <-chan int) {
+func RunSystem() {
 	var lastApuTick int
 	var cycles int
 	var flip int
 
 	for running {
-		select {
-		case s := <-c:
-			switch s {
-			case LoadState:
-				LoadGameState()
-			case SaveState:
-				SaveGameState()
-			}
-		default:
-			cycles = cpu.Step()
-			totalCpuCycles += cycles
+		cycles = cpu.Step()
+		totalCpuCycles += cycles
 
-			for i := 0; i < 3*cycles; i++ {
-				ppu.Step()
-			}
+		for i := 0; i < 3*cycles; i++ {
+			ppu.Step()
+		}
 
-			for i := 0; i < cycles; i++ {
-				apu.Step()
+		for i := 0; i < cycles; i++ {
+			apu.Step()
+		}
+
+		if audioEnabled {
+			if totalCpuCycles-apu.LastFrameTick >= (cpuClockSpeed / 240) {
+				apu.FrameSequencerStep()
+				apu.LastFrameTick = totalCpuCycles
 			}
 
-			if audioEnabled {
-				if totalCpuCycles-apu.LastFrameTick >= (cpuClockSpeed / 240) {
-					apu.FrameSequencerStep()
-					apu.LastFrameTick = totalCpuCycles
-				}
+			if totalCpuCycles-lastApuTick >= ((cpuClockSpeed / 44100) + flip) {
+				apu.PushSample()
+				lastApuTick = totalCpuCycles
 
-				if totalCpuCycles-lastApuTick >= ((cpuClockSpeed / 44100) + flip) {
-					apu.PushSample()
-					lastApuTick = totalCpuCycles
-
-					flip = (flip + 1) & 0x1
-				}
+				flip = (flip + 1) & 0x1
 			}
 		}
 	}
 }
 
 func main() {
-
 	if len(os.Args) < 2 {
 		fmt.Println("Please specify a ROM file")
 		return
@@ -99,7 +88,7 @@ func main() {
 
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
-	} else {
+	} else if false {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
@@ -107,8 +96,8 @@ func main() {
 	// from the PPU and APU
 	Ram.Init()
 	cpu.Init()
+	apu.Init()
 	videoTick := ppu.Init()
-	audioTick := apu.Init()
 
 	pads[0] = NewController()
 	pads[1] = NewController()
@@ -137,18 +126,14 @@ func main() {
 
 	setResetVector()
 
-	r := videoOut.Init(videoTick, gamename)
+	videoOut.Init(videoTick, gamename)
 
-	controllerInterrupt := make(chan int)
-
-	audioOut := NewAudio(audioTick)
+	audioOut = NewAudio()
 	defer audioOut.Close()
 
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
-	go audioOut.Run()
-	go ReadInput(r, controllerInterrupt)
-	go RunSystem(controllerInterrupt)
+	go RunSystem()
 
 	// This needs to happen on the main thread for OSX
 	runtime.LockOSThread()

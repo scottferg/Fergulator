@@ -2,23 +2,24 @@ package main
 
 import (
 	"fmt"
+	"github.com/0xe2-0x9a-0x9b/Go-SDL/gfx"
 	"github.com/go-gl/gl"
 	"github.com/scottferg/Go-SDL/sdl"
 	"log"
 	"math"
+	"os"
 )
 
 type Video struct {
 	tick       <-chan []uint32
-	resize     chan [2]int
 	screen     *sdl.Surface
+	fpsmanager *gfx.FPSmanager
 	tex        gl.Texture
 	Fullscreen bool
 }
 
-func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
+func (v *Video) Init(t <-chan []uint32, n string) {
 	v.tick = t
-	v.resize = make(chan [2]int)
 
 	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK|sdl.INIT_AUDIO) != 0 {
 		log.Fatal(sdl.GetError())
@@ -57,7 +58,10 @@ func (v *Video) Init(t <-chan []uint32, n string) chan [2]int {
 		}
 	}
 
-	return v.resize
+	v.fpsmanager = gfx.NewFramerate()
+	v.fpsmanager.SetFramerate(60)
+
+	return
 }
 
 func (v *Video) ResizeEvent(w, h int) {
@@ -112,8 +116,6 @@ func quit_event() int {
 func (v *Video) Render() {
 	for running {
 		select {
-		case dimensions := <-v.resize:
-			v.ResizeEvent(dimensions[0], dimensions[1])
 		case buf := <-v.tick:
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
@@ -143,6 +145,103 @@ func (v *Video) Render() {
 
 			if v.screen != nil {
 				sdl.GL_SwapBuffers()
+				v.fpsmanager.FramerateDelay()
+			}
+		case ev := <-sdl.Events:
+			switch e := ev.(type) {
+			case sdl.ResizeEvent:
+				v.ResizeEvent(int(e.W), int(e.H))
+			case sdl.QuitEvent:
+				os.Exit(0)
+			case sdl.JoyAxisEvent:
+				j := int(e.Which)
+
+				index := j
+				var offset int
+				if j > 1 {
+					offset = 8
+					index = j % 2
+				}
+
+				switch e.Value {
+				// Same values for left/right
+				case JoypadAxisUp:
+					fallthrough
+				case JoypadAxisDown:
+					pads[index].AxisDown(int(e.Axis), int(e.Value), offset)
+				default:
+					pads[index].AxisUp(int(e.Axis), int(e.Value), offset)
+				}
+			case sdl.JoyButtonEvent:
+				j := int(e.Which)
+
+				index := j
+				var offset int
+				if j > 1 {
+					offset = 8
+					index = j % 2
+				}
+
+				switch joy[j].GetButton(int(e.Button)) {
+				case 1:
+					pads[index].ButtonDown(int(e.Button), offset)
+				case 0:
+					pads[index].ButtonUp(int(e.Button), offset)
+				}
+			case sdl.KeyboardEvent:
+				switch e.Keysym.Sym {
+				case sdl.K_ESCAPE:
+					running = false
+				case sdl.K_r:
+					// Trigger reset interrupt
+					if e.Type == sdl.KEYDOWN {
+						cpu.RequestInterrupt(InterruptReset)
+					}
+				case sdl.K_l:
+					if e.Type == sdl.KEYDOWN {
+						LoadGameState()
+					}
+				case sdl.K_p:
+					if e.Type == sdl.KEYDOWN {
+						// Enable/disable scanline sprite limiter flag
+						ppu.SpriteLimitEnabled = !ppu.SpriteLimitEnabled
+					}
+				case sdl.K_s:
+					if e.Type == sdl.KEYDOWN {
+						SaveGameState()
+					}
+				case sdl.K_o:
+					if e.Type == sdl.KEYDOWN {
+						ppu.OverscanEnabled = !ppu.OverscanEnabled
+					}
+				case sdl.K_i:
+					if e.Type == sdl.KEYDOWN {
+						audioEnabled = !audioEnabled
+					}
+				case sdl.K_1:
+					if e.Type == sdl.KEYDOWN {
+						v.ResizeEvent(256, 240)
+					}
+				case sdl.K_2:
+					if e.Type == sdl.KEYDOWN {
+						v.ResizeEvent(512, 480)
+					}
+				case sdl.K_3:
+					if e.Type == sdl.KEYDOWN {
+						v.ResizeEvent(768, 720)
+					}
+				case sdl.K_4:
+					if e.Type == sdl.KEYDOWN {
+						v.ResizeEvent(1024, 960)
+					}
+				}
+
+				switch e.Type {
+				case sdl.KEYDOWN:
+					pads[0].KeyDown(e, 0)
+				case sdl.KEYUP:
+					pads[0].KeyUp(e, 0)
+				}
 			}
 		}
 	}

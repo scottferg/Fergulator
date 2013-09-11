@@ -137,8 +137,6 @@ type Apu struct {
 	TndOut   [203]float64
 
 	Sample int16
-
-	Output chan int16
 }
 
 func (s *Square) WriteControl(v Word) {
@@ -390,10 +388,7 @@ func (d *Dmc) FillSample() {
 	d.HasSample = true
 }
 
-func (a *Apu) Init() <-chan int16 {
-	al := make(chan int16, 100)
-	a.Output = al
-
+func (a *Apu) Init() {
 	a.Noise.Shift = 1
 
 	a.PulseOut = make([]float64, 31)
@@ -404,8 +399,6 @@ func (a *Apu) Init() <-chan int16 {
 	for i := 0; i < len(a.TndOut); i++ {
 		a.TndOut[i] = 163.67 / (24329.0/float64(i) + 100.0)
 	}
-
-	return al
 }
 
 func (a *Apu) Step() {
@@ -464,7 +457,7 @@ func (a *Apu) PushSample() {
 	a.Sample = a.RunHipassStrong(a.Sample)
 	a.Sample = a.RunHipassWeak(a.Sample)
 
-	a.Output <- a.Sample
+	audioOut.AppendSample(a.Sample)
 }
 
 func (a *Apu) FrameSequencerStep() {
