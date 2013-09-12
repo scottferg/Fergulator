@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/0xe2-0x9a-0x9b/Go-SDL/gfx"
+	"github.com/scottferg/Go-SDL/gfx"
 	"github.com/go-gl/gl"
 	"github.com/scottferg/Go-SDL/sdl"
 	"log"
