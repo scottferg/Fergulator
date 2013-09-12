@@ -25,7 +25,8 @@ func (v *Video) Init(t <-chan []uint32, n string) {
 		log.Fatal(sdl.GetError())
 	}
 
-	v.screen = sdl.SetVideoMode(512, 480, 32, sdl.OPENGL|sdl.RESIZABLE|sdl.GL_DOUBLEBUFFER)
+	v.screen = sdl.SetVideoMode(512, 480, 32,
+		sdl.OPENGL|sdl.RESIZABLE|sdl.GL_DOUBLEBUFFER)
 	if v.screen == nil {
 		log.Fatal(sdl.GetError())
 	}

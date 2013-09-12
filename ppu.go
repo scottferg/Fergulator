@@ -83,8 +83,6 @@ type Ppu struct {
 	SuppressVbl        bool
 	OverscanEnabled    bool
 	SpriteLimitEnabled bool
-
-	CycleCount int
 }
 
 func (p *Ppu) Init() chan []uint32 {
@@ -213,7 +211,6 @@ func (p *Ppu) Step() {
 			if !p.SuppressVbl {
 				// We're in VBlank
 				p.setStatus(StatusVblankStarted)
-				p.CycleCount = 0
 			}
 
 			// $2000.7 enables/disables NMIs
@@ -228,7 +225,6 @@ func (p *Ppu) Step() {
 		case 1:
 			// Clear VBlank flag
 			p.clearStatus(StatusVblankStarted)
-			p.CycleCount = 0
 		case 341:
 			p.Scanline = -1
 			p.Cycle = 1
@@ -276,7 +272,6 @@ func (p *Ppu) Step() {
 	}
 
 	p.Cycle++
-	p.CycleCount++
 }
 
 func (p *Ppu) renderingEnabled() bool {
@@ -468,14 +463,14 @@ func (p *Ppu) updateBufferedSpriteMem(a int, v Word) {
 
 	switch a % 4 {
 	case 0x0:
-		p.YCoordinates[i] = v
+		p.SpriteData.YCoordinates[i] = v
 	case 0x1:
-		p.Tiles[i] = v
+		p.SpriteData.Tiles[i] = v
 	case 0x2:
 		// Attribute
-		p.Attributes[i] = v
+		p.SpriteData.Attributes[i] = v
 	case 0x3:
-		p.XCoordinates[i] = v
+		p.SpriteData.XCoordinates[i] = v
 	}
 }
 
@@ -759,7 +754,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 				p.decodePatternTile([]Word{tile[c%8], tile[(c%8)+8]},
 					int(p.XCoordinates[i]),
 					ycoord,
-					p.sprPaletteEntry(uint(attrValue)),
+					uint(attrValue),
 					&p.Attributes[i], sprite0, i)
 			} else {
 				// 8x8 Sprite
@@ -769,7 +764,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
 					ycoord,
-					p.sprPaletteEntry(uint(attrValue)),
+					uint(attrValue),
 					&p.Attributes[i], i == 0, i)
 			}
 
@@ -785,7 +780,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 	}
 }
 
-func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZero bool, index int) {
+func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, spZero bool, index int) {
 	var b uint
 	for b = 0; b < 8; b++ {
 		var xcoord int
@@ -836,8 +831,10 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, pal []Word, attr *Word, spZe
 				continue
 			}
 
+			pal := p.PaletteRam[0x10+(palIndex*0x4)+uint(pixel)]
+
 			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[int(pal[pixel])%64],
+				PaletteRgb[int(pal)%64],
 				int(pixel),
 				index,
 			}
@@ -851,13 +848,4 @@ func (p *Ppu) bgPaletteEntry(a Word, pix uint16) int {
 	}
 
 	return int(p.PaletteRam[uint16(a)+pix])
-}
-
-func (p *Ppu) sprPaletteEntry(a uint) []Word {
-	return []Word{
-		p.PaletteRam[0x10],
-		p.PaletteRam[0x11+(a*0x4)],
-		p.PaletteRam[0x12+(a*0x4)],
-		p.PaletteRam[0x13+(a*0x4)],
-	}
 }
