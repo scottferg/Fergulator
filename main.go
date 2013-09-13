@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/scottferg/Fergulator/nes"
+	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/pprof"
@@ -19,6 +20,11 @@ var (
 )
 
 func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Please specify a ROM file")
+		return
+	}
+
 	flag.Parse()
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
@@ -32,10 +38,16 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
+	contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1])
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
 	audioOut = NewAudio()
 	defer audioOut.Close()
 
-	videoTick, gamename, err := nes.Init(audioOut.AppendSample, GetKey)
+	videoTick, gamename, err := nes.Init(contents, audioOut.AppendSample, GetKey)
 	if err != nil {
 		fmt.Println(err)
 	}
