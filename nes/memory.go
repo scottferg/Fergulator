@@ -6,7 +6,7 @@ import (
 
 type Word uint8
 
-type Memory [0x10000]Word
+type Memory []Word
 
 type MemoryError struct {
 	ErrorText string
@@ -31,17 +31,21 @@ func fitAddressSize(addr interface{}) (v int, e error) {
 	return
 }
 
-func (m *Memory) ReadMirroredRam(a int) Word {
+func NewMemory() Memory {
+	return make([]Word, 0x10000)
+}
+
+func (m Memory) ReadMirroredRam(a int) Word {
 	offset := a % 0x8
 	return m[0x2000+offset]
 }
 
-func (m *Memory) WriteMirroredRam(v Word, a int) {
+func (m Memory) WriteMirroredRam(v Word, a int) {
 	offset := a % 0x8
 	m[0x2000+offset] = v
 }
 
-func (m *Memory) Write(address interface{}, val Word) error {
+func (m Memory) Write(address interface{}, val Word) error {
 	if a, err := fitAddressSize(address); err == nil {
 		if a >= 0x2008 && a < 0x4000 {
 			fmt.Printf("Address write: 0x%X\n", a)
@@ -78,7 +82,7 @@ func (m *Memory) Write(address interface{}, val Word) error {
 	return MemoryError{ErrorText: "Invalid address used"}
 }
 
-func (m *Memory) Read(address interface{}) (Word, error) {
+func (m Memory) Read(address interface{}) (Word, error) {
 	a, _ := fitAddressSize(address)
 
 	switch {

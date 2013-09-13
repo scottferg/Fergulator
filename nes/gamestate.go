@@ -204,6 +204,7 @@ func Init(audioBuf func(int16), getter GetButtonFunc) (chan []uint32, string, er
 
 	// Init the hardware, get communication channels
 	// from the PPU and APU
+	Ram = NewMemory()
 	cpu.Init()
 	apu.Init(audioBuf)
 	videoTick := ppu.Init()
