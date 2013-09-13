@@ -1,4 +1,4 @@
-package main
+package nes
 
 func (c *Cpu) InstrInit() {
 	c.InstrOpcodes[0x69] = func() {
@@ -170,7 +170,7 @@ func (c *Cpu) InstrInit() {
 	}
 	c.InstrOpcodes[0x6C] = func() {
 		c.CycleCount = 5
-		c.Jmp(c.indirectAbsoluteAddress(ProgramCounter))
+		c.Jmp(c.indirectAbsoluteAddress(c.ProgramCounter))
 	}
 	// JSR
 	c.InstrOpcodes[0x20] = func() {

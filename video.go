@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"github.com/scottferg/Go-SDL/gfx"
 	"github.com/go-gl/gl"
+	"github.com/scottferg/Fergulator/nes"
+	"github.com/scottferg/Go-SDL/gfx"
 	"github.com/scottferg/Go-SDL/sdl"
 	"log"
 	"math"
@@ -11,15 +12,17 @@ import (
 )
 
 type Video struct {
-	tick       <-chan []uint32
+	videoTick  <-chan []uint32
+	audioTick  <-chan int16
 	screen     *sdl.Surface
 	fpsmanager *gfx.FPSmanager
 	tex        gl.Texture
 	Fullscreen bool
 }
 
-func (v *Video) Init(t <-chan []uint32, n string) {
-	v.tick = t
+func (v *Video) Init(t <-chan []uint32, a <-chan int16, n string) {
+	v.videoTick = t
+	v.audioTick = a
 
 	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK|sdl.INIT_AUDIO) != 0 {
 		log.Fatal(sdl.GetError())
@@ -42,22 +45,24 @@ func (v *Video) Init(t <-chan []uint32, n string) {
 
 	v.tex = gl.GenTexture()
 
-	joy = make([]*sdl.Joystick, sdl.NumJoysticks())
+	/*
+		joy = make([]*sdl.Joystick, sdl.NumJoysticks())
 
-	for i := 0; i < sdl.NumJoysticks(); i++ {
-		joy[i] = sdl.JoystickOpen(i)
+		for i := 0; i < sdl.NumJoysticks(); i++ {
+			joy[i] = sdl.JoystickOpen(i)
 
-		fmt.Println("-----------------")
-		if joy[i] != nil {
-			fmt.Printf("Joystick %d\n", i)
-			fmt.Println("  Name: ", sdl.JoystickName(0))
-			fmt.Println("  Number of Axes: ", joy[i].NumAxes())
-			fmt.Println("  Number of Buttons: ", joy[i].NumButtons())
-			fmt.Println("  Number of Balls: ", joy[i].NumBalls())
-		} else {
-			fmt.Println("  Couldn't open Joystick!")
+			fmt.Println("-----------------")
+			if joy[i] != nil {
+				fmt.Printf("Joystick %d\n", i)
+				fmt.Println("  Name: ", sdl.JoystickName(0))
+				fmt.Println("  Number of Axes: ", joy[i].NumAxes())
+				fmt.Println("  Number of Buttons: ", joy[i].NumButtons())
+				fmt.Println("  Number of Balls: ", joy[i].NumBalls())
+			} else {
+				fmt.Println("  Couldn't open Joystick!")
+			}
 		}
-	}
+	*/
 
 	v.fpsmanager = gfx.NewFramerate()
 	v.fpsmanager.SetFramerate(60)
@@ -87,7 +92,8 @@ func (v *Video) Reshape(width int, height int) {
 		height = h
 	} else if r < 0.9375 { // Width wider
 		var scrW, scrH float64
-		if ppu.OverscanEnabled {
+		if true {
+			// if ppu.OverscanEnabled {
 			scrW = 240.0
 			scrH = 224.0
 		} else {
@@ -117,12 +123,15 @@ func quit_event() int {
 func (v *Video) Render() {
 	for running {
 		select {
-		case buf := <-v.tick:
+		case sample := <-v.audioTick:
+			audioOut.AppendSample(sample)
+		case buf := <-v.videoTick:
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 			v.tex.Bind(gl.TEXTURE_2D)
 
-			if ppu.OverscanEnabled {
+			if true {
+				// if ppu.OverscanEnabled {
 				gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 240, 224, 0, gl.RGBA,
 					gl.UNSIGNED_INT_8_8_8_8, buf)
 			} else {
@@ -154,41 +163,43 @@ func (v *Video) Render() {
 				v.ResizeEvent(int(e.W), int(e.H))
 			case sdl.QuitEvent:
 				os.Exit(0)
-			case sdl.JoyAxisEvent:
-				j := int(e.Which)
+				/*
+					case sdl.JoyAxisEvent:
+						j := int(e.Which)
 
-				index := j
-				var offset int
-				if j > 1 {
-					offset = 8
-					index = j % 2
-				}
+						index := j
+						var offset int
+						if j > 1 {
+							offset = 8
+							index = j % 2
+						}
 
-				switch e.Value {
-				// Same values for left/right
-				case JoypadAxisUp:
-					fallthrough
-				case JoypadAxisDown:
-					pads[index].AxisDown(int(e.Axis), int(e.Value), offset)
-				default:
-					pads[index].AxisUp(int(e.Axis), int(e.Value), offset)
-				}
-			case sdl.JoyButtonEvent:
-				j := int(e.Which)
+						switch e.Value {
+						// Same values for left/right
+						case JoypadAxisUp:
+							fallthrough
+						case JoypadAxisDown:
+							nes.Pads[index].AxisDown(int(e.Axis), int(e.Value), offset)
+						default:
+							nes.Pads[index].AxisUp(int(e.Axis), int(e.Value), offset)
+						}
+					case sdl.JoyButtonEvent:
+						j := int(e.Which)
 
-				index := j
-				var offset int
-				if j > 1 {
-					offset = 8
-					index = j % 2
-				}
+						index := j
+						var offset int
+						if j > 1 {
+							offset = 8
+							index = j % 2
+						}
 
-				switch joy[j].GetButton(int(e.Button)) {
-				case 1:
-					pads[index].ButtonDown(int(e.Button), offset)
-				case 0:
-					pads[index].ButtonUp(int(e.Button), offset)
-				}
+						switch joy[j].GetButton(int(e.Button)) {
+						case 1:
+							nes.Pads[index].ButtonDown(int(e.Button), offset)
+						case 0:
+							nes.Pads[index].ButtonUp(int(e.Button), offset)
+						}
+				*/
 			case sdl.KeyboardEvent:
 				switch e.Keysym.Sym {
 				case sdl.K_ESCAPE:
@@ -196,28 +207,28 @@ func (v *Video) Render() {
 				case sdl.K_r:
 					// Trigger reset interrupt
 					if e.Type == sdl.KEYDOWN {
-						cpu.RequestInterrupt(InterruptReset)
+						// cpu.RequestInterrupt(InterruptReset)
 					}
 				case sdl.K_l:
 					if e.Type == sdl.KEYDOWN {
-						LoadGameState()
+						nes.LoadGameState()
 					}
 				case sdl.K_p:
 					if e.Type == sdl.KEYDOWN {
 						// Enable/disable scanline sprite limiter flag
-						ppu.SpriteLimitEnabled = !ppu.SpriteLimitEnabled
+						// ppu.SpriteLimitEnabled = !ppu.SpriteLimitEnabled
 					}
 				case sdl.K_s:
 					if e.Type == sdl.KEYDOWN {
-						SaveGameState()
+						nes.SaveGameState()
 					}
 				case sdl.K_o:
 					if e.Type == sdl.KEYDOWN {
-						ppu.OverscanEnabled = !ppu.OverscanEnabled
+						//ppu.OverscanEnabled = !ppu.OverscanEnabled
 					}
 				case sdl.K_i:
 					if e.Type == sdl.KEYDOWN {
-						audioEnabled = !audioEnabled
+						nes.AudioEnabled = !nes.AudioEnabled
 					}
 				case sdl.K_1:
 					if e.Type == sdl.KEYDOWN {
@@ -239,9 +250,9 @@ func (v *Video) Render() {
 
 				switch e.Type {
 				case sdl.KEYDOWN:
-					pads[0].KeyDown(e, 0)
+					nes.Pads[0].KeyDown(e, 0)
 				case sdl.KEYUP:
-					pads[0].KeyUp(e, 0)
+					nes.Pads[0].KeyUp(e, 0)
 				}
 			}
 		}

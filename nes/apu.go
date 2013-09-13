@@ -1,4 +1,4 @@
-package main
+package nes
 
 import (
 	"fmt"
@@ -137,6 +137,7 @@ type Apu struct {
 	TndOut   [203]float64
 
 	Sample int16
+	Output chan int16
 }
 
 func (s *Square) WriteControl(v Word) {
@@ -388,8 +389,9 @@ func (d *Dmc) FillSample() {
 	d.HasSample = true
 }
 
-func (a *Apu) Init() {
+func (a *Apu) Init() chan int16 {
 	a.Noise.Shift = 1
+	a.Output = make(chan int16)
 
 	a.PulseOut = make([]float64, 31)
 	for i := 0; i < len(a.PulseOut); i++ {
@@ -399,6 +401,8 @@ func (a *Apu) Init() {
 	for i := 0; i < len(a.TndOut); i++ {
 		a.TndOut[i] = 163.67 / (24329.0/float64(i) + 100.0)
 	}
+
+	return a.Output
 }
 
 func (a *Apu) Step() {
@@ -446,8 +450,8 @@ func (a *Apu) ComputeSample() int16 {
 		fmt.Printf("DMC: %d\n", a.Dmc.Sample)
 	}
 	pulse := a.PulseOut[a.Square1.Sample+a.Square2.Sample]
-	// tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)+a.Dmc.Sample]
-	tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)]
+	tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)+a.Dmc.Sample]
+	// tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)]
 
 	return int16((pulse + tnd) * 40000)
 }
@@ -457,7 +461,7 @@ func (a *Apu) PushSample() {
 	a.Sample = a.RunHipassStrong(a.Sample)
 	a.Sample = a.RunHipassWeak(a.Sample)
 
-	audioOut.AppendSample(a.Sample)
+	a.Output <- a.Sample
 }
 
 func (a *Apu) FrameSequencerStep() {

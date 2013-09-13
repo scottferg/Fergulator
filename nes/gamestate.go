@@ -1,15 +1,35 @@
-package main
+package nes
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"os"
+	"strings"
+)
+
+var (
+	cpuClockSpeed = 1789773
+	AudioEnabled  = true
+
+	totalCpuCycles int
+
+	gamename       string
+	saveStateFile  string
+	batteryRamFile string
 )
 
 const (
 	SaveState = iota
 	LoadState
 )
+
+type Hook struct {
+	VideoTick chan []uint32
+	AudioTick chan int16
+	Game      string
+}
 
 func LoadGameState() {
 	fmt.Println("Loading state")
@@ -27,7 +47,7 @@ func LoadGameState() {
 	pchigh := uint16(state[0x2000])
 	pclow := uint16(state[0x2001])
 
-	ProgramCounter = (pchigh << 8) | pclow
+	cpu.ProgramCounter = (pchigh << 8) | pclow
 
 	cpu.A = Word(state[0x2002])
 	cpu.X = Word(state[0x2003])
@@ -74,10 +94,10 @@ func SaveGameState() {
 		buf.WriteByte(byte(v))
 	}
 
-	// ProgramCounter
+	// Cpu.ProgramCounter
 	// High then low
-	buf.WriteByte(byte(ProgramCounter>>8) & 0xFF)
-	buf.WriteByte(byte(ProgramCounter & 0xFF))
+	buf.WriteByte(byte(cpu.ProgramCounter>>8) & 0xFF)
+	buf.WriteByte(byte(cpu.ProgramCounter & 0xFF))
 
 	// CPU Registers
 	buf.WriteByte(byte(cpu.A))
@@ -147,4 +167,81 @@ func saveBatteryFile() {
 	}
 
 	fmt.Println("Battery RAM saved to disk")
+}
+
+// Main system runloop. This should be run on it's own goroutine
+func RunSystem() {
+	var lastApuTick int
+	var cycles int
+	var flip int
+
+	for {
+		cycles = cpu.Step()
+		totalCpuCycles += cycles
+
+		for i := 0; i < 3*cycles; i++ {
+			ppu.Step()
+		}
+
+		for i := 0; i < cycles; i++ {
+			apu.Step()
+		}
+
+		if AudioEnabled {
+			if totalCpuCycles-apu.LastFrameTick >= (cpuClockSpeed / 240) {
+				apu.FrameSequencerStep()
+				apu.LastFrameTick = totalCpuCycles
+			}
+
+			if totalCpuCycles-lastApuTick >= ((cpuClockSpeed / 44100) + flip) {
+				apu.PushSample()
+				lastApuTick = totalCpuCycles
+
+				flip = (flip + 1) & 0x1
+			}
+		}
+	}
+}
+
+func Init(getter GetButtonFunc) (h Hook, err error) {
+	if len(os.Args) < 2 {
+		return h, errors.New("Please specify a ROM file")
+	}
+
+	// Init the hardware, get communication channels
+	// from the PPU and APU
+	cpu.Init()
+	audioTick := apu.Init()
+	videoTick := ppu.Init()
+
+	Pads[0] = NewController(getter)
+	Pads[1] = NewController(getter)
+
+	contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1])
+	if err != nil {
+		return h, err
+	}
+
+	if rom, err = LoadRom(contents); err != nil {
+		return h, err
+	}
+
+	// Set the game name for save states
+	path := strings.Split(os.Args[1], "/")
+	gamename = strings.Split(path[len(path)-1], ".")[0]
+	saveStateFile = fmt.Sprintf(".%s.state", gamename)
+	batteryRamFile = fmt.Sprintf(".%s.battery", gamename)
+
+	if rom.BatteryBacked() {
+		loadBatteryRam()
+		defer saveBatteryFile()
+	}
+
+	cpu.SetResetVector()
+
+	h.VideoTick = videoTick
+	h.AudioTick = audioTick
+	h.Game = gamename
+
+	return h, nil
 }

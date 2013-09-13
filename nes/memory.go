@@ -1,4 +1,4 @@
-package main
+package nes
 
 import (
 	"fmt"
@@ -16,10 +16,6 @@ func (e MemoryError) Error() string {
 	return e.ErrorText
 }
 
-var (
-	Ram Memory
-)
-
 func fitAddressSize(addr interface{}) (v int, e error) {
 	switch a := addr.(type) {
 	case Word:
@@ -33,12 +29,6 @@ func fitAddressSize(addr interface{}) (v int, e error) {
 	}
 
 	return
-}
-
-func (m *Memory) Init() {
-	for index, _ := range m {
-		m[index] = 0x00
-	}
 }
 
 func (m *Memory) ReadMirroredRam(a int) Word {
@@ -58,16 +48,16 @@ func (m *Memory) Write(address interface{}, val Word) error {
 		}
 
 		if a >= 0x2000 && a <= 0x2007 {
-			ppu.PpuRegWrite(val, a)
+			ppu.RegWrite(val, a)
 			// m.WriteMirroredRam(val, a)
 		} else if a == 0x4014 {
-			ppu.PpuRegWrite(val, a)
+			ppu.RegWrite(val, a)
 			m[a] = val
 		} else if a == 0x4016 {
-			pads[0].Write(val)
+			Pads[0].Write(val)
 			m[a] = val
 		} else if a == 0x4017 {
-			pads[1].Write(val)
+			Pads[1].Write(val)
 			apu.RegWrite(val, a)
 			m[a] = val
 		} else if a&0xF000 == 0x4000 {
@@ -94,14 +84,13 @@ func (m *Memory) Read(address interface{}) (Word, error) {
 	switch {
 	case a >= 0x2008 && a < 0x4000:
 		offset := a % 0x8
-		return ppu.PpuRegRead(0x2000 + offset)
+		return ppu.RegRead(0x2000 + offset)
 	case a <= 0x2007 && a >= 0x2000:
-		//ppu.Run(cpu.Timestamp)
-		return ppu.PpuRegRead(a)
+		return ppu.RegRead(a)
 	case a == 0x4016:
-		return pads[0].Read(), nil
+		return Pads[0].Read(), nil
 	case a == 0x4017:
-		return pads[1].Read(), nil
+		return Pads[1].Read(), nil
 	case a&0xF000 == 0x4000:
 		return apu.RegRead(a)
 	}

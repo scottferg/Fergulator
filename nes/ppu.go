@@ -1,4 +1,4 @@
-package main
+package nes
 
 const (
 	StatusSpriteOverflow = iota
@@ -117,7 +117,7 @@ func (p *Ppu) Init() chan []uint32 {
 	return p.Output
 }
 
-func (p *Ppu) PpuRegRead(a int) (Word, error) {
+func (p *Ppu) RegRead(a int) (Word, error) {
 	switch a & 0x7 {
 	case 0x2:
 		return p.ReadStatus()
@@ -130,7 +130,7 @@ func (p *Ppu) PpuRegRead(a int) (Word, error) {
 	return 0, nil
 }
 
-func (p *Ppu) PpuRegWrite(v Word, a int) {
+func (p *Ppu) RegWrite(v Word, a int) {
 	switch a & 0x7 {
 	case 0x0:
 		p.WriteControl(v)
@@ -337,13 +337,13 @@ func (p *Ppu) WriteControl(v Word) {
 	// |||| ||||
 	// |||| ||++- Base nametable address
 	// |||| ||    (0 = $2000; 1 = $2400; 2 = $2800; 3 = $2C00)
-	// |||| |+--- VRAM address increment per CPU read/write of PPUDATA
+	// |||| |+--- VRAM address increment per CPU read/write of PpuDATA
 	// |||| |     (0: increment by 1, going across; 1: increment by 32, going down)
 	// |||| +---- Sprite pattern table address for 8x8 sprites
 	// ||||       (0: $0000; 1: $1000; ignored in 8x16 mode)
 	// |||+------ Background pattern table address (0: $0000; 1: $1000)
 	// ||+------- Sprite size (0: 8x8; 1: 8x16)
-	// |+-------- PPU master/slave select (has no effect on the NES)
+	// |+-------- Ppu master/slave select (has no effect on the NES)
 	// +--------- Generate an NMI at the start of the
 	//            vertical blanking interval (0: off; 1: on)
 	p.BaseNametableAddress = v & 0x03

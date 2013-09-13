@@ -1,4 +1,4 @@
-package main
+package nes
 
 const (
 	BankUpper = iota

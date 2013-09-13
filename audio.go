@@ -5,6 +5,7 @@ import (
 	"github.com/scottferg/Go-SDL/sdl"
 	sdl_audio "github.com/scottferg/Go-SDL/sdl/audio"
 	"log"
+	"sync"
 )
 
 var (
@@ -15,6 +16,7 @@ var (
 type Audio struct {
 	samples     []int16
 	sampleIndex int
+	mutex       sync.Mutex
 }
 
 func NewAudio() *Audio {

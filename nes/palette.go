@@ -1,4 +1,4 @@
-package main
+package nes
 
 var (
 	PaletteRgb = []uint32{

@@ -1,4 +1,4 @@
-package main
+package nes
 
 import (
 	"encoding/hex"
