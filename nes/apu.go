@@ -448,8 +448,8 @@ func (a *Apu) ComputeSample() int16 {
 		fmt.Printf("DMC: %d\n", a.Dmc.Sample)
 	}
 	pulse := a.PulseOut[a.Square1.Sample+a.Square2.Sample]
-	tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)+a.Dmc.Sample]
-	// tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)]
+	// tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)+a.Dmc.Sample]
+	tnd := a.TndOut[(3*a.Triangle.Sample)+(2*a.Noise.Sample)]
 
 	return int16((pulse + tnd) * 40000)
 }
