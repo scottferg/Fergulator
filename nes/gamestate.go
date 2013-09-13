@@ -2,7 +2,6 @@ package nes
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -197,11 +196,7 @@ func RunSystem() {
 	}
 }
 
-func Init(audioBuf func(int16), getter GetButtonFunc) (chan []uint32, string, error) {
-	if len(os.Args) < 2 {
-		return nil, "", errors.New("Please specify a ROM file")
-	}
-
+func Init(data []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint32, string, error) {
 	// Init the hardware, get communication channels
 	// from the PPU and APU
 	Ram = NewMemory()
@@ -212,20 +207,18 @@ func Init(audioBuf func(int16), getter GetButtonFunc) (chan []uint32, string, er
 	Pads[0] = NewController(getter)
 	Pads[1] = NewController(getter)
 
-	contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1])
-	if err != nil {
-		return nil, "", err
-	}
-
-	if rom, err = LoadRom(contents); err != nil {
+	var err error
+	if rom, err = LoadRom(data); err != nil {
 		return nil, "", err
 	}
 
 	// Set the game name for save states
-	path := strings.Split(os.Args[1], "/")
-	gamename = strings.Split(path[len(path)-1], ".")[0]
-	saveStateFile = fmt.Sprintf(".%s.state", gamename)
-	batteryRamFile = fmt.Sprintf(".%s.battery", gamename)
+	if len(os.Args) > 0 {
+		path := strings.Split(os.Args[1], "/")
+		gamename = strings.Split(path[len(path)-1], ".")[0]
+		saveStateFile = fmt.Sprintf(".%s.state", gamename)
+		batteryRamFile = fmt.Sprintf(".%s.battery", gamename)
+	}
 
 	if rom.BatteryBacked() {
 		loadBatteryRam()

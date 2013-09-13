@@ -8,6 +8,8 @@ This is an NES emulator, written in Go. It's fairly new and very much a work in 
 
 ## To build on Linux
 
+Requires Go 1.1
+
 From your GOPATH:
 
         $ sudo apt-get install libsdl1.2-dev libsdl-gfx1.2-dev libsdl-image1.2-dev libglew1.6-dev libxrandr-dev
@@ -17,6 +19,8 @@ From your GOPATH:
 
 You'll need to install [XQuartz](http://xquartz.macosforge.org/landing/) in order
 to run on OSX.
+
+Requires Go 1.1
 
 From your GOPATH:
 
