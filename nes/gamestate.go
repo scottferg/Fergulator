@@ -25,12 +25,6 @@ const (
 	LoadState
 )
 
-type Hook struct {
-	VideoTick chan []uint32
-	AudioTick chan int16
-	Game      string
-}
-
 func LoadGameState() {
 	fmt.Println("Loading state")
 
@@ -203,15 +197,15 @@ func RunSystem() {
 	}
 }
 
-func Init(getter GetButtonFunc) (h Hook, err error) {
+func Init(audioBuf func(int16), getter GetButtonFunc) (chan []uint32, string, error) {
 	if len(os.Args) < 2 {
-		return h, errors.New("Please specify a ROM file")
+		return nil, "", errors.New("Please specify a ROM file")
 	}
 
 	// Init the hardware, get communication channels
 	// from the PPU and APU
 	cpu.Init()
-	audioTick := apu.Init()
+	apu.Init(audioBuf)
 	videoTick := ppu.Init()
 
 	Pads[0] = NewController(getter)
@@ -219,11 +213,11 @@ func Init(getter GetButtonFunc) (h Hook, err error) {
 
 	contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1])
 	if err != nil {
-		return h, err
+		return nil, "", err
 	}
 
 	if rom, err = LoadRom(contents); err != nil {
-		return h, err
+		return nil, "", err
 	}
 
 	// Set the game name for save states
@@ -239,9 +233,5 @@ func Init(getter GetButtonFunc) (h Hook, err error) {
 
 	cpu.SetResetVector()
 
-	h.VideoTick = videoTick
-	h.AudioTick = audioTick
-	h.Game = gamename
-
-	return h, nil
+	return videoTick, gamename, nil
 }

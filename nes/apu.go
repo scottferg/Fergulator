@@ -137,7 +137,7 @@ type Apu struct {
 	TndOut   [203]float64
 
 	Sample int16
-	Output chan int16
+	Buffer func(int16)
 }
 
 func (s *Square) WriteControl(v Word) {
@@ -389,9 +389,9 @@ func (d *Dmc) FillSample() {
 	d.HasSample = true
 }
 
-func (a *Apu) Init() chan int16 {
+func (a *Apu) Init(buffer func(int16)) {
 	a.Noise.Shift = 1
-	a.Output = make(chan int16)
+	a.Buffer = buffer
 
 	a.PulseOut = make([]float64, 31)
 	for i := 0; i < len(a.PulseOut); i++ {
@@ -401,8 +401,6 @@ func (a *Apu) Init() chan int16 {
 	for i := 0; i < len(a.TndOut); i++ {
 		a.TndOut[i] = 163.67 / (24329.0/float64(i) + 100.0)
 	}
-
-	return a.Output
 }
 
 func (a *Apu) Step() {
@@ -461,7 +459,7 @@ func (a *Apu) PushSample() {
 	a.Sample = a.RunHipassStrong(a.Sample)
 	a.Sample = a.RunHipassWeak(a.Sample)
 
-	a.Output <- a.Sample
+	a.Buffer(a.Sample)
 }
 
 func (a *Apu) FrameSequencerStep() {

@@ -32,15 +32,15 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
-	hook, err := nes.Init(GetKey)
+	audioOut = NewAudio()
+	defer audioOut.Close()
+
+	videoTick, gamename, err := nes.Init(audioOut.AppendSample, GetKey)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	audioOut = NewAudio()
-	defer audioOut.Close()
-
-	videoOut.Init(hook.VideoTick, hook.AudioTick, hook.Game)
+	videoOut.Init(videoTick, gamename)
 
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one

@@ -13,16 +13,14 @@ import (
 
 type Video struct {
 	videoTick  <-chan []uint32
-	audioTick  <-chan int16
 	screen     *sdl.Surface
 	fpsmanager *gfx.FPSmanager
 	tex        gl.Texture
 	Fullscreen bool
 }
 
-func (v *Video) Init(t <-chan []uint32, a <-chan int16, n string) {
+func (v *Video) Init(t <-chan []uint32, n string) {
 	v.videoTick = t
-	v.audioTick = a
 
 	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK|sdl.INIT_AUDIO) != 0 {
 		log.Fatal(sdl.GetError())
@@ -123,8 +121,6 @@ func quit_event() int {
 func (v *Video) Render() {
 	for running {
 		select {
-		case sample := <-v.audioTick:
-			audioOut.AppendSample(sample)
 		case buf := <-v.videoTick:
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
