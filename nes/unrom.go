@@ -25,15 +25,27 @@ func (m *Unrom) Read(a int) Word {
 }
 
 func (m *Unrom) WriteVram(v Word, a int) {
-	// Nothing to do
+	if a >= 0x1000 {
+		m.VromBanks[len(m.VromBanks)-1][a&0xFFF] = v
+	}
+
+	m.VromBanks[0][a&0xFFF] = v
 }
 
 func (m *Unrom) ReadVram(a int) Word {
-	return 0
+	if a >= 0x1000 {
+		return m.VromBanks[len(m.VromBanks)-1][a&0xFFF]
+	}
+
+	return m.VromBanks[0][a&0xFFF]
 }
 
 func (m *Unrom) ReadTile(a int) []Word {
-	return []Word{}
+	if a >= 0x1000 {
+		return m.VromBanks[len(m.VromBanks)-1][a&0xFFF : a+16]
+	}
+
+	return m.VromBanks[0][a&0xFFF : a+16]
 }
 
 func (m *Unrom) BatteryBacked() bool {
