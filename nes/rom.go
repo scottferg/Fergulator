@@ -113,20 +113,17 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	for i := 0; i < cap(r.VromBanks); i++ {
 		// Move 16kb chunk to 16kb bank
-		bank := make([]Word, 0x1000)
+		r.VromBanks[i] = make([]Word, 0x1000)
 
 		// If the game doesn't have CHR banks we
 		// just need to allocate VRAM
 		if len(chrRom) == 0 {
-			r.VromBanks[i] = bank
 			continue
 		}
 
 		for x := 0; x < 0x1000; x++ {
-			bank[x] = Word(chrRom[(0x1000*i)+x])
+			r.VromBanks[i][x] = Word(chrRom[(0x1000*i)+x])
 		}
-
-		r.VromBanks[i] = bank
 	}
 
 	// Check mapper, get the proper type

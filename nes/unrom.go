@@ -47,7 +47,7 @@ func (m *Unrom) ReadVram(a int) Word {
 func (m *Unrom) ReadTile(a int) []Word {
 	fmt.Printf("Tile read: 0x%X\n", a)
 	if a >= 0x1000 {
-		return m.VromBanks[len(m.VromBanks)-1][a&0xFFF : a+16]
+		return m.VromBanks[0][a&0xFFF : a+16]
 	}
 
 	return m.VromBanks[0][a&0xFFF : a+16]
