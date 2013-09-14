@@ -1,5 +1,9 @@
 package nes
 
+import (
+	"fmt"
+)
+
 const (
 	StatusSpriteOverflow = iota
 	StatusSprite0Hit
@@ -527,13 +531,15 @@ func (p *Ppu) WriteData(v Word) {
 	} else if p.VramAddress >= 0x2000 && p.VramAddress < 0x3000 {
 		// Nametable mirroring
 		p.Nametables.writeNametableData(p.VramAddress, v)
-	} else {
+	} else if p.VramAddress < 0x2000 {
 		rom.WriteVram(v, p.VramAddress&0x3FFF)
 		// MMC2 latch trigger
 		if v, ok := rom.(*Mmc2); ok {
 			t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
 			v.LatchTrigger(t)
 		}
+	} else {
+		p.Vram[p.VramAddress&0x3FFF] = v
 	}
 
 	p.incrementVramAddress()
@@ -565,6 +571,9 @@ func (p *Ppu) ReadData() (r Word, err error) {
 		case bufferAddress >= 0x2000 && bufferAddress < 0x3000:
 			p.VramDataBuffer = p.Nametables.readNametableData(bufferAddress)
 		default:
+			if bufferAddress < 0x2000 {
+				fmt.Println("GAGADAGSGAJREKAER")
+			}
 			p.VramDataBuffer = p.Vram[bufferAddress]
 		}
 
@@ -751,7 +760,6 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 				s := p.sprPatternTableAddress(int(t))
 				var tile []Word
 
-				// TODO: FIX
 				top := rom.ReadTile(s)
 				bottom := rom.ReadTile(s + 16)
 
