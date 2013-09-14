@@ -1,9 +1,5 @@
 package nes
 
-import (
-	"fmt"
-)
-
 const (
 	StatusSpriteOverflow = iota
 	StatusSprite0Hit
@@ -532,7 +528,6 @@ func (p *Ppu) WriteData(v Word) {
 		// Nametable mirroring
 		p.Nametables.writeNametableData(p.VramAddress, v)
 	} else {
-		fmt.Printf("Writing VRAM: 0x%X\n", p.VramAddress&0x3FFF)
 		rom.WriteVram(v, p.VramAddress&0x3FFF)
 		// MMC2 latch trigger
 		if v, ok := rom.(*Mmc2); ok {
@@ -569,9 +564,6 @@ func (p *Ppu) ReadData() (r Word, err error) {
 		switch {
 		case bufferAddress >= 0x2000 && bufferAddress < 0x3000:
 			p.VramDataBuffer = p.Nametables.readNametableData(bufferAddress)
-		case bufferAddress < 0x2000:
-			fmt.Println("ROM VRAM read")
-			p.VramDataBuffer = rom.ReadVram(bufferAddress)
 		default:
 			p.VramDataBuffer = p.Vram[bufferAddress]
 		}

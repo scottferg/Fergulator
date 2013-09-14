@@ -8,28 +8,44 @@ type Cnrom struct {
 	ChrRomCount  int
 	Battery      bool
 	Data         []byte
+
+	ActiveBank int
 }
 
 func (m *Cnrom) Write(v Word, a int) {
-	bank := int(v&0x3) * 2
-	WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
-	WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
+	m.ActiveBank = int(v&0x3) * 2
 }
 
 func (m *Cnrom) Read(a int) Word {
-	return 0
+	if a >= 0xC000 {
+		return m.RomBanks[len(m.RomBanks)-1][a&0x3FFF]
+	}
+
+	return m.RomBanks[0][a&0x3FFF]
 }
 
 func (m *Cnrom) WriteVram(v Word, a int) {
-	// Nothing to do
+	if a >= 0x1000 {
+		m.VromBanks[m.ActiveBank+1][a&0xFFF] = v
+	}
+
+	m.VromBanks[m.ActiveBank][a&0xFFF] = v
 }
 
 func (m *Cnrom) ReadVram(a int) Word {
-	return 0
+	if a >= 0x1000 {
+		return m.VromBanks[m.ActiveBank+1][a&0xFFF]
+	}
+
+	return m.VromBanks[m.ActiveBank][a&0xFFF]
 }
 
 func (m *Cnrom) ReadTile(a int) []Word {
-	return []Word{}
+	if a >= 0x1000 {
+		return m.VromBanks[m.ActiveBank+1][a&0xFFF : a+16]
+	}
+
+	return m.VromBanks[m.ActiveBank][a&0xFFF : a+16]
 }
 
 func (m *Cnrom) BatteryBacked() bool {

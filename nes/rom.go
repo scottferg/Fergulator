@@ -105,10 +105,23 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	// Everything after PRG-ROM
 	chrRom := r.Data[0x4000*len(r.RomBanks):]
 
-	r.VromBanks = make([][]Word, r.ChrRomCount*2)
-	for i := 0; i < r.ChrRomCount*2; i++ {
+	if r.ChrRomCount > 0 {
+		r.VromBanks = make([][]Word, r.ChrRomCount*2)
+	} else {
+		r.VromBanks = make([][]Word, 2)
+	}
+
+	for i := 0; i < cap(r.VromBanks); i++ {
 		// Move 16kb chunk to 16kb bank
 		bank := make([]Word, 0x1000)
+
+		// If the game doesn't have CHR banks we
+		// just need to allocate VRAM
+		if len(chrRom) == 0 {
+			r.VromBanks[i] = bank
+			continue
+		}
+
 		for x := 0; x < 0x1000; x++ {
 			bank[x] = Word(chrRom[(0x1000*i)+x])
 		}
