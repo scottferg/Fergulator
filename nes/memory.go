@@ -67,10 +67,15 @@ func (m Memory) Write(address interface{}, val Word) error {
 		} else if a&0xF000 == 0x4000 {
 			apu.RegWrite(val, a)
 		} else if a >= 0x8000 && a <= 0xFFFF {
-			// MMC1
 			rom.Write(val, a)
 			return nil
-		} else if a >= 0x6000 && a < 0x8000 {
+		} else if a >= 0x5100 && a <= 0x6000 {
+			if v, ok := rom.(*Mmc5); ok {
+				// MMC5 register handling
+				v.Write(val, a)
+				return nil
+			}
+
 			m[a] = val
 		} else {
 			m[a] = val

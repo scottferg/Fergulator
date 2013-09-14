@@ -65,12 +65,9 @@ Remove the line that says: `args << '--without-x'`
 * MMC1
 * MMC2
 * MMC3
+* MMC5
 * ANROM
 
 ## Tested games that run well or are playable
 
 [List is in the wiki](https://github.com/scottferg/Fergulator/wiki/Tested-Games)
-
-## Next planned mappers
-
-* MMC5

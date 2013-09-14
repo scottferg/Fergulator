@@ -235,11 +235,23 @@ func (p *Ppu) Step() {
 		switch p.Cycle {
 		case 254:
 			if p.ShowBackground {
+				// Swap in MMC5 bg RAM
+				if m, ok := rom.(*Mmc5); ok {
+					m.SwapBgVram()
+				}
 				p.renderTileRow()
 			}
 
 			if p.ShowSprites {
+				// Swap in MMC5 sprite RAM
+				if m, ok := rom.(*Mmc5); ok {
+					m.SwapSpriteVram()
+				}
 				p.evaluateScanlineSprites(p.Scanline)
+			}
+
+			if m, ok := rom.(*Mmc5); ok {
+				m.NotifyScanline()
 			}
 		case 256:
 			if p.ShowBackground {

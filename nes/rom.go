@@ -7,6 +7,7 @@ import (
 
 const (
 	Size1k  = 0x0400
+	Size2k  = 0x0800
 	Size4k  = 0x1000
 	Size8k  = 0x2000
 	Size16k = 0x4000
@@ -245,6 +246,10 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 		// MMC3
 		fmt.Printf("MMC3\n")
 		m = NewMmc3(r)
+	case 0x05:
+		// MMC5
+		fmt.Printf("MMC5\n")
+		m = NewMmc5(r)
 	default:
 		// Unsupported
 		fmt.Printf("Unsupported\n")
