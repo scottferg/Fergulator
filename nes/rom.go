@@ -17,32 +17,11 @@ const (
 type Mapper interface {
 	Write(v Word, a int)
 	Read(a int) Word
+	WriteVram(v Word, a int)
+	ReadVram(a int) Word
+	ReadTile(a int) []Word
 	BatteryBacked() bool
 }
-
-// Nrom
-type Rom struct {
-	RomBanks  [][]Word
-	VromBanks [][]Word
-
-	PrgBankCount int
-	ChrRomCount  int
-	Battery      bool
-	Data         []byte
-}
-
-type Unrom struct {
-	RomBanks  [][]Word
-	VromBanks [][]Word
-
-	PrgBankCount int
-	ChrRomCount  int
-	Battery      bool
-	Data         []byte
-
-	ActiveBank int
-}
-type Cnrom Rom
 
 func WriteRamBank(rom [][]Word, bank, dest, size int) {
 	bank %= len(rom)
@@ -77,51 +56,8 @@ func WriteOffsetVramBank(rom [][]Word, bank, dest, size, offset int) {
 	}
 }
 
-func (m *Rom) Write(v Word, a int) {
-	// Nothing to do
-}
-
-func (m *Rom) Read(a int) Word {
-	return 0
-}
-
-func (m *Rom) BatteryBacked() bool {
-	return m.Battery
-}
-
-func (m *Unrom) Write(v Word, a int) {
-	m.ActiveBank = int(v & 0x7)
-	// WriteRamBank(m.RomBanks, int(v&0x7), 0x8000, Size16k)
-}
-
-func (m *Unrom) Read(a int) Word {
-	if a >= 0xC000 {
-		return m.RomBanks[len(m.RomBanks)-1][a&0x3FFF]
-	}
-
-	return m.RomBanks[m.ActiveBank][a&0x3FFF]
-}
-
-func (m *Unrom) BatteryBacked() bool {
-	return m.Battery
-}
-
-func (m *Cnrom) Write(v Word, a int) {
-	bank := int(v&0x3) * 2
-	WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
-	WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
-}
-
-func (m *Cnrom) Read(a int) Word {
-	return 0
-}
-
-func (m *Cnrom) BatteryBacked() bool {
-	return m.Battery
-}
-
 func LoadRom(rom []byte) (m Mapper, e error) {
-	r := new(Rom)
+	r := new(Nrom)
 
 	if string(rom[0:3]) != "NES" {
 		return m, errors.New("Invalid ROM file")
@@ -136,8 +72,8 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	fmt.Printf("-----------------\nROM:\n  ")
 
-	fmt.Printf("PRG-ROM banks: %d\n  ", r.PrgBankCount)
-	fmt.Printf("CHR-ROM banks: %d\n  ", r.ChrRomCount)
+	fmt.Printf("PRG-ROM banks: %d (%d real)\n  ", r.PrgBankCount, r.PrgBankCount)
+	fmt.Printf("CHR-ROM banks: %d (%d real)\n  ", 2*r.ChrRomCount, r.ChrRomCount)
 
 	fmt.Printf("Mirroring: ")
 	switch rom[6] & 0x1 {
@@ -178,31 +114,6 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 		}
 
 		r.VromBanks[i] = bank
-	}
-
-	/*
-		// Write the first ROM bank
-		WriteRamBank(r.RomBanks, 0, 0x8000, Size16k)
-
-		if r.PrgBankCount > 1 {
-			// and the last ROM bank
-			WriteRamBank(r.RomBanks, r.PrgBankCount-1, 0xC000, Size16k)
-		} else {
-			// Or write the first ROM bank to the upper region
-			WriteRamBank(r.RomBanks, 0, 0xC000, Size16k)
-		}
-	*/
-
-	// If we have CHR-ROM, load the first two banks
-	// into VRAM region 0x0000-0x1000
-	if r.ChrRomCount > 0 {
-		if r.ChrRomCount == 1 {
-			WriteVramBank(r.VromBanks, 0, 0x0000, Size4k)
-			WriteVramBank(r.VromBanks, 1, 0x1000, Size4k)
-		} else {
-			WriteVramBank(r.VromBanks, 0, 0x0000, Size4k)
-			WriteVramBank(r.VromBanks, len(r.VromBanks)-1, 0x1000, Size4k)
-		}
 	}
 
 	// Check mapper, get the proper type

@@ -1,5 +1,9 @@
 package nes
 
+import (
+	"fmt"
+)
+
 const (
 	StatusSpriteOverflow = iota
 	StatusSprite0Hit
@@ -274,7 +278,6 @@ func (p *Ppu) Step() {
 		case 304:
 			// Copy scroll latch into VRAMADDR register
 			if p.ShowBackground || p.ShowSprites {
-				// p.VramAddress = (p.VramAddress) | (p.VramLatch & 0x41F)
 				p.VramAddress = p.VramLatch
 			}
 		}
@@ -529,7 +532,8 @@ func (p *Ppu) WriteData(v Word) {
 		// Nametable mirroring
 		p.Nametables.writeNametableData(p.VramAddress, v)
 	} else {
-		p.Vram[p.VramAddress&0x3FFF] = v
+		fmt.Printf("Writing VRAM: 0x%X\n", p.VramAddress&0x3FFF)
+		rom.WriteVram(v, p.VramAddress&0x3FFF)
 		// MMC2 latch trigger
 		if v, ok := rom.(*Mmc2); ok {
 			t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
@@ -549,20 +553,25 @@ func (p *Ppu) ReadData() (r Word, err error) {
 		p.VramDataBuffer = p.Nametables.readNametableData(p.VramAddress)
 	} else if p.VramAddress < 0x3F00 {
 		r = p.VramDataBuffer
-		p.VramDataBuffer = p.Vram[p.VramAddress]
 
 		if p.VramAddress < 0x2000 {
+			p.VramDataBuffer = rom.ReadVram(p.VramAddress)
 			// MMC2 latch trigger
 			if v, ok := rom.(*Mmc2); ok {
 				t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
 				v.LatchTrigger(t)
 			}
+		} else {
+			p.VramDataBuffer = p.Vram[p.VramAddress]
 		}
 	} else {
 		bufferAddress := p.VramAddress - 0x1000
 		switch {
 		case bufferAddress >= 0x2000 && bufferAddress < 0x3000:
 			p.VramDataBuffer = p.Nametables.readNametableData(bufferAddress)
+		case bufferAddress < 0x2000:
+			fmt.Println("ROM VRAM read")
+			p.VramDataBuffer = rom.ReadVram(bufferAddress)
 		default:
 			p.VramDataBuffer = p.Vram[bufferAddress]
 		}
@@ -652,7 +661,7 @@ func (p *Ppu) fetchTileAttributes() (uint16, uint16, Word) {
 		v.LatchTrigger(p.bgPatternTableAddress(index))
 	}
 
-	return uint16(p.Vram[t]), uint16(p.Vram[t+8]), attr
+	return uint16(rom.ReadVram(t)), uint16(rom.ReadVram(t + 8)), attr
 }
 
 func (p *Ppu) renderTileRow() {
@@ -750,8 +759,9 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 				s := p.sprPatternTableAddress(int(t))
 				var tile []Word
 
-				top := p.Vram[s : s+16]
-				bottom := p.Vram[s+16 : s+32]
+				// TODO: FIX
+				top := rom.ReadTile(s)
+				bottom := rom.ReadTile(s + 16)
 
 				if c > 7 && yflip {
 					tile = top
@@ -775,7 +785,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 			} else {
 				// 8x8 Sprite
 				s := p.sprPatternTableAddress(int(t))
-				tile := p.Vram[s : s+16]
+				tile := rom.ReadTile(s)
 
 				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),

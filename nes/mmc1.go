@@ -50,6 +50,18 @@ func (m *Mmc1) Read(a int) Word {
 	return 0
 }
 
+func (m *Mmc1) WriteVram(v Word, a int) {
+	// Nothing to do
+}
+
+func (m *Mmc1) ReadVram(a int) Word {
+	return 0
+}
+
+func (m *Mmc1) ReadTile(a int) []Word {
+	return []Word{}
+}
+
 func (m *Mmc1) BatteryBacked() bool {
 	return m.Battery
 }

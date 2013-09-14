@@ -26,7 +26,7 @@ type Mmc2 struct {
 	LatchFD1  int
 }
 
-func NewMmc2(r *Rom) *Mmc2 {
+func NewMmc2(r *Nrom) *Mmc2 {
 	m := &Mmc2{
 		RomBanks:     r.RomBanks,
 		VromBanks:    r.VromBanks,
@@ -90,6 +90,18 @@ func (m *Mmc2) Write(v Word, a int) {
 
 func (m *Mmc2) Read(a int) Word {
 	return 0
+}
+
+func (m *Mmc2) WriteVram(v Word, a int) {
+	// Nothing to do
+}
+
+func (m *Mmc2) ReadVram(a int) Word {
+	return 0
+}
+
+func (m *Mmc2) ReadTile(a int) []Word {
+	return []Word{}
 }
 
 func (m *Mmc2) LatchTrigger(a int) {

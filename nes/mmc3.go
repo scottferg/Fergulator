@@ -52,7 +52,7 @@ type Mmc3 struct {
 	RamProtectDest [16]int
 }
 
-func NewMmc3(r *Rom) *Mmc3 {
+func NewMmc3(r *Nrom) *Mmc3 {
 	m := &Mmc3{
 		RomBanks:     r.RomBanks,
 		VromBanks:    r.VromBanks,
@@ -112,6 +112,18 @@ func (m *Mmc3) Write(v Word, a int) {
 	case RegisterIrqEnable:
 		m.IrqEnable(int(v))
 	}
+}
+
+func (m *Mmc3) WriteVram(v Word, a int) {
+	// Nothing to do
+}
+
+func (m *Mmc3) ReadVram(a int) Word {
+	return 0
+}
+
+func (m *Mmc3) ReadTile(a int) []Word {
+	return []Word{}
 }
 
 func (m *Mmc3) RegisterNumber(a int) int {

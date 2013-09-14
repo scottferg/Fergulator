@@ -1,6 +1,14 @@
 package nes
 
-type Anrom Rom
+type Anrom struct {
+	RomBanks  [][]Word
+	VromBanks [][]Word
+
+	PrgBankCount int
+	ChrRomCount  int
+	Battery      bool
+	Data         []byte
+}
 
 func (m *Anrom) Write(v Word, a int) {
 	bank := int((v & 0x7) * 2)
@@ -21,4 +29,16 @@ func (m *Anrom) Read(a int) Word {
 
 func (m *Anrom) BatteryBacked() bool {
 	return m.Battery
+}
+
+func (m *Anrom) WriteVram(v Word, a int) {
+	// Nothing to do
+}
+
+func (m *Anrom) ReadVram(a int) Word {
+	return 0
+}
+
+func (m *Anrom) ReadTile(a int) []Word {
+	return []Word{}
 }

@@ -33,7 +33,7 @@ type Mmc5 struct {
 	BgSwapFunc     [4]func()
 }
 
-func NewMmc5(r *Rom) *Mmc5 {
+func NewMmc5(r *Nrom) *Mmc5 {
 	m := &Mmc5{
 		RomBanks:     r.RomBanks,
 		VromBanks:    r.VromBanks,
@@ -354,6 +354,18 @@ func (m *Mmc5) Write(v Word, a int) {
 
 func (m *Mmc5) Read(a int) Word {
 	return 0
+}
+
+func (m *Mmc5) WriteVram(v Word, a int) {
+	// Nothing to do
+}
+
+func (m *Mmc5) ReadVram(a int) Word {
+	return 0
+}
+
+func (m *Mmc5) ReadTile(a int) []Word {
+	return []Word{}
 }
 
 func (m *Mmc5) BatteryBacked() bool {
