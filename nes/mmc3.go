@@ -249,6 +249,10 @@ func (m *Mmc3) BankData(v int) {
 	}
 }
 
+func (m *Mmc3) Read(a int) Word {
+	return 0
+}
+
 func (m *Mmc3) SetMirroring(v int) {
 	switch v & 0x1 {
 	case 0x0:

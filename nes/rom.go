@@ -16,6 +16,7 @@ const (
 
 type Mapper interface {
 	Write(v Word, a int)
+	Read(a int) Word
 	BatteryBacked() bool
 }
 
@@ -30,7 +31,17 @@ type Rom struct {
 	Data         []byte
 }
 
-type Unrom Rom
+type Unrom struct {
+	RomBanks  [][]Word
+	VromBanks [][]Word
+
+	PrgBankCount int
+	ChrRomCount  int
+	Battery      bool
+	Data         []byte
+
+	ActiveBank int
+}
 type Cnrom Rom
 
 func WriteRamBank(rom [][]Word, bank, dest, size int) {
@@ -70,12 +81,25 @@ func (m *Rom) Write(v Word, a int) {
 	// Nothing to do
 }
 
+func (m *Rom) Read(a int) Word {
+	return 0
+}
+
 func (m *Rom) BatteryBacked() bool {
 	return m.Battery
 }
 
 func (m *Unrom) Write(v Word, a int) {
-	WriteRamBank(m.RomBanks, int(v&0x7), 0x8000, Size16k)
+	m.ActiveBank = int(v & 0x7)
+	// WriteRamBank(m.RomBanks, int(v&0x7), 0x8000, Size16k)
+}
+
+func (m *Unrom) Read(a int) Word {
+	if a >= 0xC000 {
+		return m.RomBanks[len(m.RomBanks)-1][a&0x3FFF]
+	}
+
+	return m.RomBanks[m.ActiveBank][a&0x3FFF]
 }
 
 func (m *Unrom) BatteryBacked() bool {
@@ -86,6 +110,10 @@ func (m *Cnrom) Write(v Word, a int) {
 	bank := int(v&0x3) * 2
 	WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
 	WriteVramBank(m.VromBanks, bank+1, 0x1000, Size4k)
+}
+
+func (m *Cnrom) Read(a int) Word {
+	return 0
 }
 
 func (m *Cnrom) BatteryBacked() bool {
@@ -152,16 +180,18 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 		r.VromBanks[i] = bank
 	}
 
-	// Write the first ROM bank
-	WriteRamBank(r.RomBanks, 0, 0x8000, Size16k)
+	/*
+		// Write the first ROM bank
+		WriteRamBank(r.RomBanks, 0, 0x8000, Size16k)
 
-	if r.PrgBankCount > 1 {
-		// and the last ROM bank
-		WriteRamBank(r.RomBanks, r.PrgBankCount-1, 0xC000, Size16k)
-	} else {
-		// Or write the first ROM bank to the upper region
-		WriteRamBank(r.RomBanks, 0, 0xC000, Size16k)
-	}
+		if r.PrgBankCount > 1 {
+			// and the last ROM bank
+			WriteRamBank(r.RomBanks, r.PrgBankCount-1, 0xC000, Size16k)
+		} else {
+			// Or write the first ROM bank to the upper region
+			WriteRamBank(r.RomBanks, 0, 0xC000, Size16k)
+		}
+	*/
 
 	// If we have CHR-ROM, load the first two banks
 	// into VRAM region 0x0000-0x1000
@@ -187,18 +217,20 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 		// NROM
 		fmt.Printf("NROM\n")
 		return r, nil
-	case 0x01:
-		// MMC1
-		fmt.Printf("MMC1\n")
-		m = &Mmc1{
-			RomBanks:     r.RomBanks,
-			VromBanks:    r.VromBanks,
-			PrgBankCount: r.PrgBankCount,
-			ChrRomCount:  r.ChrRomCount,
-			Battery:      r.Battery,
-			Data:         r.Data,
-			PrgSwapBank:  BankLower,
-		}
+		/*
+			case 0x01:
+				// MMC1
+				fmt.Printf("MMC1\n")
+				m = &Mmc1{
+					RomBanks:     r.RomBanks,
+					VromBanks:    r.VromBanks,
+					PrgBankCount: r.PrgBankCount,
+					ChrRomCount:  r.ChrRomCount,
+					Battery:      r.Battery,
+					Data:         r.Data,
+					PrgSwapBank:  BankLower,
+				}
+		*/
 	case 0x42:
 		fallthrough
 	case 0x02:
@@ -225,31 +257,33 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 			Battery:      r.Battery,
 			Data:         r.Data,
 		}
-	case 0x07:
-		// Anrom
-		fmt.Printf("ANROM\n")
-		m = &Anrom{
-			RomBanks:     r.RomBanks,
-			VromBanks:    r.VromBanks,
-			PrgBankCount: r.PrgBankCount,
-			ChrRomCount:  r.ChrRomCount,
-			Battery:      r.Battery,
-			Data:         r.Data,
-		}
-	case 0x09:
-		// MMC2
-		fmt.Printf("MMC2\n")
-		m = NewMmc2(r)
-	case 0x44:
-		fallthrough
-	case 0x04:
-		// MMC3
-		fmt.Printf("MMC3\n")
-		m = NewMmc3(r)
-	case 0x05:
-		// MMC5
-		fmt.Printf("MMC5\n")
-		m = NewMmc5(r)
+		/*
+			case 0x07:
+				// Anrom
+				fmt.Printf("ANROM\n")
+				m = &Anrom{
+					RomBanks:     r.RomBanks,
+					VromBanks:    r.VromBanks,
+					PrgBankCount: r.PrgBankCount,
+					ChrRomCount:  r.ChrRomCount,
+					Battery:      r.Battery,
+					Data:         r.Data,
+				}
+			case 0x09:
+				// MMC2
+				fmt.Printf("MMC2\n")
+				m = NewMmc2(r)
+			case 0x44:
+				fallthrough
+			case 0x04:
+				// MMC3
+				fmt.Printf("MMC3\n")
+				m = NewMmc3(r)
+			case 0x05:
+				// MMC5
+				fmt.Printf("MMC5\n")
+				m = NewMmc5(r)
+		*/
 	default:
 		// Unsupported
 		fmt.Printf("Unsupported\n")

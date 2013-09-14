@@ -102,6 +102,8 @@ func (m Memory) Read(address interface{}) (Word, error) {
 		return Pads[1].Read(), nil
 	case a&0xF000 == 0x4000:
 		return apu.RegRead(a)
+	case a >= 0x8000 && a <= 0xFFFF:
+		return rom.Read(a), nil
 	}
 
 	return m[a], nil

@@ -88,6 +88,10 @@ func (m *Mmc2) Write(v Word, a int) {
 	}
 }
 
+func (m *Mmc2) Read(a int) Word {
+	return 0
+}
+
 func (m *Mmc2) LatchTrigger(a int) {
 	a &= 0x3FF0
 

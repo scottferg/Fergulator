@@ -15,6 +15,10 @@ func (m *Anrom) Write(v Word, a int) {
 	WriteRamBank(m.RomBanks, bank+1, 0xC000, Size16k)
 }
 
+func (m *Anrom) Read(a int) Word {
+	return 0
+}
+
 func (m *Anrom) BatteryBacked() bool {
 	return m.Battery
 }
