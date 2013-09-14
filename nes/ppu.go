@@ -171,8 +171,10 @@ func (p *Ppu) raster() {
 		y := i / 256
 		x := i - (y * 256)
 
+		bufpx := &p.Palettebuffer[i]
+
 		var color uint32
-		color = p.Palettebuffer[i].Color
+		color = bufpx.Color
 
 		width := 256
 
@@ -196,8 +198,8 @@ func (p *Ppu) raster() {
 		}
 
 		p.Framebuffer[(y*width)+x] = color << 8
-		p.Palettebuffer[i].Value = 0
-		p.Palettebuffer[i].Pindex = -1
+		bufpx.Value = 0
+		bufpx.Pindex = -1
 	}
 
 	p.Output <- p.Framebuffer
@@ -529,17 +531,13 @@ func (p *Ppu) WriteData(v Word) {
 	} else {
 		p.Vram[p.VramAddress&0x3FFF] = v
 		// MMC2 latch trigger
-		t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
-		triggerMapperLatch(t)
+		if v, ok := rom.(*Mmc2); ok {
+			t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
+			v.LatchTrigger(t)
+		}
 	}
 
 	p.incrementVramAddress()
-}
-
-func triggerMapperLatch(i int) {
-	if v, ok := rom.(*Mmc2); ok {
-		v.LatchTrigger(i)
-	}
 }
 
 // $2007
@@ -555,8 +553,10 @@ func (p *Ppu) ReadData() (r Word, err error) {
 
 		if p.VramAddress < 0x2000 {
 			// MMC2 latch trigger
-			t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
-			triggerMapperLatch(t)
+			if v, ok := rom.(*Mmc2); ok {
+				t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
+				v.LatchTrigger(t)
+			}
 		}
 	} else {
 		bufferAddress := p.VramAddress - 0x1000
@@ -576,8 +576,10 @@ func (p *Ppu) ReadData() (r Word, err error) {
 
 		if p.VramAddress < 0x2000 {
 			// MMC2 latch trigger
-			t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
-			triggerMapperLatch(t)
+			if v, ok := rom.(*Mmc2); ok {
+				t := p.bgPatternTableAddress(p.Nametables.readNametableData(p.VramAddress))
+				v.LatchTrigger(t)
+			}
 		}
 	}
 
@@ -628,40 +630,43 @@ func (p *Ppu) bgPatternTableAddress(i Word) int {
 	return (int(i) << 4) | (p.VramAddress >> 12) | a
 }
 
+func (p *Ppu) fetchTileAttributes() (uint16, uint16, Word) {
+	attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
+	shift := p.AttributeShift[p.VramAddress&0x3FF]
+	attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
+
+	index := p.Nametables.readNametableData(p.VramAddress)
+	t := p.bgPatternTableAddress(index)
+
+	// Flip bit 10 on wraparound
+	if p.VramAddress&0x1F == 0x1F {
+		// If rendering is enabled, at the end of a scanline
+		// copy bits 10 and 4-0 from VRAM latch into VRAMADDR
+		p.VramAddress ^= 0x41F
+	} else {
+		p.VramAddress++
+	}
+
+	// MMC2 latch trigger
+	if v, ok := rom.(*Mmc2); ok {
+		v.LatchTrigger(p.bgPatternTableAddress(index))
+	}
+
+	return uint16(p.Vram[t]), uint16(p.Vram[t+8]), attr
+}
+
 func (p *Ppu) renderTileRow() {
 	// Generates each tile, one scanline at a time
 	// and applies the palette
 
 	// Load first two tiles into shift registers at start, then load
 	// one per loop and shift the other back out
-	fetchTileAttributes := func() (uint16, uint16, Word) {
-		attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
-		shift := p.AttributeShift[p.VramAddress&0x3FF]
-		attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
-
-		index := p.Nametables.readNametableData(p.VramAddress)
-		t := p.bgPatternTableAddress(index)
-
-		// Flip bit 10 on wraparound
-		if p.VramAddress&0x1F == 0x1F {
-			// If rendering is enabled, at the end of a scanline
-			// copy bits 10 and 4-0 from VRAM latch into VRAMADDR
-			p.VramAddress ^= 0x41F
-		} else {
-			p.VramAddress++
-		}
-
-		// MMC2 latch trigger
-		triggerMapperLatch(p.bgPatternTableAddress(index))
-
-		return uint16(p.Vram[t]), uint16(p.Vram[t+8]), attr
-	}
 
 	// Move first tile into shift registers
-	low, high, attr := fetchTileAttributes()
+	low, high, attr := p.fetchTileAttributes()
 	p.LowBitShift, p.HighBitShift = low, high
 
-	low, high, attrBuf := fetchTileAttributes()
+	low, high, attrBuf := p.fetchTileAttributes()
 	// Get second tile, move the pixels into the right side of
 	// shift registers
 	// Current tile to render is attrBuf
@@ -674,6 +679,13 @@ func (p *Ppu) renderTileRow() {
 		var b uint
 		for b = 0; b < 8; b++ {
 			fbRow := p.Scanline*256 + ((x * 8) + int(b))
+			px := &p.Palettebuffer[fbRow]
+
+			if px.Value != 0 {
+				// Pixel is already rendered and priority
+				// 1 means show behind background
+				continue
+			}
 
 			pixel := (p.LowBitShift >> (15 - b - uint(p.FineX))) & 0x01
 			pixel += ((p.HighBitShift >> (15 - b - uint(p.FineX)) & 0x01) << 1)
@@ -687,24 +699,16 @@ func (p *Ppu) renderTileRow() {
 				palette = p.bgPaletteEntry(attr, pixel)
 			}
 
-			if p.Palettebuffer[fbRow].Value != 0 {
-				// Pixel is already rendered and priority
-				// 1 means show behind background
-				continue
-			}
-
-			p.Palettebuffer[fbRow] = Pixel{
-				PaletteRgb[palette%64],
-				int(pixel),
-				-1,
-			}
+			px.Color = PaletteRgb[palette%64]
+			px.Value = int(pixel)
+			px.Pindex = -1
 		}
 
 		// xcoord = p.VramAddress & 0x1F
 		attr = attrBuf
 
 		// Shift the first tile out, bring the new tile in
-		low, high, attrBuf = fetchTileAttributes()
+		low, high, attrBuf = p.fetchTileAttributes()
 
 		p.LowBitShift = (p.LowBitShift << 8) | low
 		p.HighBitShift = (p.HighBitShift << 8) | high
