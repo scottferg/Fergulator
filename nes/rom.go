@@ -91,44 +91,6 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	r.Data = rom[16:]
 
-	r.RomBanks = make([][]Word, r.PrgBankCount)
-	for i := 0; i < r.PrgBankCount; i++ {
-		// Move 16kb chunk to 16kb bank
-		bank := make([]Word, 0x4000)
-		for x := 0; x < 0x4000; x++ {
-			bank[x] = Word(r.Data[(0x4000*i)+x])
-		}
-
-		r.RomBanks[i] = bank
-	}
-
-	// Everything after PRG-ROM
-	chrRom := r.Data[0x4000*len(r.RomBanks):]
-
-	if r.ChrRomCount > 0 {
-		r.VromBanks = make([][]Word, r.ChrRomCount*2)
-	} else {
-		r.VromBanks = make([][]Word, 2)
-	}
-
-	for i := 0; i < cap(r.VromBanks); i++ {
-		// Move 16kb chunk to 16kb bank
-		r.VromBanks[i] = make([]Word, 0x1000, 0x1000)
-
-		// If the game doesn't have CHR banks we
-		// just need to allocate VRAM
-
-		for x := 0; x < 0x1000; x++ {
-			var val Word
-			if r.ChrRomCount == 0 {
-				val = 0
-			} else {
-				val = Word(chrRom[(0x1000*i)+x])
-			}
-			r.VromBanks[i][x] = val
-		}
-	}
-
 	// Check mapper, get the proper type
 	mapper := (Word(rom[6])>>4 | (Word(rom[7]) & 0xF0))
 	fmt.Printf("Mapper: 0x%X -> ", mapper)
@@ -140,16 +102,19 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	case 0x41:
 		// NROM
 		fmt.Printf("NROM\n")
+		r.Load()
 		return r, nil
 	case 0x01:
 		// MMC1
 		fmt.Printf("MMC1\n")
+		r.Load()
 		m = NewMmc1(r)
 	case 0x42:
 		fallthrough
 	case 0x02:
 		// Unrom
 		fmt.Printf("UNROM\n")
+		r.Load()
 		m = &Unrom{
 			RomBanks:     r.RomBanks,
 			VromBanks:    r.VromBanks,
@@ -163,6 +128,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	case 0x03:
 		// Cnrom
 		fmt.Printf("CNROM\n")
+		r.Load()
 		m = &Cnrom{
 			RomBanks:     r.RomBanks,
 			VromBanks:    r.VromBanks,
@@ -174,6 +140,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	case 0x07:
 		// Anrom
 		fmt.Printf("ANROM\n")
+		r.Load()
 		m = &Anrom{
 			RomBanks:     r.RomBanks,
 			VromBanks:    r.VromBanks,
@@ -183,17 +150,17 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 			Data:         r.Data,
 			PrgUpperBank: len(r.RomBanks) - 1,
 		}
+	case 0x44:
+		fallthrough
+	case 0x04:
+		// MMC3
+		fmt.Printf("MMC3\n")
+		m = NewMmc3(r)
 		/*
 			case 0x09:
 				// MMC2
 				fmt.Printf("MMC2\n")
 				m = NewMmc2(r)
-			case 0x44:
-				fallthrough
-			case 0x04:
-				// MMC3
-				fmt.Printf("MMC3\n")
-				m = NewMmc3(r)
 			case 0x05:
 				// MMC5
 				fmt.Printf("MMC5\n")

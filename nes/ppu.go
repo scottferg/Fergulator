@@ -651,6 +651,8 @@ func (p *Ppu) fetchTileAttributes() (uint16, uint16, Word) {
 	}
 
 	// MMC2 latch trigger
+	// TODO: Should be a generic hook, the branch here
+	// is too slow
 	if v, ok := rom.(*Mmc2); ok {
 		v.LatchTrigger(p.bgPatternTableAddress(index))
 	}

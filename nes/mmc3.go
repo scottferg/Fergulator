@@ -49,6 +49,20 @@ type Mmc3 struct {
 	IrqReset        bool
 	IrqResetVbl     bool
 
+	PrgUpperHighBank int
+	PrgUpperLowBank  int
+	PrgLowerHighBank int
+	PrgLowerLowBank  int
+
+	Chr000Bank  int
+	Chr400Bank  int
+	Chr800Bank  int
+	ChrC00Bank  int
+	Chr1000Bank int
+	Chr1400Bank int
+	Chr1800Bank int
+	Chr1C00Bank int
+
 	RamProtectDest [16]int
 }
 
@@ -66,12 +80,54 @@ func NewMmc3(r *Nrom) *Mmc3 {
 	// so that it can be caught when it's changed
 	m.PrgBankMode = 10
 
-	m.LoadRom()
+	m.Load()
 
 	return m
 }
 
-func (m *Mmc3) LoadRom() {
+func (m *Mmc3) Load() {
+	// 2x the banks since we're storing 8k per bank
+	// instead of 16k
+	fmt.Printf("  Emulated PRG banks: %d\n", 2*m.PrgBankCount)
+	m.RomBanks = make([][]Word, 2*m.PrgBankCount)
+	for i := 0; i < 2*m.PrgBankCount; i++ {
+		// Move 8kb chunk to 8kb bank
+		bank := make([]Word, 0x2000)
+		for x := 0; x < 0x2000; x++ {
+			bank[x] = Word(m.Data[(0x2000*i)+x])
+		}
+
+		m.RomBanks[i] = bank
+	}
+
+	// Everything after PRG-ROM
+	chrRom := m.Data[0x2000*len(m.RomBanks):]
+
+	// CHR is stored in 1k banks
+	if m.ChrRomCount > 0 {
+		m.VromBanks = make([][]Word, m.ChrRomCount*8)
+	} else {
+		m.VromBanks = make([][]Word, 2)
+	}
+
+	for i := 0; i < cap(m.VromBanks); i++ {
+		// Move 16kb chunk to 16kb bank
+		m.VromBanks[i] = make([]Word, 0x0400)
+
+		// If the game doesn't have CHR banks we
+		// just need to allocate VRAM
+
+		for x := 0; x < 0x0400; x++ {
+			var val Word
+			if m.ChrRomCount == 0 {
+				val = 0
+			} else {
+				val = Word(chrRom[(0x0400*i)+x])
+			}
+			m.VromBanks[i][x] = val
+		}
+	}
+
 	// The PRG banks are 8192 bytes in size, half the size of an
 	// iNES PRG bank. If your emulator or copier handles PRG data
 	// in 16384 byte chunks, you can think of the lower bit as
@@ -81,12 +137,13 @@ func (m *Mmc3) LoadRom() {
 
 	// Write hardwired PRG banks (0xC000 and 0xE000)
 	// Second to last bank
-	m.Write8kRamBank(0, 0xC000)
+	m.PrgUpperHighBank = (((len(m.RomBanks) - 1) * 2) + 1) >> 1
+	m.PrgUpperLowBank = m.PrgUpperHighBank - 1
 	// Last bank
-	m.Write8kRamBank(((len(m.RomBanks)-1)*2)+1, 0xE000)
 
 	// Write swappable PRG banks (0x8000 and 0xA000)
-	WriteRamBank(m.RomBanks, 0, 0x8000, Size16k)
+	m.PrgLowerLowBank = 0
+	m.PrgLowerHighBank = 1
 }
 
 func (m *Mmc3) BatteryBacked() bool {
@@ -115,15 +172,66 @@ func (m *Mmc3) Write(v Word, a int) {
 }
 
 func (m *Mmc3) WriteVram(v Word, a int) {
-	// Nothing to do
+	switch {
+	case a >= 0x1C00:
+		m.VromBanks[m.Chr1C00Bank][a&0x3FF] = v
+	case a >= 0x1800:
+		m.VromBanks[m.Chr1800Bank][a&0x3FF] = v
+	case a >= 0x1400:
+		m.VromBanks[m.Chr1400Bank][a&0x3FF] = v
+	case a >= 0x1000:
+		m.VromBanks[m.Chr1000Bank][a&0x3FF] = v
+	case a >= 0x0C00:
+		m.VromBanks[m.ChrC00Bank][a&0x3FF] = v
+	case a >= 0x0800:
+		m.VromBanks[m.Chr800Bank][a&0x3FF] = v
+	case a >= 0x0400:
+		m.VromBanks[m.Chr400Bank][a&0x3FF] = v
+	default:
+		m.VromBanks[m.Chr000Bank][a&0x3FF] = v
+	}
 }
 
 func (m *Mmc3) ReadVram(a int) Word {
-	return 0
+	switch {
+	case a >= 0x1C00:
+		return m.VromBanks[m.Chr1C00Bank][a&0x3FF]
+	case a >= 0x1800:
+		return m.VromBanks[m.Chr1800Bank][a&0x3FF]
+	case a >= 0x1400:
+		return m.VromBanks[m.Chr1400Bank][a&0x3FF]
+	case a >= 0x1000:
+		return m.VromBanks[m.Chr1000Bank][a&0x3FF]
+	case a >= 0x0C00:
+		return m.VromBanks[m.ChrC00Bank][a&0x3FF]
+	case a >= 0x0800:
+		return m.VromBanks[m.Chr800Bank][a&0x3FF]
+	case a >= 0x0400:
+		return m.VromBanks[m.Chr400Bank][a&0x3FF]
+	default:
+		return m.VromBanks[m.Chr000Bank][a&0x3FF]
+	}
 }
 
 func (m *Mmc3) ReadTile(a int) []Word {
-	return []Word{}
+	switch {
+	case a >= 0x1C00:
+		return m.VromBanks[m.Chr1C00Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x1800:
+		return m.VromBanks[m.Chr1800Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x1400:
+		return m.VromBanks[m.Chr1400Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x1000:
+		return m.VromBanks[m.Chr1000Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x0C00:
+		return m.VromBanks[m.ChrC00Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x0800:
+		return m.VromBanks[m.Chr800Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x0400:
+		return m.VromBanks[m.Chr400Bank][a&0x3FF : a&0x3FF+16]
+	default:
+		return m.VromBanks[m.Chr000Bank][a&0x3FF : a&0x3FF+16]
+	}
 }
 
 func (m *Mmc3) RegisterNumber(a int) int {
@@ -171,10 +279,22 @@ func (m *Mmc3) BankSelect(v int) {
 func (m *Mmc3) BankData(v int) {
 	loadHardBanks := func() {
 		if m.AddressChanged {
+			// TODO: +1?
+			b := (len(m.RomBanks) - 1) * 2
+			b = ((b >> 1) % len(m.RomBanks)) - 1
+
 			if m.PrgBankMode == PrgBankSwapModeLow {
-				m.Write8kRamBank((len(m.RomBanks)-1)*2, 0xC000)
+				if m.RamProtectDest[0xC000>>12] == b {
+					return
+				}
+				m.RamProtectDest[0xC000>>12] = b
+				m.PrgUpperLowBank = b
 			} else {
-				m.Write8kRamBank((len(m.RomBanks)-1)*2, 0x8000)
+				if m.RamProtectDest[0x8000>>12] == b {
+					return
+				}
+				m.RamProtectDest[0x8000>>12] = b
+				m.PrgLowerLowBank = b
 			}
 
 			m.AddressChanged = false
@@ -187,82 +307,113 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			m.Write1kVramBank(v, 0x0000)
-			m.Write1kVramBank(v+1, 0x0400)
+			m.Chr000Bank = b
+			m.Chr400Bank = b + 1
 		} else {
-			m.Write1kVramBank(v, 0x1000)
-			m.Write1kVramBank(v+1, 0x1400)
+			m.Chr1000Bank = b
+			m.Chr1400Bank = b + 1
 		}
 	case ChrBank2k0800:
 		if m.ChrRomCount == 0 {
 			break
 		}
 
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			m.Write1kVramBank(v, 0x0800)
-			m.Write1kVramBank(v+1, 0x0C00)
+			m.Chr800Bank = b
+			m.ChrC00Bank = b + 1
 		} else {
-			m.Write1kVramBank(v, 0x1800)
-			m.Write1kVramBank(v+1, 0x1C00)
+			m.Chr1800Bank = b
+			m.Chr1C00Bank = b + 1
 		}
 	case ChrBank1k1000:
 		if m.ChrRomCount == 0 {
 			break
 		}
 
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			m.Write1kVramBank(v, 0x1000)
+			m.Chr1000Bank = b
 		} else {
-			m.Write1kVramBank(v, 0x0000)
+			m.Chr000Bank = b
 		}
 	case ChrBank1k1400:
 		if m.ChrRomCount == 0 {
 			break
 		}
 
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			m.Write1kVramBank(v, 0x1400)
+			m.Chr1400Bank = b
 		} else {
-			m.Write1kVramBank(v, 0x0400)
+			m.Chr400Bank = b
 		}
 	case ChrBank1k1800:
 		if m.ChrRomCount == 0 {
 			break
 		}
 
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			m.Write1kVramBank(v, 0x1800)
+			m.Chr1800Bank = b
 		} else {
-			m.Write1kVramBank(v, 0x0800)
+			m.Chr800Bank = b
 		}
 	case ChrBank1k1C00:
 		if m.ChrRomCount == 0 {
 			break
 		}
 
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
-			m.Write1kVramBank(v, 0x1C00)
+			m.Chr1C00Bank = b
 		} else {
-			m.Write1kVramBank(v, 0x0C00)
+			m.ChrC00Bank = b
 		}
 	case PrgBank8k8000:
-		loadHardBanks()
+		b := v % len(m.RomBanks)
 
 		if m.PrgBankMode == PrgBankSwapModeLow {
-			m.Write8kRamBank(v, 0x8000)
+			if m.RamProtectDest[0x8000>>12] == b {
+				return
+			}
+			m.RamProtectDest[0x8000>>12] = b
+
+			m.PrgLowerLowBank = b
 		} else {
-			m.Write8kRamBank(v, 0xC000)
+			if m.RamProtectDest[0xC000>>12] == b {
+				return
+			}
+			m.RamProtectDest[0xC000>>12] = b
+			m.PrgUpperLowBank = b
 		}
+
+		loadHardBanks()
 	case PrgBank8kA000:
-		m.Write8kRamBank(v, 0xA000)
+		b := v % len(m.RomBanks)
+		if m.RamProtectDest[0xA000>>12] == b {
+			return
+		}
+		m.RamProtectDest[0xA000>>12] = b
+		m.PrgLowerHighBank = b
 
 		loadHardBanks()
 	}
 }
 
 func (m *Mmc3) Read(a int) Word {
-	return 0
+	switch {
+	case a >= 0xE000:
+		return m.RomBanks[m.PrgUpperHighBank][a&0x1FFF]
+	case a >= 0xC000:
+		return m.RomBanks[m.PrgUpperLowBank][a&0x1FFF]
+	case a >= 0xA000:
+		return m.RomBanks[m.PrgLowerHighBank][a&0x1FFF]
+	default:
+		return m.RomBanks[m.PrgLowerLowBank][a&0x1FFF]
+	}
 }
 
 func (m *Mmc3) SetMirroring(v int) {
@@ -305,25 +456,6 @@ func (m *Mmc3) IrqDisable(v int) {
 func (m *Mmc3) IrqEnable(v int) {
 	// $E001
 	m.IrqEnabled = true
-}
-
-func (m *Mmc3) Write8kRamBank(bank, dest int) {
-	if m.RamProtectDest[dest>>12] == bank {
-		return
-	}
-	m.RamProtectDest[dest>>12] = bank
-
-	b := (bank >> 1) % len(m.RomBanks)
-	offset := (bank % 2) * 0x2000
-
-	WriteOffsetRamBank(m.RomBanks, b, dest, Size8k, offset)
-}
-
-func (m *Mmc3) Write1kVramBank(bank, dest int) {
-	b := (bank >> 2) % len(m.VromBanks)
-	offset := (bank % 4) * 0x400
-
-	WriteOffsetVramBank(m.VromBanks, b, dest, Size1k, offset)
 }
 
 func (m *Mmc3) Hook() {

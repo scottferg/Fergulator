@@ -11,6 +11,46 @@ type Nrom struct {
 	Data         []byte
 }
 
+func (m *Nrom) Load() {
+	m.RomBanks = make([][]Word, m.PrgBankCount)
+	for i := 0; i < m.PrgBankCount; i++ {
+		// Move 16kb chunk to 16kb bank
+		bank := make([]Word, 0x4000)
+		for x := 0; x < 0x4000; x++ {
+			bank[x] = Word(m.Data[(0x4000*i)+x])
+		}
+
+		m.RomBanks[i] = bank
+	}
+
+	// Everything after PRG-ROM
+	chrRom := m.Data[0x4000*len(m.RomBanks):]
+
+	if m.ChrRomCount > 0 {
+		m.VromBanks = make([][]Word, m.ChrRomCount*2)
+	} else {
+		m.VromBanks = make([][]Word, 2)
+	}
+
+	for i := 0; i < cap(m.VromBanks); i++ {
+		// Move 16kb chunk to 16kb bank
+		m.VromBanks[i] = make([]Word, 0x1000, 0x1000)
+
+		// If the game doesn't have CHR banks we
+		// just need to allocate VRAM
+
+		for x := 0; x < 0x1000; x++ {
+			var val Word
+			if m.ChrRomCount == 0 {
+				val = 0
+			} else {
+				val = Word(chrRom[(0x1000*i)+x])
+			}
+			m.VromBanks[i][x] = val
+		}
+	}
+}
+
 func (m *Nrom) Write(v Word, a int) {
 	// Nothing to do
 }
