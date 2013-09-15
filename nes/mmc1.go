@@ -36,7 +36,7 @@ func NewMmc1(r *Nrom) *Mmc1 {
 		Data:         r.Data,
 		PrgSwapBank:  BankLower,
 		PrgUpperBank: len(r.RomBanks) - 1,
-        ChrUpperBank: len(r.VromBanks) - 1,
+		ChrUpperBank: len(r.VromBanks) - 1,
 	}
 }
 
@@ -75,6 +75,7 @@ func (m *Mmc1) Read(a int) Word {
 func (m *Mmc1) WriteVram(v Word, a int) {
 	if a >= 0x1000 {
 		m.VromBanks[m.ChrUpperBank][a&0xFFF] = v
+		return
 	}
 
 	m.VromBanks[m.ChrLowerBank][a&0xFFF] = v
@@ -158,8 +159,8 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 				bank = v & 0xF
 			}
 
-			m.ChrUpperBank = (bank >> 1) + 1
-			m.ChrLowerBank = (bank >> 1)
+			m.ChrUpperBank = (bank & 0xFE) + 1
+			m.ChrLowerBank = (bank & 0xFE)
 		case Size4k:
 			// Swap 4k VROM
 			var bank int

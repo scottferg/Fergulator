@@ -41,6 +41,7 @@ func (m *Anrom) BatteryBacked() bool {
 func (m *Anrom) WriteVram(v Word, a int) {
 	if a >= 0x1000 {
 		m.VromBanks[len(m.VromBanks)-1][a&0xFFF] = v
+		return
 	}
 
 	m.VromBanks[0][a&0xFFF] = v

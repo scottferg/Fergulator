@@ -113,16 +113,19 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 	for i := 0; i < cap(r.VromBanks); i++ {
 		// Move 16kb chunk to 16kb bank
-		r.VromBanks[i] = make([]Word, 0x1000)
+		r.VromBanks[i] = make([]Word, 0x1000, 0x1000)
 
 		// If the game doesn't have CHR banks we
 		// just need to allocate VRAM
-		if r.ChrRomCount == 0 {
-			continue
-		}
 
 		for x := 0; x < 0x1000; x++ {
-			r.VromBanks[i][x] = Word(chrRom[(0x1000*i)+x])
+			var val Word
+			if r.ChrRomCount == 0 {
+				val = 0
+			} else {
+				val = Word(chrRom[(0x1000*i)+x])
+			}
+			r.VromBanks[i][x] = val
 		}
 	}
 
@@ -141,7 +144,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	case 0x01:
 		// MMC1
 		fmt.Printf("MMC1\n")
-        m = NewMmc1(r)
+		m = NewMmc1(r)
 	case 0x42:
 		fallthrough
 	case 0x02:

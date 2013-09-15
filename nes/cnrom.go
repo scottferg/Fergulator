@@ -27,6 +27,7 @@ func (m *Cnrom) Read(a int) Word {
 func (m *Cnrom) WriteVram(v Word, a int) {
 	if a >= 0x1000 {
 		m.VromBanks[m.ActiveBank+1][a&0xFFF] = v
+		return
 	}
 
 	m.VromBanks[m.ActiveBank][a&0xFFF] = v
