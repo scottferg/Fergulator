@@ -3,12 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/scottferg/Fergulator/nes"
+	"github.com/nick-fedesna/Fergulator/nes"
 	"io/ioutil"
 	"os"
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"log"
 )
 
 var (
@@ -45,12 +46,14 @@ func main() {
 		return
 	}
 
-	var rom RomInfo
+	var rom nes.RomInfo
 	rom.Data = contents
 
 	path := strings.Split(os.Args[1], "/")
 	rom.Name = strings.Split(path[len(path)-1], ".")[0]
-	rom.FilePath = path[:len(path)-2]
+	rom.FilePath = strings.Join(path[:len(path)-1], "/")
+
+	log.Println(rom.Name, rom.FilePath)
 
 	audioOut = NewAudio()
 	defer audioOut.Close()
@@ -60,7 +63,7 @@ func main() {
 		fmt.Println(err)
 	}
 
-	videoOut.Init(videoTick, gamename)
+	videoOut.Init(videoTick, rom.Name)
 
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
