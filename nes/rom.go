@@ -117,7 +117,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 
 		// If the game doesn't have CHR banks we
 		// just need to allocate VRAM
-		if len(chrRom) == 0 {
+		if r.ChrRomCount == 0 {
 			continue
 		}
 
@@ -141,17 +141,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	case 0x01:
 		// MMC1
 		fmt.Printf("MMC1\n")
-		m = &Mmc1{
-			RomBanks:     r.RomBanks,
-			VromBanks:    r.VromBanks,
-			PrgBankCount: r.PrgBankCount,
-			ChrRomCount:  r.ChrRomCount,
-			Battery:      r.Battery,
-			Data:         r.Data,
-			PrgSwapBank:  BankLower,
-			PrgUpperBank: len(r.RomBanks) - 1,
-			ChrUpperBank: len(r.VromBanks) - 1,
-		}
+        m = NewMmc1(r)
 	case 0x42:
 		fallthrough
 	case 0x02:

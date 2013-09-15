@@ -1,9 +1,5 @@
 package nes
 
-import (
-	"fmt"
-)
-
 const (
 	BankUpper = iota
 	BankLower
@@ -28,6 +24,20 @@ type Mmc1 struct {
 	ChrLowerBank  int
 	ChrUpperBank  int
 	Mirroring     int
+}
+
+func NewMmc1(r *Nrom) *Mmc1 {
+	return &Mmc1{
+		RomBanks:     r.RomBanks,
+		VromBanks:    r.VromBanks,
+		PrgBankCount: r.PrgBankCount,
+		ChrRomCount:  r.ChrRomCount,
+		Battery:      r.Battery,
+		Data:         r.Data,
+		PrgSwapBank:  BankLower,
+		PrgUpperBank: len(r.RomBanks) - 1,
+        ChrUpperBank: len(r.VromBanks) - 1,
+	}
 }
 
 func (m *Mmc1) Write(v Word, a int) {
@@ -125,10 +135,8 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 		// Set CHR bank size
 		switch (v >> 0x4) & 0x1 {
 		case 0x0:
-			fmt.Println("CHR 8k bank size")
 			m.ChrBankSize = Size8k
 		case 0x1:
-			fmt.Println("CHR 4k bank size")
 			m.ChrBankSize = Size4k
 		}
 	case 1:
@@ -150,8 +158,8 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 				bank = v & 0xF
 			}
 
-			m.ChrUpperBank = bank + 1
-			m.ChrLowerBank = bank
+			m.ChrUpperBank = (bank >> 1) + 1
+			m.ChrLowerBank = (bank >> 1)
 		case Size4k:
 			// Swap 4k VROM
 			var bank int

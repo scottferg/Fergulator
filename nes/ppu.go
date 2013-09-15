@@ -1,9 +1,5 @@
 package nes
 
-import (
-	"fmt"
-)
-
 const (
 	StatusSpriteOverflow = iota
 	StatusSprite0Hit
@@ -571,9 +567,6 @@ func (p *Ppu) ReadData() (r Word, err error) {
 		case bufferAddress >= 0x2000 && bufferAddress < 0x3000:
 			p.VramDataBuffer = p.Nametables.readNametableData(bufferAddress)
 		default:
-			if bufferAddress < 0x2000 {
-				fmt.Println("GAGADAGSGAJREKAER")
-			}
 			p.VramDataBuffer = p.Vram[bufferAddress]
 		}
 
