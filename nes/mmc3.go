@@ -234,6 +234,21 @@ func (m *Mmc3) ReadTile(a int) []Word {
 	}
 }
 
+func (m *Mmc3) Read(a int) Word {
+	switch {
+	case a >= 0xE000:
+		return m.RomBanks[m.PrgUpperHighBank][a&0x1FFF]
+	case a >= 0xC000:
+		return m.RomBanks[m.PrgUpperLowBank][a&0x1FFF]
+	case a >= 0xA000:
+		return m.RomBanks[m.PrgLowerHighBank][a&0x1FFF]
+	case a >= 0x8000:
+		return m.RomBanks[m.PrgLowerLowBank][a&0x1FFF]
+	}
+
+	return 0
+}
+
 func (m *Mmc3) RegisterNumber(a int) int {
 	switch {
 	case a >= 0x8000 && a <= 0x9FFF:
@@ -401,21 +416,6 @@ func (m *Mmc3) BankData(v int) {
 
 		loadHardBanks()
 	}
-}
-
-func (m *Mmc3) Read(a int) Word {
-	switch {
-	case a >= 0xE000:
-		return m.RomBanks[m.PrgUpperHighBank][a&0x1FFF]
-	case a >= 0xC000:
-		return m.RomBanks[m.PrgUpperLowBank][a&0x1FFF]
-	case a >= 0xA000:
-		return m.RomBanks[m.PrgLowerHighBank][a&0x1FFF]
-	case a >= 0x8000:
-		return m.RomBanks[m.PrgLowerLowBank][a&0x1FFF]
-	}
-
-	return 0
 }
 
 func (m *Mmc3) SetMirroring(v int) {

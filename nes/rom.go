@@ -156,15 +156,15 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 		// MMC3
 		fmt.Printf("MMC3\n")
 		m = NewMmc3(r)
+	case 0x05:
+		// MMC5
+		fmt.Printf("MMC5\n")
+		m = NewMmc5(r)
 		/*
 			case 0x09:
 				// MMC2
 				fmt.Printf("MMC2\n")
 				m = NewMmc2(r)
-			case 0x05:
-				// MMC5
-				fmt.Printf("MMC5\n")
-				m = NewMmc5(r)
 		*/
 	default:
 		// Unsupported

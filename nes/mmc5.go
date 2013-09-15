@@ -29,6 +29,20 @@ type Mmc5 struct {
 	IrqCounter int
 	IrqEnabled bool
 
+	PrgUpperHighBank int
+	PrgUpperLowBank  int
+	PrgLowerHighBank int
+	PrgLowerLowBank  int
+
+	Chr000Bank  int
+	Chr400Bank  int
+	Chr800Bank  int
+	ChrC00Bank  int
+	Chr1000Bank int
+	Chr1400Bank int
+	Chr1800Bank int
+	Chr1C00Bank int
+
 	SpriteSwapFunc [8]func()
 	BgSwapFunc     [4]func()
 }
@@ -45,10 +59,70 @@ func NewMmc5(r *Nrom) *Mmc5 {
 
 	m.PrgSwitchMode = 0x3
 
-	m.Write8kRamBank(((len(m.RomBanks) - 1) * 2), 0xC000)
-	m.Write8kRamBank(((len(m.RomBanks)-1)*2)+1, 0xE000)
+	m.Load()
 
 	return m
+}
+
+func (m *Mmc5) Load() {
+	// 2x the banks since we're storing 8k per bank
+	// instead of 16k
+	fmt.Printf("  Emulated PRG banks: %d\n", 2*m.PrgBankCount)
+	m.RomBanks = make([][]Word, 2*m.PrgBankCount)
+	for i := 0; i < 2*m.PrgBankCount; i++ {
+		// Move 8kb chunk to 8kb bank
+		bank := make([]Word, 0x2000)
+		for x := 0; x < 0x2000; x++ {
+			bank[x] = Word(m.Data[(0x2000*i)+x])
+		}
+
+		m.RomBanks[i] = bank
+	}
+
+	// Everything after PRG-ROM
+	chrRom := m.Data[0x2000*len(m.RomBanks):]
+
+	// CHR is stored in 1k banks
+	if m.ChrRomCount > 0 {
+		m.VromBanks = make([][]Word, m.ChrRomCount*8)
+	} else {
+		m.VromBanks = make([][]Word, 2)
+	}
+
+	for i := 0; i < cap(m.VromBanks); i++ {
+		// Move 16kb chunk to 16kb bank
+		m.VromBanks[i] = make([]Word, 0x0400)
+
+		// If the game doesn't have CHR banks we
+		// just need to allocate VRAM
+
+		for x := 0; x < 0x0400; x++ {
+			var val Word
+			if m.ChrRomCount == 0 {
+				val = 0
+			} else {
+				val = Word(chrRom[(0x0400*i)+x])
+			}
+			m.VromBanks[i][x] = val
+		}
+	}
+
+	// The PRG banks are 8192 bytes in size, half the size of an
+	// iNES PRG bank. If your emulator or copier handles PRG data
+	// in 16384 byte chunks, you can think of the lower bit as
+	// selecting the first or second half of the bank
+	//
+	// http://forums.nesdev.com/viewtopic.php?p=38182#p38182
+
+	// Write hardwired PRG banks (0xC000 and 0xE000)
+	// Second to last bank
+	m.PrgUpperHighBank = (((len(m.RomBanks) - 1) * 2) + 1) >> 1
+	m.PrgUpperLowBank = m.PrgUpperHighBank - 1
+	// Last bank
+
+	// Write swappable PRG banks (0x8000 and 0xA000)
+	m.PrgLowerLowBank = 0
+	m.PrgLowerHighBank = 1
 }
 
 func (m *Mmc5) Write(v Word, a int) {
@@ -96,36 +170,54 @@ func (m *Mmc5) Write(v Word, a int) {
 
 		switch m.PrgSwitchMode {
 		case 1:
-			WriteRamBank(m.RomBanks, bank>>1, 0x8000, Size16k)
+			// TODO: This was >> 1
+			bank &= 0xFE
+
+			m.PrgLowerLowBank = bank
+			m.PrgLowerHighBank = bank + 1
 		case 2:
-			WriteRamBank(m.RomBanks, bank>>1, 0x8000, Size16k)
+			// TODO: This was >> 1
+			bank &= 0xFE
+
+			m.PrgLowerLowBank = bank
+			m.PrgLowerHighBank = bank + 1
 		case 3:
 			m.Write8kRamBank(bank, 0xA000)
 		}
 	case 0x5116:
 		// PRG bank 2
 		// TODO: (v >> 7) & 0x1 is the RAM/ROM toggle bit
-		bank := int(v) & 0x7F
+		bank := (int(v) & 0x7F) % len(m.RomBanks)
 
 		switch m.PrgSwitchMode {
 		case 2:
-			m.Write8kRamBank(bank, 0xC000)
+			m.PrgUpperLowBank = bank
 		case 3:
-			m.Write8kRamBank(bank, 0xC000)
+			m.PrgUpperLowBank = bank
 		}
 	case 0x5117:
 		// PRG bank 3
-		bank := int(v) & 0x7F
+		bank := (int(v) & 0x7F) % len(m.RomBanks)
 
 		switch m.PrgSwitchMode {
 		case 0:
-			WriteRamBank(m.RomBanks, bank>>2, 0x8000, Size32k)
+			// TODO: This was >> 1
+			bank >>= 2
+
+			m.PrgLowerLowBank = bank
+			m.PrgLowerHighBank = bank + 1
+			m.PrgUpperLowBank = bank + 2
+			m.PrgUpperHighBank = bank + 3
 		case 1:
-			WriteRamBank(m.RomBanks, bank>>1, 0xC000, Size16k)
+			// TODO: This was >> 1
+			bank >>= 1
+
+			m.PrgUpperLowBank = bank
+			m.PrgUpperHighBank = bank + 1
 		case 2:
-			m.Write8kRamBank(bank, 0xE000)
+			m.PrgUpperHighBank = bank
 		case 3:
-			m.Write8kRamBank(bank, 0xE000)
+			m.PrgUpperHighBank = bank
 		}
 	// TODO: Registers $5120-$5127 apply to sprite graphics
 	// and $5128-$512B for background graphics, but ONLY when
@@ -138,21 +230,22 @@ func (m *Mmc5) Write(v Word, a int) {
 		}
 
 		m.SpriteSwapFunc[0] = func() {
-			bank := int(m.ChrUpperBits)<<8 | int(v)
-			m.Write1kVramBank(bank, 0x0000)
+			bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
+			m.Chr000Bank = bank
 		}
 	case 0x5121:
 		// Sprite CHR bank 1
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
 
 		switch m.ChrSwitchMode {
 		case 2:
 			m.SpriteSwapFunc[1] = func() {
-				WriteVramBank(m.VromBanks, bank, 0x0000, Size2k)
+				m.Chr000Bank = bank
+				m.Chr400Bank = bank + 1
 			}
 		case 3:
 			m.SpriteSwapFunc[1] = func() {
-				m.Write1kVramBank(bank, 0x0400)
+				m.Chr400Bank = bank
 			}
 		}
 	case 0x5122:
@@ -162,27 +255,31 @@ func (m *Mmc5) Write(v Word, a int) {
 			return
 		}
 
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
 
 		m.SpriteSwapFunc[2] = func() {
-			m.Write1kVramBank(bank, 0x0800)
+			m.Chr800Bank = bank
 		}
 	case 0x5123:
 		// Sprite CHR bank 3
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
 
 		switch m.ChrSwitchMode {
 		case 1:
 			m.SpriteSwapFunc[3] = func() {
-				WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
+				m.Chr000Bank = bank
+				m.Chr400Bank = bank + 1
+				m.Chr800Bank = bank + 2
+				m.ChrC00Bank = bank + 3
 			}
 		case 2:
 			m.SpriteSwapFunc[3] = func() {
-				WriteVramBank(m.VromBanks, bank, 0x0800, Size2k)
+				m.Chr800Bank = bank
+				m.ChrC00Bank = bank + 1
 			}
 		case 3:
 			m.SpriteSwapFunc[3] = func() {
-				m.Write1kVramBank(bank, 0x0C00)
+				m.ChrC00Bank = bank
 			}
 		}
 	case 0x5124:
@@ -192,23 +289,24 @@ func (m *Mmc5) Write(v Word, a int) {
 			return
 		}
 
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
 
 		m.SpriteSwapFunc[4] = func() {
-			m.Write1kVramBank(bank, 0x1000)
+			m.Chr1000Bank = bank
 		}
 	case 0x5125:
 		// Sprite CHR bank 5
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
 
 		switch m.ChrSwitchMode {
 		case 2:
 			m.SpriteSwapFunc[5] = func() {
-				WriteVramBank(m.VromBanks, bank, 0x1000, Size2k)
+				m.Chr1000Bank = bank
+				m.Chr1400Bank = bank + 1
 			}
 		case 3:
 			m.SpriteSwapFunc[5] = func() {
-				m.Write1kVramBank(bank, 0x1400)
+				m.Chr1400Bank = bank
 			}
 		}
 	case 0x5126:
@@ -218,31 +316,42 @@ func (m *Mmc5) Write(v Word, a int) {
 			return
 		}
 
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
 
 		m.SpriteSwapFunc[6] = func() {
-			m.Write1kVramBank(bank, 0x1800)
+			m.Chr1800Bank = bank
 		}
 	case 0x5127:
 		// Sprite CHR bank 7
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
 
 		switch m.ChrSwitchMode {
 		case 0:
 			m.SpriteSwapFunc[7] = func() {
-				WriteVramBank(m.VromBanks, bank, 0x0000, Size8k)
+				m.Chr000Bank = bank
+				m.Chr400Bank = bank + 1
+				m.Chr800Bank = bank + 2
+				m.ChrC00Bank = bank + 3
+				m.Chr1000Bank = bank + 4
+				m.Chr1400Bank = bank + 5
+				m.Chr1800Bank = bank + 6
+				m.Chr1C00Bank = bank + 7
 			}
 		case 1:
 			m.SpriteSwapFunc[7] = func() {
-				WriteVramBank(m.VromBanks, bank, 0x1000, Size4k)
+				m.Chr1000Bank = bank
+				m.Chr1400Bank = bank + 1
+				m.Chr1800Bank = bank + 2
+				m.Chr1C00Bank = bank + 3
 			}
 		case 2:
 			m.SpriteSwapFunc[7] = func() {
-				WriteVramBank(m.VromBanks, bank, 0x1800, Size2k)
+				m.Chr1800Bank = bank
+				m.Chr1C00Bank = bank + 1
 			}
 		case 3:
 			m.SpriteSwapFunc[7] = func() {
-				m.Write1kVramBank(bank, 0x1C00)
+				m.Chr1C00Bank = bank
 			}
 		}
 	case 0x5128:
@@ -252,25 +361,28 @@ func (m *Mmc5) Write(v Word, a int) {
 			return
 		}
 
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
+
 		m.BgSwapFunc[0] = func() {
-			m.Write1kVramBank(bank, 0x0000)
-			m.Write1kVramBank(bank, 0x1000)
+			m.Chr000Bank = bank
+			m.Chr1000Bank = bank
 		}
 	case 0x5129:
 		// Background CHR bank 1
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
 
 		switch m.ChrSwitchMode {
 		case 2:
 			m.BgSwapFunc[1] = func() {
-				WriteVramBank(m.VromBanks, bank, 0x0000, Size2k)
-				WriteVramBank(m.VromBanks, bank, 0x1000, Size2k)
+				m.Chr000Bank = bank
+				m.Chr400Bank = bank + 1
+				m.Chr1000Bank = bank
+				m.Chr1400Bank = bank + 1
 			}
 		case 3:
 			m.BgSwapFunc[1] = func() {
-				m.Write1kVramBank(bank, 0x0400)
-				m.Write1kVramBank(bank, 0x1400)
+				m.Chr400Bank = bank
+				m.Chr1400Bank = bank
 			}
 		}
 	case 0x512A:
@@ -280,53 +392,69 @@ func (m *Mmc5) Write(v Word, a int) {
 			return
 		}
 
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
+
 		if m.ExtendedRamMode == 0x0 {
 			m.BgSwapFunc[2] = func() {
-				m.Write1kVramBank(bank, 0x0800)
+				m.Chr800Bank = bank
 			}
 		} else {
 			m.BgSwapFunc[2] = func() {
-				m.Write1kVramBank(bank, 0x1800)
+				m.Chr1800Bank = bank
 			}
 		}
 	case 0x512B:
 		// Background CHR bank 3
-		bank := int(m.ChrUpperBits)<<8 | int(v)
+		bank := (int(m.ChrUpperBits)<<8 | int(v)) % len(m.VromBanks)
 
 		switch m.ChrSwitchMode {
 		case 0:
 			m.BgSwapFunc[3] = func() {
-				WriteVramBank(m.VromBanks, bank, 0x0000, Size8k)
+				m.Chr000Bank = bank
+				m.Chr400Bank = bank + 1
+				m.Chr800Bank = bank + 2
+				m.ChrC00Bank = bank + 3
+				m.Chr1000Bank = bank + 4
+				m.Chr1400Bank = bank + 5
+				m.Chr1800Bank = bank + 6
+				m.Chr1C00Bank = bank + 7
 			}
 		case 1:
 			if m.ExtendedRamMode == 0x0 {
 				m.BgSwapFunc[3] = func() {
-					WriteVramBank(m.VromBanks, bank, 0x0000, Size4k)
+					m.Chr000Bank = bank
+					m.Chr400Bank = bank + 1
+					m.Chr800Bank = bank + 2
+					m.ChrC00Bank = bank + 3
 				}
 			} else {
 				m.BgSwapFunc[3] = func() {
-					WriteVramBank(m.VromBanks, bank, 0x1000, Size4k)
+					m.Chr1000Bank = bank
+					m.Chr1400Bank = bank + 1
+					m.Chr1800Bank = bank + 2
+					m.Chr1C00Bank = bank + 3
 				}
 			}
 		case 2:
 			if m.ExtendedRamMode == 0x0 {
 				m.BgSwapFunc[3] = func() {
-					WriteVramBank(m.VromBanks, bank, 0x0000, Size2k)
+					m.Chr000Bank = bank
+					m.Chr400Bank = bank + 1
 				}
 			} else {
 				m.BgSwapFunc[3] = func() {
-					WriteVramBank(m.VromBanks, bank, 0x1000, Size2k)
+					m.Chr1000Bank = bank
+					m.Chr1400Bank = bank + 1
 				}
 			}
 		case 3:
 			if m.ExtendedRamMode == 0x0 {
 				m.BgSwapFunc[3] = func() {
-					m.Write1kVramBank(bank, 0x0400)
+					m.Chr400Bank = bank
 				}
 			} else {
 				m.BgSwapFunc[3] = func() {
-					m.Write1kVramBank(bank, 0x1400)
+					m.Chr1400Bank = bank
 				}
 			}
 		}
@@ -352,20 +480,82 @@ func (m *Mmc5) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc5) Read(a int) Word {
-	return 0
-}
-
 func (m *Mmc5) WriteVram(v Word, a int) {
-	// Nothing to do
+	switch {
+	case a >= 0x1C00:
+		m.VromBanks[m.Chr1C00Bank][a&0x3FF] = v
+	case a >= 0x1800:
+		m.VromBanks[m.Chr1800Bank][a&0x3FF] = v
+	case a >= 0x1400:
+		m.VromBanks[m.Chr1400Bank][a&0x3FF] = v
+	case a >= 0x1000:
+		m.VromBanks[m.Chr1000Bank][a&0x3FF] = v
+	case a >= 0x0C00:
+		m.VromBanks[m.ChrC00Bank][a&0x3FF] = v
+	case a >= 0x0800:
+		m.VromBanks[m.Chr800Bank][a&0x3FF] = v
+	case a >= 0x0400:
+		m.VromBanks[m.Chr400Bank][a&0x3FF] = v
+	default:
+		m.VromBanks[m.Chr000Bank][a&0x3FF] = v
+	}
 }
 
 func (m *Mmc5) ReadVram(a int) Word {
-	return 0
+	switch {
+	case a >= 0x1C00:
+		return m.VromBanks[m.Chr1C00Bank][a&0x3FF]
+	case a >= 0x1800:
+		return m.VromBanks[m.Chr1800Bank][a&0x3FF]
+	case a >= 0x1400:
+		return m.VromBanks[m.Chr1400Bank][a&0x3FF]
+	case a >= 0x1000:
+		return m.VromBanks[m.Chr1000Bank][a&0x3FF]
+	case a >= 0x0C00:
+		return m.VromBanks[m.ChrC00Bank][a&0x3FF]
+	case a >= 0x0800:
+		return m.VromBanks[m.Chr800Bank][a&0x3FF]
+	case a >= 0x0400:
+		return m.VromBanks[m.Chr400Bank][a&0x3FF]
+	default:
+		return m.VromBanks[m.Chr000Bank][a&0x3FF]
+	}
 }
 
 func (m *Mmc5) ReadTile(a int) []Word {
-	return []Word{}
+	switch {
+	case a >= 0x1C00:
+		return m.VromBanks[m.Chr1C00Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x1800:
+		return m.VromBanks[m.Chr1800Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x1400:
+		return m.VromBanks[m.Chr1400Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x1000:
+		return m.VromBanks[m.Chr1000Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x0C00:
+		return m.VromBanks[m.ChrC00Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x0800:
+		return m.VromBanks[m.Chr800Bank][a&0x3FF : a&0x3FF+16]
+	case a >= 0x0400:
+		return m.VromBanks[m.Chr400Bank][a&0x3FF : a&0x3FF+16]
+	default:
+		return m.VromBanks[m.Chr000Bank][a&0x3FF : a&0x3FF+16]
+	}
+}
+
+func (m *Mmc5) Read(a int) Word {
+	switch {
+	case a >= 0xE000:
+		return m.RomBanks[m.PrgUpperHighBank][a&0x1FFF]
+	case a >= 0xC000:
+		return m.RomBanks[m.PrgUpperLowBank][a&0x1FFF]
+	case a >= 0xA000:
+		return m.RomBanks[m.PrgLowerHighBank][a&0x1FFF]
+	case a >= 0x8000:
+		return m.RomBanks[m.PrgLowerLowBank][a&0x1FFF]
+	}
+
+	return 0
 }
 
 func (m *Mmc5) BatteryBacked() bool {
