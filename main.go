@@ -46,24 +46,22 @@ func main() {
 		return
 	}
 
-	var rom nes.RomInfo
-	rom.Data = contents
-
 	path := strings.Split(os.Args[1], "/")
-	rom.Name = strings.Split(path[len(path)-1], ".")[0]
-	rom.FilePath = strings.Join(path[:len(path)-1], "/")
+	nes.GameName = strings.Split(path[len(path)-1], ".")[0]
+	nes.SaveStateFile = fmt.Sprintf(".%s.state", nes.GameName)
+	nes.BatteryRamFile = fmt.Sprintf(".%s.battery", nes.GameName)
 
-	log.Println(rom.Name, rom.FilePath)
+	log.Println(nes.GameName, nes.SaveStateFile)
 
 	audioOut = NewAudio()
 	defer audioOut.Close()
 
-	videoTick, err := nes.Init(rom, audioOut.AppendSample, GetKey)
+	videoTick, err := nes.Init(contents, audioOut.AppendSample, GetKey)
 	if err != nil {
 		fmt.Println(err)
 	}
 
-	videoOut.Init(videoTick, rom.Name)
+	videoOut.Init(videoTick, nes.GameName)
 
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
