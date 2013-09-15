@@ -818,7 +818,6 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, s
 		}
 
 		fbRow := y*256 + xcoord
-		px := &p.Palettebuffer[fbRow]
 
 		// Store the bit 0/1
 		pixel := (t[0] >> b) & 0x01
@@ -835,18 +834,18 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, s
 			priority := (*attr >> 5) & 0x1
 
 			hit := (Ram[0x2002]&0x40 == 0x40)
-			if px.Value != 0 && spZero && !hit {
+			if p.Palettebuffer[fbRow].Value != 0 && spZero && !hit {
 				// Since we render background first, if we're placing an opaque
 				// pixel here and the existing pixel is opaque, we've hit
 				// Sprite 0
 				p.setStatus(StatusSprite0Hit)
 			}
 
-			if px.Pindex > -1 && px.Pindex < index {
+			if p.Palettebuffer[fbRow].Pindex > -1 && p.Palettebuffer[fbRow].Pindex < index {
 				// Pixel with a higher sprite priority (lower index)
 				// is already here, so don't render this pixel
 				continue
-			} else if px.Value != 0 && priority == 1 {
+			} else if p.Palettebuffer[fbRow].Value != 0 && priority == 1 {
 				// Pixel is already rendered and priority
 				// 1 means show behind background
 				// unless background pixel is not transparent
@@ -855,9 +854,11 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, s
 
 			pal := p.PaletteRam[0x10+(palIndex*0x4)+uint(pixel)]
 
-			px.Color = PaletteRgb[int(pal)%64]
-			px.Value = int(pixel)
-			px.Pindex = index
+			p.Palettebuffer[fbRow] = Pixel{
+				PaletteRgb[int(pal)%64],
+				int(pixel),
+				index,
+			}
 		}
 	}
 }
