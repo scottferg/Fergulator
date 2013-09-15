@@ -138,20 +138,20 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 		// NROM
 		fmt.Printf("NROM\n")
 		return r, nil
-		/*
-			case 0x01:
-				// MMC1
-				fmt.Printf("MMC1\n")
-				m = &Mmc1{
-					RomBanks:     r.RomBanks,
-					VromBanks:    r.VromBanks,
-					PrgBankCount: r.PrgBankCount,
-					ChrRomCount:  r.ChrRomCount,
-					Battery:      r.Battery,
-					Data:         r.Data,
-					PrgSwapBank:  BankLower,
-				}
-		*/
+	case 0x01:
+		// MMC1
+		fmt.Printf("MMC1\n")
+		m = &Mmc1{
+			RomBanks:     r.RomBanks,
+			VromBanks:    r.VromBanks,
+			PrgBankCount: r.PrgBankCount,
+			ChrRomCount:  r.ChrRomCount,
+			Battery:      r.Battery,
+			Data:         r.Data,
+			PrgSwapBank:  BankLower,
+			PrgUpperBank: len(r.RomBanks) - 1,
+			ChrUpperBank: len(r.VromBanks) - 1,
+		}
 	case 0x42:
 		fallthrough
 	case 0x02:
