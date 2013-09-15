@@ -8,6 +8,7 @@ import (
 	"os"
 	"runtime"
 	"runtime/pprof"
+	"strings"
 )
 
 var (
@@ -44,10 +45,17 @@ func main() {
 		return
 	}
 
+	var rom RomInfo
+	rom.Data = contents
+
+	path := strings.Split(os.Args[1], "/")
+	rom.Name = strings.Split(path[len(path)-1], ".")[0]
+	rom.FilePath = path[:len(path)-2]
+
 	audioOut = NewAudio()
 	defer audioOut.Close()
 
-	videoTick, gamename, err := nes.Init(contents, audioOut.AppendSample, GetKey)
+	videoTick, err := nes.Init(rom, audioOut.AppendSample, GetKey)
 	if err != nil {
 		fmt.Println(err)
 	}

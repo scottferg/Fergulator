@@ -4,13 +4,20 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"strings"
 )
+
+
+type RomInfo struct {
+	Name		string
+	Data		[]byte
+	FilePath	string
+}
+
 
 var (
 	cpuClockSpeed = 1789773
 	AudioEnabled  = true
+	sysRunning    = false
 
 	totalCpuCycles int
 
@@ -23,6 +30,20 @@ const (
 	SaveState = iota
 	LoadState
 )
+
+func (r *RomInfo) GetSaveFile() string {
+	if len(r.FilePath) > 0 && len(r.Name) > 0 {
+		return fmt.Sprintf("%s/.%s.save", r.FilePath, r.Name)
+	}
+	return ""
+}
+
+func (r *RomInfo) GetBatteryFile() string {
+	if (len(r.FilePath) > 0 && len(r.Name) > 0) {
+		return fmt.Sprintf("%s/.%s.battery", r.FilePath, r.Name)
+	}
+	return ""
+}
 
 func LoadGameState() {
 	fmt.Println("Loading state")
@@ -196,7 +217,7 @@ func RunSystem() {
 	}
 }
 
-func Init(data []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint32, string, error) {
+func Init(romInfo RomInfo, audioBuf func(int16), getter GetButtonFunc) (chan []uint32, error) {
 	// Init the hardware, get communication channels
 	// from the PPU and APU
 	Ram = NewMemory()
@@ -208,17 +229,13 @@ func Init(data []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint3
 	Pads[1] = NewController(getter)
 
 	var err error
-	if rom, err = LoadRom(data); err != nil {
-		return nil, "", err
+	if rom, err = LoadRom(romInfo.Data); err != nil {
+		return nil, err
 	}
 
 	// Set the game name for save states
-	if len(os.Args) > 0 {
-		path := strings.Split(os.Args[1], "/")
-		gamename = strings.Split(path[len(path)-1], ".")[0]
-		saveStateFile = fmt.Sprintf(".%s.state", gamename)
-		batteryRamFile = fmt.Sprintf(".%s.battery", gamename)
-	}
+	saveStateFile = romInfo.GetSaveFile()
+	batteryRamFile = romInfo.GetBatteryFile()
 
 	if rom.BatteryBacked() {
 		loadBatteryRam()
@@ -227,5 +244,10 @@ func Init(data []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint3
 
 	cpu.SetResetVector()
 
-	return videoTick, gamename, nil
+	return videoTick, nil
 }
+
+func Reset() {
+	cpu.RequestInterrupt(InterruptReset)
+}
+
