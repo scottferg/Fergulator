@@ -465,7 +465,7 @@ func (p *Ppu) WriteDma(v Word) {
 	// Fill sprite RAM
 	addr := int(v) * 0x100
 	for i := 0; i < 0x100; i++ {
-		d, _ := Ram.Read(addr + i)
+		d, _ := Ram.Read(uint16(addr + i))
 		p.SpriteRam[i] = d
 		p.updateBufferedSpriteMem(i, d)
 	}

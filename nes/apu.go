@@ -110,7 +110,7 @@ type Dmc struct {
 	Data           Word
 	Sample         int16
 	SampleAddress  int
-	CurrentAddress int
+	CurrentAddress uint16
 	SampleLength   int
 	SampleCounter  int
 	ShiftCounter   int
@@ -356,7 +356,7 @@ func (d *Dmc) Clock() {
 		d.HasSample = false
 
 		if d.SampleCounter == 0 && d.LoopEnabled {
-			d.CurrentAddress = d.SampleAddress
+			d.CurrentAddress = uint16(d.SampleAddress)
 			d.SampleCounter = d.SampleLength
 		}
 
@@ -593,7 +593,7 @@ func (a *Apu) WriteControlFlags1(v Word) {
 	if v>>4&0x1 == 0x0 {
 		a.Dmc.SampleCounter = 0
 	} else {
-		a.Dmc.CurrentAddress = a.Dmc.SampleAddress
+		a.Dmc.CurrentAddress = uint16(a.Dmc.SampleAddress)
 		a.Dmc.SampleCounter = a.Dmc.SampleLength
 	}
 }

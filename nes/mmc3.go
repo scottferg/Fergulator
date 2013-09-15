@@ -411,9 +411,11 @@ func (m *Mmc3) Read(a int) Word {
 		return m.RomBanks[m.PrgUpperLowBank][a&0x1FFF]
 	case a >= 0xA000:
 		return m.RomBanks[m.PrgLowerHighBank][a&0x1FFF]
-	default:
+	case a >= 0x8000:
 		return m.RomBanks[m.PrgLowerLowBank][a&0x1FFF]
 	}
+
+	return 0
 }
 
 func (m *Mmc3) SetMirroring(v int) {

@@ -117,7 +117,7 @@ func (c *Cpu) pushToStack(value Word) {
 
 func (c *Cpu) pullFromStack() Word {
 	c.StackPointer++
-	val, _ := Ram.Read(0x100 + int(c.StackPointer))
+	val, _ := Ram.Read(uint16(0x100 + int(c.StackPointer)))
 
 	return val
 }
@@ -251,8 +251,8 @@ func (c *Cpu) indexedIndirectAddress() uint16 {
 
 	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
-	high, _ := Ram.Read(location + 1)
-	low, _ := Ram.Read(location)
+	high, _ := Ram.Read(uint16(location + 1))
+	low, _ := Ram.Read(uint16(location))
 
 	return (uint16(high) << 8) + uint16(low)
 }
@@ -262,8 +262,8 @@ func (c *Cpu) indirectIndexedAddress() uint16 {
 
 	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
-	high, _ := Ram.Read(location + 1)
-	low, _ := Ram.Read(location)
+	high, _ := Ram.Read(uint16(location) + 1)
+	low, _ := Ram.Read(uint16(location))
 
 	address := (uint16(high) << 8) + uint16(low)
 

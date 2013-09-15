@@ -58,8 +58,8 @@ func indexedIndirectAddress() int {
 
 	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
-	high, _ := Ram.Read(location + 1)
-	low, _ := Ram.Read(location)
+	high, _ := Ram.Read(uint16(location) + 1)
+	low, _ := Ram.Read(uint16(location))
 
 	return (int(high) << 8) + int(low)
 }
@@ -69,8 +69,8 @@ func indirectIndexedAddress() int {
 
 	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
-	high, _ := Ram.Read(location + 1)
-	low, _ := Ram.Read(location)
+	high, _ := Ram.Read(uint16(location) + 1)
+	low, _ := Ram.Read(uint16(location))
 
 	return (int(high) << 8) + int(low) + int(c.Y)
 }
