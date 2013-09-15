@@ -8,23 +8,30 @@ type Anrom struct {
 	ChrRomCount  int
 	Battery      bool
 	Data         []byte
+
+	PrgUpperBank int
+	PrgLowerBank int
 }
 
 func (m *Anrom) Write(v Word, a int) {
-	bank := int((v & 0x7) * 2)
-
 	if v&0x10 == 0x10 {
 		ppu.Nametables.SetMirroring(MirroringSingleUpper)
 	} else {
 		ppu.Nametables.SetMirroring(MirroringSingleLower)
 	}
 
-	WriteRamBank(m.RomBanks, bank, 0x8000, Size16k)
-	WriteRamBank(m.RomBanks, bank+1, 0xC000, Size16k)
+	bank := int((v & 0x7) * 2)
+
+	m.PrgUpperBank = bank + 1
+	m.PrgLowerBank = bank
 }
 
 func (m *Anrom) Read(a int) Word {
-	return 0
+	if a >= 0xC000 {
+		return m.RomBanks[m.PrgUpperBank][a&0x3FFF]
+	}
+
+	return m.RomBanks[m.PrgLowerBank][a&0x3FFF]
 }
 
 func (m *Anrom) BatteryBacked() bool {
@@ -32,13 +39,27 @@ func (m *Anrom) BatteryBacked() bool {
 }
 
 func (m *Anrom) WriteVram(v Word, a int) {
-	// Nothing to do
+	if a >= 0x1000 {
+		m.VromBanks[len(m.VromBanks)-1][a&0xFFF] = v
+	}
+
+	m.VromBanks[0][a&0xFFF] = v
 }
 
 func (m *Anrom) ReadVram(a int) Word {
-	return 0
+	if a >= 0x1000 {
+		return m.VromBanks[len(m.VromBanks)-1][a&0xFFF]
+	}
+
+	return m.VromBanks[0][a&0xFFF]
 }
 
 func (m *Anrom) ReadTile(a int) []Word {
-	return []Word{}
+	if a >= 0x1000 {
+		a &= 0xFFF
+		return m.VromBanks[len(m.VromBanks)-1][a : a+16]
+	}
+
+	a &= 0xFFF
+	return m.VromBanks[0][a : a+16]
 }

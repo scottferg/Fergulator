@@ -178,18 +178,19 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 			Battery:      r.Battery,
 			Data:         r.Data,
 		}
+	case 0x07:
+		// Anrom
+		fmt.Printf("ANROM\n")
+		m = &Anrom{
+			RomBanks:     r.RomBanks,
+			VromBanks:    r.VromBanks,
+			PrgBankCount: r.PrgBankCount,
+			ChrRomCount:  r.ChrRomCount,
+			Battery:      r.Battery,
+			Data:         r.Data,
+			PrgUpperBank: len(r.RomBanks) - 1,
+		}
 		/*
-			case 0x07:
-				// Anrom
-				fmt.Printf("ANROM\n")
-				m = &Anrom{
-					RomBanks:     r.RomBanks,
-					VromBanks:    r.VromBanks,
-					PrgBankCount: r.PrgBankCount,
-					ChrRomCount:  r.ChrRomCount,
-					Battery:      r.Battery,
-					Data:         r.Data,
-				}
 			case 0x09:
 				// MMC2
 				fmt.Printf("MMC2\n")

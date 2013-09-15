@@ -1,5 +1,9 @@
 package nes
 
+import (
+	"fmt"
+)
+
 const (
 	BankUpper = iota
 	BankLower
@@ -121,8 +125,10 @@ func (m *Mmc1) SetRegister(reg int, v int) {
 		// Set CHR bank size
 		switch (v >> 0x4) & 0x1 {
 		case 0x0:
+			fmt.Println("CHR 8k bank size")
 			m.ChrBankSize = Size8k
 		case 0x1:
+			fmt.Println("CHR 4k bank size")
 			m.ChrBankSize = Size4k
 		}
 	case 1:
