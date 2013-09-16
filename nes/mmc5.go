@@ -161,8 +161,7 @@ func (m *Mmc5) Write(v Word, a int) {
 		}
 
 		// TODO: (v >> 7) & 0x1 is the RAM/ROM toggle bit
-		bank := int(v) & 0x7F
-		m.Write8kRamBank(bank, 0x8000)
+		m.PrgLowerLowBank = int(v) & 0x7F
 	case 0x5115:
 		// PRG bank 1
 		// TODO: (v >> 7) & 0x1 is the RAM/ROM toggle bit
@@ -182,7 +181,7 @@ func (m *Mmc5) Write(v Word, a int) {
 			m.PrgLowerLowBank = bank
 			m.PrgLowerHighBank = bank + 1
 		case 3:
-			m.Write8kRamBank(bank, 0xA000)
+			m.PrgLowerHighBank = bank
 		}
 	case 0x5116:
 		// PRG bank 2
@@ -593,20 +592,6 @@ func (m *Mmc5) SwapBgVram() {
 	for _, bg := range m.BgSwapFunc {
 		bg()
 	}
-}
-
-func (m *Mmc5) Write8kRamBank(bank, dest int) {
-	b := (bank >> 1) % len(m.RomBanks)
-	offset := (bank % 2) * 0x2000
-
-	WriteOffsetRamBank(m.RomBanks, b, dest, Size8k, offset)
-}
-
-func (m *Mmc5) Write1kVramBank(bank, dest int) {
-	b := (bank >> 2) % len(m.VromBanks)
-	offset := (bank % 4) * 0x400
-
-	WriteOffsetVramBank(m.VromBanks, b, dest, Size1k, offset)
 }
 
 func (m *Mmc5) NotifyScanline() {
