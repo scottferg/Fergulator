@@ -178,23 +178,18 @@ func (p *Ppu) raster() {
 
 		width := 256
 
-		if p.OverscanEnabled {
-			if y < 8 || y > 231 || x < 8 || x > 247 {
-				continue
-			} else {
-				y -= 8
-				x -= 8
-			}
-
-			width = 240
-
-			if len(p.Framebuffer) == 0xF000 {
-				p.Framebuffer = make([]uint32, 0xEFE0)
-			}
+		// Always use overscan
+		if y < 8 || y > 231 || x < 8 || x > 247 {
+			continue
 		} else {
-			if len(p.Framebuffer) == 0xEFE0 {
-				p.Framebuffer = make([]uint32, 0xF000)
-			}
+			y -= 8
+			x -= 8
+		}
+
+		width = 240
+
+		if len(p.Framebuffer) == 0xF000 {
+			p.Framebuffer = make([]uint32, 0xEFE0)
 		}
 
 		p.Framebuffer[(y*width)+x] = color << 8
@@ -653,10 +648,6 @@ func (p *Ppu) fetchTileAttributes() (uint16, uint16, Word) {
 	// MMC2 latch trigger
 	// TODO: Should be a generic hook, the branch here
 	// is too slow
-	if v, ok := rom.(*Mmc2); ok {
-		v.LatchTrigger(p.bgPatternTableAddress(index))
-	}
-
 	return uint16(rom.ReadVram(t)), uint16(rom.ReadVram(t + 8)), attr
 }
 
@@ -692,13 +683,14 @@ func (p *Ppu) renderTileRow() {
 				continue
 			}
 
-			pixel := (p.LowBitShift >> (15 - b - uint(p.FineX))) & 0x01
-			pixel += ((p.HighBitShift >> (15 - b - uint(p.FineX)) & 0x01) << 1)
+			current := (15 - b - uint(p.FineX))
+			pixel := (p.LowBitShift >> current) & 0x01
+			pixel += ((p.HighBitShift >> current) & 0x01) << 1
 
 			// If we're grabbing the pixel from the high
 			// part of the shift register, use the buffered
 			// palette, not the current one
-			if (15 - b - uint(p.FineX)) < 8 {
+			if current < 8 {
 				palette = p.bgPaletteEntry(attrBuf, pixel)
 			} else {
 				palette = p.bgPaletteEntry(attr, pixel)

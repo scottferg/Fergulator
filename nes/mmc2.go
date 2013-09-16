@@ -143,6 +143,12 @@ func (m *Mmc2) WriteVram(v Word, a int) {
 }
 
 func (m *Mmc2) ReadVram(a int) Word {
+	// TODO: Causes some minor glitching in the
+	// Punch Out! title screen. This used to happen
+	// in ppu.fetchTileAttributes()
+	m.LatchTrigger(ppu.bgPatternTableAddress(
+		ppu.Nametables.readNametableData(ppu.VramAddress)))
+
 	switch {
 	case a >= 0x1000:
 		return m.VromBanks[m.ChrHighBank][a&0xFFF]
