@@ -648,6 +648,7 @@ func (p *Ppu) fetchTileAttributes() (uint16, uint16, Word) {
 	// MMC2 latch trigger
 	// TODO: Should be a generic hook, the branch here
 	// is too slow
+
 	return uint16(rom.ReadVram(t)), uint16(rom.ReadVram(t + 8)), attr
 }
 

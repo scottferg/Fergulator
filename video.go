@@ -9,14 +9,74 @@ import (
 	"log"
 	"math"
 	"os"
+	"unsafe"
 )
 
 type Video struct {
-	videoTick  <-chan []uint32
-	screen     *sdl.Surface
-	fpsmanager *gfx.FPSmanager
-	tex        gl.Texture
-	Fullscreen bool
+	videoTick     <-chan []uint32
+	screen        *sdl.Surface
+	fpsmanager    *gfx.FPSmanager
+	prog          gl.Program
+	texture       gl.Texture
+	width, height int
+	textureUni    gl.AttribLocation
+	Fullscreen    bool
+}
+
+const vertShaderSrcDef = `
+	attribute vec4 vPosition;
+	attribute vec2 vTexCoord;
+	varying vec2 texCoord;
+
+	void main() {
+		texCoord = vec2(vTexCoord.x, -vTexCoord.y);
+		gl_Position = vec4((vPosition.xy * 2.0) - 1.0, vPosition.zw);
+	}
+`
+
+const fragShaderSrcDef = `
+	varying vec2 texCoord;
+	uniform sampler2D texture;
+
+	void main() {
+		vec4 c = texture2D(texture, texCoord);
+		gl_FragColor = vec4(c.r, c.g, c.b, c.a);
+	}
+`
+
+func createProgram(vertShaderSrc string, fragShaderSrc string) gl.Program {
+	vertShader := loadShader(gl.VERTEX_SHADER, vertShaderSrc)
+	fragShader := loadShader(gl.FRAGMENT_SHADER, fragShaderSrc)
+
+	prog := gl.CreateProgram()
+
+	prog.AttachShader(vertShader)
+	prog.AttachShader(fragShader)
+	prog.Link()
+
+	if prog.Get(gl.LINK_STATUS) != gl.TRUE {
+		log := prog.GetInfoLog()
+		panic(fmt.Errorf("Failed to link program: %v", log))
+	}
+
+	return prog
+}
+
+func loadShader(shaderType gl.GLenum, source string) gl.Shader {
+	shader := gl.CreateShader(shaderType)
+	if err := gl.GetError(); err != gl.NO_ERROR {
+		panic(fmt.Errorf("gl error: %v", err))
+	}
+
+	shader.Source(source)
+	shader.Compile()
+
+	if shader.Get(gl.COMPILE_STATUS) != gl.TRUE {
+		log := shader.GetInfoLog()
+		panic(fmt.Errorf("Failed to compile shader: %v, shader: %v", log, source))
+	}
+
+	return shader
 }
 
 func (v *Video) Init(t <-chan []uint32, n string) {
@@ -34,38 +94,52 @@ func (v *Video) Init(t <-chan []uint32, n string) {
 
 	sdl.WM_SetCaption(fmt.Sprintf("Fergulator - %s", n), "")
 
-	if gl.Init() != 0 {
-		panic(sdl.GetError())
-	}
-
-	gl.Enable(gl.TEXTURE_2D)
+	v.initGL()
 	v.Reshape(int(v.screen.W), int(v.screen.H))
-
-	v.tex = gl.GenTexture()
-
-	/*
-		joy = make([]*sdl.Joystick, sdl.NumJoysticks())
-
-		for i := 0; i < sdl.NumJoysticks(); i++ {
-			joy[i] = sdl.JoystickOpen(i)
-
-			fmt.Println("-----------------")
-			if joy[i] != nil {
-				fmt.Printf("Joystick %d\n", i)
-				fmt.Println("  Name: ", sdl.JoystickName(0))
-				fmt.Println("  Number of Axes: ", joy[i].NumAxes())
-				fmt.Println("  Number of Buttons: ", joy[i].NumButtons())
-				fmt.Println("  Number of Balls: ", joy[i].NumBalls())
-			} else {
-				fmt.Println("  Couldn't open Joystick!")
-			}
-		}
-	*/
 
 	v.fpsmanager = gfx.NewFramerate()
 	v.fpsmanager.SetFramerate(60)
 
 	return
+}
+
+func (v *Video) initGL() {
+	if gl.Init() != 0 {
+		panic(sdl.GetError())
+	}
+
+	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
+	gl.Enable(gl.CULL_FACE)
+	gl.Enable(gl.DEPTH_TEST)
+
+	v.prog = createProgram(vertShaderSrcDef, fragShaderSrcDef)
+	posAttrib := v.prog.GetAttribLocation("vPosition")
+	texCoordAttr := v.prog.GetAttribLocation("vTexCoord")
+	v.textureUni = v.prog.GetAttribLocation("texture")
+
+	v.texture = gl.GenTexture()
+	gl.ActiveTexture(gl.TEXTURE0)
+	v.texture.Bind(gl.TEXTURE_2D)
+
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
+	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+
+	v.prog.Use()
+	posAttrib.EnableArray()
+	texCoordAttr.EnableArray()
+
+	vertVBO := gl.GenBuffer()
+	vertVBO.Bind(gl.ARRAY_BUFFER)
+	verts := []float32{-1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0}
+	gl.BufferData(gl.ARRAY_BUFFER, len(verts)*int(unsafe.Sizeof(verts[0])), &verts[0], gl.STATIC_DRAW)
+
+	textCoorBuf := gl.GenBuffer()
+	textCoorBuf.Bind(gl.ARRAY_BUFFER)
+	texVerts := []float32{0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0}
+	gl.BufferData(gl.ARRAY_BUFFER, len(texVerts)*int(unsafe.Sizeof(texVerts[0])), &texVerts[0], gl.STATIC_DRAW)
+
+	posAttrib.AttribPointer(2, gl.FLOAT, false, 0, uintptr(0))
+	texCoordAttr.AttribPointer(2, gl.FLOAT, false, 0, uintptr(0))
 }
 
 func (v *Video) ResizeEvent(w, h int) {
@@ -89,28 +163,15 @@ func (v *Video) Reshape(width int, height int) {
 		y_offset = (height - h) / 2
 		height = h
 	} else if r < 0.9375 { // Width wider
-		var scrW, scrH float64
-		if true {
-			// if ppu.OverscanEnabled {
-			scrW = 240.0
-			scrH = 224.0
-		} else {
-			scrW = 256.0
-			scrH = 240.0
-		}
-
-		w := (int)(math.Floor((float64)((scrH / scrW) * (float64)(height))))
+		w := (int)(math.Floor((float64)((256.0 / 240.0) * (float64)(height))))
 		x_offset = (width - w) / 2
 		width = w
 	}
 
+	v.width = width
+	v.height = height
+
 	gl.Viewport(x_offset, y_offset, width, height)
-	gl.MatrixMode(gl.PROJECTION)
-	gl.LoadIdentity()
-	gl.Ortho(-1, 1, -1, 1, -1, 1)
-	gl.MatrixMode(gl.MODELVIEW)
-	gl.LoadIdentity()
-	gl.Disable(gl.DEPTH_TEST)
 }
 
 func quit_event() int {
@@ -124,30 +185,15 @@ func (v *Video) Render() {
 		case buf := <-v.videoTick:
 			gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-			v.tex.Bind(gl.TEXTURE_2D)
+			v.prog.Use()
 
-			if true {
-				// if ppu.OverscanEnabled {
-				gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 240, 224, 0, gl.RGBA,
-					gl.UNSIGNED_INT_8_8_8_8, buf)
-			} else {
-				gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 256, 240, 0, gl.RGBA,
-					gl.UNSIGNED_INT_8_8_8_8, buf)
-			}
+			gl.ActiveTexture(gl.TEXTURE0)
+			v.texture.Bind(gl.TEXTURE_2D)
 
-			gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-			gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
+			gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 240, 224, 0, gl.RGBA,
+				gl.UNSIGNED_INT_8_8_8_8, buf)
 
-			gl.Begin(gl.QUADS)
-			gl.TexCoord2f(0.0, 1.0)
-			gl.Vertex3f(-1.0, -1.0, 0.0)
-			gl.TexCoord2f(1.0, 1.0)
-			gl.Vertex3f(1.0, -1.0, 0.0)
-			gl.TexCoord2f(1.0, 0.0)
-			gl.Vertex3f(1.0, 1.0, 0.0)
-			gl.TexCoord2f(0.0, 0.0)
-			gl.Vertex3f(-1.0, 1.0, 0.0)
-			gl.End()
+			gl.DrawArrays(gl.TRIANGLES, 0, 6)
 
 			if v.screen != nil {
 				sdl.GL_SwapBuffers()
@@ -159,43 +205,6 @@ func (v *Video) Render() {
 				v.ResizeEvent(int(e.W), int(e.H))
 			case sdl.QuitEvent:
 				os.Exit(0)
-				/*
-					case sdl.JoyAxisEvent:
-						j := int(e.Which)
-
-						index := j
-						var offset int
-						if j > 1 {
-							offset = 8
-							index = j % 2
-						}
-
-						switch e.Value {
-						// Same values for left/right
-						case JoypadAxisUp:
-							fallthrough
-						case JoypadAxisDown:
-							nes.Pads[index].AxisDown(int(e.Axis), int(e.Value), offset)
-						default:
-							nes.Pads[index].AxisUp(int(e.Axis), int(e.Value), offset)
-						}
-					case sdl.JoyButtonEvent:
-						j := int(e.Which)
-
-						index := j
-						var offset int
-						if j > 1 {
-							offset = 8
-							index = j % 2
-						}
-
-						switch joy[j].GetButton(int(e.Button)) {
-						case 1:
-							nes.Pads[index].ButtonDown(int(e.Button), offset)
-						case 0:
-							nes.Pads[index].ButtonUp(int(e.Button), offset)
-						}
-				*/
 			case sdl.KeyboardEvent:
 				switch e.Keysym.Sym {
 				case sdl.K_ESCAPE:
@@ -209,18 +218,9 @@ func (v *Video) Render() {
 					if e.Type == sdl.KEYDOWN {
 						nes.LoadGameState()
 					}
-				case sdl.K_p:
-					if e.Type == sdl.KEYDOWN {
-						// Enable/disable scanline sprite limiter flag
-						// ppu.SpriteLimitEnabled = !ppu.SpriteLimitEnabled
-					}
 				case sdl.K_s:
 					if e.Type == sdl.KEYDOWN {
 						nes.SaveGameState()
-					}
-				case sdl.K_o:
-					if e.Type == sdl.KEYDOWN {
-						//ppu.OverscanEnabled = !ppu.OverscanEnabled
 					}
 				case sdl.K_i:
 					if e.Type == sdl.KEYDOWN {
