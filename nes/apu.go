@@ -62,7 +62,7 @@ type Square struct {
 	Length        Word
 	LastTick      int
 	SweepEnabled  bool
-	Sweep         Word
+	SweepPeriod   Word
 	SweepCounter  Word
 	SweepMode     Word
 	Shift         Word
@@ -163,8 +163,8 @@ func (s *Square) WriteControl(v Word) {
 
 func (s *Square) WriteSweeps(v Word) {
 	s.SweepEnabled = v&0x80 == 0x80
-	s.Sweep = ((v >> 4) & 0x7)
-	s.SweepMode = (v >> 3) & 1
+	s.SweepPeriod = (v & 0x7) >> 4
+	s.SweepMode = (v & 1) >> 3
 	s.Negative = v&0x10 == 0x10
 	s.Shift = v & 0x7
 
@@ -213,23 +213,24 @@ func (s *Square) Clock() {
 }
 
 func (s *Square) ClockSweep() {
-	if s.SweepEnabled && s.SweepCounter > 0 {
-		s.SweepCounter--
+	s.SweepCounter--
 
-		delta := (s.Timer >> s.Shift)
+	if s.SweepCounter == 0 {
+		s.SweepCounter = s.SweepPeriod + 1
+		if s.SweepEnabled && s.SweepCounter > 0 && s.Shift > 0 {
+			delta := (s.Timer >> s.Shift)
 
-		if s.SweepCounter == 0 {
 			if s.Negative {
-				s.Timer = s.Timer - delta
+				s.Timer -= delta
 			} else if s.Timer+delta < 0x800 {
-				s.Timer = s.Timer + delta
+				s.Timer += delta
 			}
 		}
 	}
 
 	if s.SweepReload {
 		s.SweepReload = false
-		s.SweepCounter = s.Sweep
+		s.SweepCounter = s.SweepPeriod + 1
 	}
 }
 
