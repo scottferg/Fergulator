@@ -1,5 +1,9 @@
 package nes
 
+import (
+	"fmt"
+)
+
 const (
 	RegisterPrgBankSelect = iota
 	RegisterChrBank1Select
@@ -24,6 +28,14 @@ type Mmc2 struct {
 	LatchFE1  int
 	LatchFD0  int
 	LatchFD1  int
+
+	PrgUpperHighBank int
+	PrgUpperLowBank  int
+	PrgLowerHighBank int
+	PrgLowerLowBank  int
+
+	ChrHighBank int
+	ChrLowBank  int
 }
 
 func NewMmc2(r *Nrom) *Mmc2 {
@@ -43,12 +55,50 @@ func NewMmc2(r *Nrom) *Mmc2 {
 	m.LatchFD1 = 0
 	m.LatchFE1 = 0
 
-	m.LoadRom()
+	m.Load()
 
 	return m
 }
 
-func (m *Mmc2) LoadRom() {
+func (m *Mmc2) Load() {
+	// 2x the banks since we're storing 8k per bank
+	// instead of 16k
+	fmt.Printf("  Emulated PRG banks: %d\n", 2*m.PrgBankCount)
+	m.RomBanks = make([][]Word, 2*m.PrgBankCount)
+	for i := 0; i < 2*m.PrgBankCount; i++ {
+		// Move 8kb chunk to 8kb bank
+		bank := make([]Word, 0x2000)
+		for x := 0; x < 0x2000; x++ {
+			bank[x] = Word(m.Data[(0x2000*i)+x])
+		}
+
+		m.RomBanks[i] = bank
+	}
+
+	// Everything after PRG-ROM
+	chrRom := m.Data[0x2000*len(m.RomBanks):]
+
+	// CHR is stored in 4k banks
+	m.VromBanks = make([][]Word, m.ChrRomCount*2)
+
+	for i := 0; i < cap(m.VromBanks); i++ {
+		// Move 16kb chunk to 16kb bank
+		m.VromBanks[i] = make([]Word, 0x1000)
+
+		// If the game doesn't have CHR banks we
+		// just need to allocate VRAM
+
+		for x := 0; x < 0x1000; x++ {
+			var val Word
+			if m.ChrRomCount == 0 {
+				val = 0
+			} else {
+				val = Word(chrRom[(0x1000*i)+x])
+			}
+			m.VromBanks[i][x] = val
+		}
+	}
+
 	// The PRG banks are 8192 bytes in size, half the size of an
 	// iNES PRG bank. If your emulator or copier handles PRG data
 	// in 16384 byte chunks, you can think of the lower bit as
@@ -56,19 +106,14 @@ func (m *Mmc2) LoadRom() {
 	//
 	// http://forums.nesdev.com/viewtopic.php?p=38182#p38182
 
-	// Write swappable PRG banks (0x8000 and 0xA000)
-	m.Write8kRamBank(0, 0x8000)
-
+	m.PrgLowerLowBank = 0
 	// Write hardwired PRG banks (0xC000 and 0xE000)
-	// Third to last bank
-	m.Write8kRamBank(((len(m.RomBanks)-2)*2)+1, 0xA000)
 	// Second to last bank
-	m.Write8kRamBank((len(m.RomBanks)-1)*2, 0xC000)
+	m.PrgUpperHighBank = (((len(m.RomBanks) - 1) * 2) + 1) % len(m.RomBanks)
+	m.PrgUpperLowBank = ((len(m.RomBanks) - 1) * 2) % len(m.RomBanks)
 	// Last bank
-	m.Write8kRamBank(((len(m.RomBanks)-1)*2)+1, 0xE000)
 
-	WriteVramBank(m.VromBanks, 4, 0x0000, Size4k)
-	WriteVramBank(m.VromBanks, 0, 0x1000, Size4k)
+	m.PrgLowerHighBank = (((len(m.RomBanks) - 2) * 2) + 1) % len(m.RomBanks)
 }
 
 func (m *Mmc2) Write(v Word, a int) {
@@ -88,20 +133,46 @@ func (m *Mmc2) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc2) Read(a int) Word {
-	return 0
-}
-
 func (m *Mmc2) WriteVram(v Word, a int) {
-	// Nothing to do
+	switch {
+	case a >= 0x1000:
+		m.VromBanks[m.ChrHighBank][a&0xFFF] = v
+	default:
+		m.VromBanks[m.ChrLowBank][a&0xFFF] = v
+	}
 }
 
 func (m *Mmc2) ReadVram(a int) Word {
-	return 0
+	switch {
+	case a >= 0x1000:
+		return m.VromBanks[m.ChrHighBank][a&0xFFF]
+	default:
+		return m.VromBanks[m.ChrLowBank][a&0xFFF]
+	}
 }
 
 func (m *Mmc2) ReadTile(a int) []Word {
-	return []Word{}
+	switch {
+	case a >= 0x1000:
+		return m.VromBanks[m.ChrHighBank][a&0xFFF : a&0xFFF+16]
+	default:
+		return m.VromBanks[m.ChrLowBank][a&0xFFF : a&0xFFF+16]
+	}
+}
+
+func (m *Mmc2) Read(a int) Word {
+	switch {
+	case a >= 0xE000:
+		return m.RomBanks[m.PrgUpperHighBank][a&0x1FFF]
+	case a >= 0xC000:
+		return m.RomBanks[m.PrgUpperLowBank][a&0x1FFF]
+	case a >= 0xA000:
+		return m.RomBanks[m.PrgLowerHighBank][a&0x1FFF]
+	case a >= 0x8000:
+		return m.RomBanks[m.PrgLowerLowBank][a&0x1FFF]
+	}
+
+	return 0
 }
 
 func (m *Mmc2) LatchTrigger(a int) {
@@ -110,16 +181,20 @@ func (m *Mmc2) LatchTrigger(a int) {
 	switch {
 	case a == 0x0FD0 && m.LatchLow != 0xFD:
 		m.LatchLow = 0xFD
-		WriteVramBank(m.VromBanks, m.LatchFD0%len(m.VromBanks), 0x0000, Size4k)
+
+		m.ChrLowBank = m.LatchFD0 % len(m.VromBanks)
 	case a == 0x0FE0 && m.LatchLow != 0xFE:
 		m.LatchLow = 0xFE
-		WriteVramBank(m.VromBanks, m.LatchFE0%len(m.VromBanks), 0x0000, Size4k)
+
+		m.ChrLowBank = m.LatchFE0 % len(m.VromBanks)
 	case a == 0x1FD0 && m.LatchHigh != 0xFD:
 		m.LatchHigh = 0xFD
-		WriteVramBank(m.VromBanks, m.LatchFD1%len(m.VromBanks), 0x1000, Size4k)
+
+		m.ChrHighBank = m.LatchFD1 % len(m.VromBanks)
 	case a == 0x1FE0 && m.LatchHigh != 0xFE:
 		m.LatchHigh = 0xFE
-		WriteVramBank(m.VromBanks, m.LatchFE1%len(m.VromBanks), 0x1000, Size4k)
+
+		m.ChrHighBank = m.LatchFE1 % len(m.VromBanks)
 	}
 }
 
@@ -147,8 +222,7 @@ func (m *Mmc2) RegisterNumber(a int) int {
 }
 
 func (m *Mmc2) PrgBankSelect(v Word) {
-	bank := int(v & 0xF)
-	m.Write8kRamBank(bank, 0x8000)
+	m.PrgLowerLowBank = int(v&0xF) % len(m.RomBanks)
 }
 
 func (m *Mmc2) ChrBankSelect(v Word, b int) {
@@ -159,25 +233,25 @@ func (m *Mmc2) ChrBankSelect(v Word, b int) {
 		m.LatchFD0 = int(v)
 
 		if m.LatchLow == 0xFD {
-			WriteVramBank(m.VromBanks, m.LatchFD0%len(m.VromBanks), 0x0000, Size4k)
+			m.ChrLowBank = m.LatchFD0 % len(m.VromBanks)
 		}
 	case 2:
 		m.LatchFE0 = int(v)
 
 		if m.LatchLow == 0xFE {
-			WriteVramBank(m.VromBanks, m.LatchFE0%len(m.VromBanks), 0x0000, Size4k)
+			m.ChrLowBank = m.LatchFE0 % len(m.VromBanks)
 		}
 	case 3:
 		m.LatchFD1 = int(v)
 
 		if m.LatchHigh == 0xFD {
-			WriteVramBank(m.VromBanks, m.LatchFD1%len(m.VromBanks), 0x1000, Size4k)
+			m.ChrHighBank = m.LatchFD1 % len(m.VromBanks)
 		}
 	case 4:
 		m.LatchFE1 = int(v)
 
 		if m.LatchHigh == 0xFE {
-			WriteVramBank(m.VromBanks, m.LatchFE1%len(m.VromBanks), 0x1000, Size4k)
+			m.ChrHighBank = m.LatchFE1 % len(m.VromBanks)
 		}
 	}
 }
@@ -188,11 +262,4 @@ func (m *Mmc2) MirroringSelect(v Word) {
 	} else {
 		ppu.Nametables.SetMirroring(MirroringVertical)
 	}
-}
-
-func (m *Mmc2) Write8kRamBank(bank, dest int) {
-	b := (bank >> 1) % len(m.RomBanks)
-	offset := (bank % 2) * 0x2000
-
-	WriteOffsetRamBank(m.RomBanks, b, dest, Size8k, offset)
 }

@@ -3,6 +3,13 @@ package nes
 const (
 	BankUpper = iota
 	BankLower
+
+	Size1k  = 0x0400
+	Size2k  = 0x0800
+	Size4k  = 0x1000
+	Size8k  = 0x2000
+	Size16k = 0x4000
+	Size32k = 0x8000
 )
 
 type Mmc1 struct {

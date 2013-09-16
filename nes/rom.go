@@ -5,15 +5,6 @@ import (
 	"fmt"
 )
 
-const (
-	Size1k  = 0x0400
-	Size2k  = 0x0800
-	Size4k  = 0x1000
-	Size8k  = 0x2000
-	Size16k = 0x4000
-	Size32k = 0x8000
-)
-
 type Mapper interface {
 	Write(v Word, a int)
 	Read(a int) Word
@@ -21,39 +12,6 @@ type Mapper interface {
 	ReadVram(a int) Word
 	ReadTile(a int) []Word
 	BatteryBacked() bool
-}
-
-func WriteRamBank(rom [][]Word, bank, dest, size int) {
-	bank %= len(rom)
-
-	for i := 0; i < size; i++ {
-		Ram[i+dest] = rom[bank][i]
-	}
-}
-
-// Used by MMC3 for selecting 8kb chunks of a PRG-ROM bank
-func WriteOffsetRamBank(rom [][]Word, bank, dest, size, offset int) {
-	bank %= len(rom)
-
-	for i := 0; i < size; i++ {
-		Ram[i+dest] = rom[bank][i+offset]
-	}
-}
-
-func WriteVramBank(rom [][]Word, bank, dest, size int) {
-	bank %= len(rom)
-
-	for i := 0; i < size; i++ {
-		ppu.Vram[i+dest] = rom[bank][i]
-	}
-}
-
-func WriteOffsetVramBank(rom [][]Word, bank, dest, size, offset int) {
-	bank %= len(rom)
-
-	for i := 0; i < size; i++ {
-		ppu.Vram[i+dest] = rom[bank][i+offset]
-	}
 }
 
 func LoadRom(rom []byte) (m Mapper, e error) {
@@ -160,12 +118,10 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 		// MMC5
 		fmt.Printf("MMC5\n")
 		m = NewMmc5(r)
-		/*
-			case 0x09:
-				// MMC2
-				fmt.Printf("MMC2\n")
-				m = NewMmc2(r)
-		*/
+	case 0x09:
+		// MMC2
+		fmt.Printf("MMC2\n")
+		m = NewMmc2(r)
 	default:
 		// Unsupported
 		fmt.Printf("Unsupported\n")
