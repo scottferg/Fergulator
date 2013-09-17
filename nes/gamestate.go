@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
-	"os"
-	"strings"
 )
 
 var (
@@ -14,9 +12,9 @@ var (
 
 	totalCpuCycles int
 
-	gamename       string
-	saveStateFile  string
-	batteryRamFile string
+	GameName       string
+	SaveStateFile  string
+	BatteryRamFile string
 )
 
 const (
@@ -27,7 +25,7 @@ const (
 func LoadGameState() {
 	fmt.Println("Loading state")
 
-	state, err := ioutil.ReadFile(saveStateFile)
+	state, err := ioutil.ReadFile(SaveStateFile)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -128,7 +126,7 @@ func SaveGameState() {
 		buf.WriteByte(byte(v))
 	}
 
-	if err := ioutil.WriteFile(saveStateFile, buf.Bytes(), 0644); err != nil {
+	if err := ioutil.WriteFile(SaveStateFile, buf.Bytes(), 0644); err != nil {
 		panic(err.Error())
 	}
 }
@@ -136,7 +134,7 @@ func SaveGameState() {
 func loadBatteryRam() {
 	fmt.Println("Loading battery RAM")
 
-	batteryRam, err := ioutil.ReadFile(batteryRamFile)
+	batteryRam, err := ioutil.ReadFile(BatteryRamFile)
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -155,7 +153,7 @@ func saveBatteryFile() {
 		buf.WriteByte(byte(v))
 	}
 
-	if err := ioutil.WriteFile(batteryRamFile, buf.Bytes(), 0644); err != nil {
+	if err := ioutil.WriteFile(BatteryRamFile, buf.Bytes(), 0644); err != nil {
 		panic(err.Error())
 	}
 
@@ -196,7 +194,7 @@ func RunSystem() {
 	}
 }
 
-func Init(data []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint32, string, error) {
+func Init(contents []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint32, error) {
 	// Init the hardware, get communication channels
 	// from the PPU and APU
 	Ram = NewMemory()
@@ -208,16 +206,8 @@ func Init(data []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint3
 	Pads[1] = NewController(getter)
 
 	var err error
-	if rom, err = LoadRom(data); err != nil {
-		return nil, "", err
-	}
-
-	// Set the game name for save states
-	if len(os.Args) > 0 {
-		path := strings.Split(os.Args[1], "/")
-		gamename = strings.Split(path[len(path)-1], ".")[0]
-		saveStateFile = fmt.Sprintf(".%s.state", gamename)
-		batteryRamFile = fmt.Sprintf(".%s.battery", gamename)
+	if rom, err = LoadRom(contents); err != nil {
+		return nil, err
 	}
 
 	if rom.BatteryBacked() {
@@ -227,5 +217,6 @@ func Init(data []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint3
 
 	cpu.SetResetVector()
 
-	return videoTick, gamename, nil
+	return videoTick, nil
 }
+
