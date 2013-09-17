@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/nick-fedesna/Fergulator/nes"
+	"github.com/scottferg/Fergulator/nes"
 	"io/ioutil"
 	"os"
 	"runtime"
