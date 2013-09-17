@@ -98,6 +98,12 @@ func (m Memory) Read(a uint16) (Word, error) {
 		return Pads[0].Read(), nil
 	case a == 0x4017:
 		return Pads[1].Read(), nil
+	case a == 0x5204:
+		if v, ok := rom.(*Mmc5); ok {
+			return v.ReadIrqStatus(), nil
+		}
+
+		return m[a], nil
 	case a&0xF000 == 0x4000:
 		return apu.RegRead(int(a))
 	case a >= 0x8000 && a <= 0xFFFF:

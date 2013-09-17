@@ -2,7 +2,7 @@ Fergulator
 ==========
 [![Build Status](https://travis-ci.org/scottferg/Fergulator.png?branch=master)](https://travis-ci.org/scottferg/Fergulator)
 
-This is an NES emulator, written in Go. It's fairly new and very much a work in progress, so not all games run yet and not all features are implemented. Details are below.
+This is an NES emulator, written in Go. Details are below.
 
 ![alt text](http://i.imgur.com/QGwdl.png "Metroid")
 

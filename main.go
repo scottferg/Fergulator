@@ -34,8 +34,6 @@ func main() {
 
 		pprof.StartCPUProfile(f)
 		defer pprof.StopCPUProfile()
-	} else {
-		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
 	contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1])

@@ -28,6 +28,7 @@ type Mmc5 struct {
 	IrqLatch   int
 	IrqCounter int
 	IrqEnabled bool
+	IrqStatus  Word
 
 	PrgUpperHighBank int
 	PrgUpperLowBank  int
@@ -466,7 +467,9 @@ func (m *Mmc5) Write(v Word, a int) {
 		m.IrqLatch = int(v)
 		m.IrqCounter = 0
 	case 0x5204:
-		m.IrqEnabled = (v&0x80 == 0x80)
+		if !m.IrqEnabled {
+			m.IrqEnabled = (v&0x80 == 0x80)
+		}
 	default:
 		// fmt.Printf("Unhandled write to: 0x%X -> 0x%X\n", a, v)
 	}
@@ -594,16 +597,32 @@ func (m *Mmc5) SwapBgVram() {
 	}
 }
 
+func (m *Mmc5) ReadIrqStatus() Word {
+	m.IrqStatus &= 0x7F
+	return m.IrqStatus
+}
+
+func (m *Mmc5) AcknowledgeIrq() {
+	m.IrqStatus &= 0x7F
+}
+
 func (m *Mmc5) NotifyScanline() {
-	if Ram[0x5204]&0x40 == 0x40 {
-		// If In-Frame flag is set
-		m.IrqCounter++
-		if m.IrqEnabled && m.IrqCounter == m.IrqLatch {
-			Ram[0x5204] |= 0x80
-			cpu.RequestInterrupt(InterruptIrq)
-		}
-	} else {
-		Ram[0x5204] = 0x40
+	if !ppu.inScanline() {
+		m.IrqStatus &= 0xBF
+		return
+	}
+
+	if m.IrqStatus&0x40 == 0x0 {
+		m.IrqStatus = 0x40
 		m.IrqCounter = 0
+		cpu.CancelInterrupt()
+	} else {
+		m.IrqCounter++
+		if m.IrqCounter == m.IrqLatch {
+			m.IrqStatus |= 0x80
+			if m.IrqEnabled {
+				cpu.RequestInterrupt(InterruptIrq)
+			}
+		}
 	}
 }

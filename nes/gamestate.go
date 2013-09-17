@@ -165,6 +165,8 @@ func saveBatteryFile() {
 // Main system runloop. This should be run on it's own goroutine
 func RunSystem() {
 	var lastApuTick int
+	var lastVblank int
+	var lastFrameEnter int
 	var cycles int
 	var flip int
 
@@ -172,13 +174,19 @@ func RunSystem() {
 		cycles = cpu.Step()
 		totalCpuCycles += cycles
 
-		for i := 0; i < 3*cycles; i++ {
-			ppu.Step()
+		if cpu.Timestamp-lastVblank >= 81840 {
+			ppu.Step(cpu.Timestamp)
+			lastVblank = cpu.Timestamp
+		} else if cpu.Timestamp-lastFrameEnter >= 7502 {
+			ppu.Step(cpu.Timestamp)
+			lastFrameEnter = cpu.Timestamp
 		}
 
-		for i := 0; i < cycles; i++ {
-			apu.Step()
-		}
+		/*
+			for i := 0; i < cycles; i++ {
+				apu.Step()
+			}
+		*/
 
 		if AudioEnabled {
 			if totalCpuCycles-apu.LastFrameTick >= (cpuClockSpeed / 240) {

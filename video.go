@@ -9,40 +9,21 @@ import (
 	"log"
 	"math"
 	"os"
-	"unsafe"
 )
 
 type Video struct {
-	videoTick     <-chan []uint32
-	screen        *sdl.Surface
-	fpsmanager    *gfx.FPSmanager
-	prog          gl.Program
-	texture       gl.Texture
-	width, height int
-	textureUni    gl.AttribLocation
-	Fullscreen    bool
+	videoTick      <-chan []uint32
+	screen         *sdl.Surface
+	fpsmanager     *gfx.FPSmanager
+	prog           gl.Program
+	ntscFirstPass  gl.Program
+	ntscSecondPass gl.Program
+	ntscThirdPass  gl.Program
+	texture        gl.Texture
+	width, height  int
+	textureUni     gl.AttribLocation
+	Fullscreen     bool
 }
-
-const vertShaderSrcDef = `
-	attribute vec4 vPosition;
-	attribute vec2 vTexCoord;
-	varying vec2 texCoord;
-
-	void main() {
-		texCoord = vec2(vTexCoord.x, -vTexCoord.y);
-		gl_Position = vec4((vPosition.xy * 2.0) - 1.0, vPosition.zw);
-	}
-`
-
-const fragShaderSrcDef = `
-	varying vec2 texCoord;
-	uniform sampler2D texture;
-
-	void main() {
-		vec4 c = texture2D(texture, texCoord);
-		gl_FragColor = vec4(c.r, c.g, c.b, c.a);
-	}
-`
 
 func createProgram(vertShaderSrc string, fragShaderSrc string) gl.Program {
 	vertShader := loadShader(gl.VERTEX_SHADER, vertShaderSrc)
@@ -113,6 +94,9 @@ func (v *Video) initGL() {
 	gl.Enable(gl.DEPTH_TEST)
 
 	v.prog = createProgram(vertShaderSrcDef, fragShaderSrcDef)
+	v.ntscFirstPass = createProgram(firstPassNtscArtifactVert, firstPassNtscArtifactFrag)
+	v.ntscSecondPass = createProgram(secondPassNtscArtifactVert, secondPassNtscArtifactFrag)
+	v.ntscThirdPass = createProgram(thirdPassNtscArtifactVert, thirdPassNtscArtifactFrag)
 	posAttrib := v.prog.GetAttribLocation("vPosition")
 	texCoordAttr := v.prog.GetAttribLocation("vTexCoord")
 	v.textureUni = v.prog.GetAttribLocation("texture")
@@ -131,24 +115,26 @@ func (v *Video) initGL() {
 	vertVBO := gl.GenBuffer()
 	vertVBO.Bind(gl.ARRAY_BUFFER)
 	verts := []float32{-1.0, 1.0, -1.0, -1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0}
-	gl.BufferData(gl.ARRAY_BUFFER, len(verts)*int(unsafe.Sizeof(verts[0])), &verts[0], gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, len(verts)*4, &verts[0], gl.STATIC_DRAW)
 
 	textCoorBuf := gl.GenBuffer()
 	textCoorBuf.Bind(gl.ARRAY_BUFFER)
 	texVerts := []float32{0.0, 1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0}
-	gl.BufferData(gl.ARRAY_BUFFER, len(texVerts)*int(unsafe.Sizeof(texVerts[0])), &texVerts[0], gl.STATIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, len(texVerts)*4, &texVerts[0], gl.STATIC_DRAW)
 
 	posAttrib.AttribPointer(2, gl.FLOAT, false, 0, uintptr(0))
 	texCoordAttr.AttribPointer(2, gl.FLOAT, false, 0, uintptr(0))
 }
 
 func (v *Video) ResizeEvent(w, h int) {
-	v.screen = sdl.SetVideoMode(w, h, 32, sdl.OPENGL|sdl.RESIZABLE)
+	v.screen = sdl.SetVideoMode(w, h, 32,
+		sdl.OPENGL|sdl.RESIZABLE|sdl.GL_DOUBLEBUFFER)
 	v.Reshape(w, h)
 }
 
 func (v *Video) FullscreenEvent() {
-	v.screen = sdl.SetVideoMode(1440, 900, 32, sdl.OPENGL|sdl.FULLSCREEN)
+	v.screen = sdl.SetVideoMode(1440, 900, 32,
+		sdl.OPENGL|sdl.RESIZABLE|sdl.GL_DOUBLEBUFFER)
 	v.Reshape(1440, 900)
 }
 

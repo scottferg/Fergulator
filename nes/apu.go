@@ -58,6 +58,7 @@ type Square struct {
 	DutyCycle     Word
 	DutyCount     Word
 	Timer         int
+	TimerReload   int
 	TimerCount    int
 	Length        Word
 	LastTick      int
@@ -172,11 +173,12 @@ func (s *Square) WriteSweeps(v Word) {
 }
 
 func (s *Square) WriteLow(v Word) {
-	s.Timer = (s.Timer & 0x700) | int(v)
+	s.TimerReload = (s.Timer & 0x700) | int(v)
 }
 
 func (s *Square) WriteHigh(v Word) {
 	s.Timer = (s.Timer & 0xFF) | (int(v&0x7) << 8)
+	s.TimerReload = (s.TimerReload & 0xFF) | (int(v&0x7) << 8)
 
 	if s.Enabled {
 		s.Length = LengthTable[v>>3]
@@ -195,6 +197,7 @@ func (s *Square) Clock() {
 		if s.TimerCount == 0 {
 			s.DutyCount = (s.DutyCount + 1) & 0x7
 
+			s.Timer = s.TimerReload
 			s.TimerCount = (s.Timer + 1) << 1
 		}
 

@@ -934,6 +934,10 @@ func (c *Cpu) RequestInterrupt(i int) {
 	c.InterruptRequested = i
 }
 
+func (c *Cpu) CancelInterrupt() {
+	c.InterruptRequested = InterruptNone
+}
+
 func (c *Cpu) Init() {
 	c.Reset()
 	c.InterruptRequested = InterruptNone
@@ -972,8 +976,8 @@ func (c *Cpu) Step() int {
 	case InterruptIrq:
 		if !c.getIrqDisable() {
 			c.PerformIrq()
+			c.InterruptRequested = InterruptNone
 		}
-		c.InterruptRequested = InterruptNone
 	case InterruptNmi:
 		c.PerformNmi()
 		c.InterruptRequested = InterruptNone
@@ -993,7 +997,7 @@ func (c *Cpu) Step() int {
 	}
 
 	c.InstrOpcodes[opcode]()
-	c.Timestamp = (c.CycleCount * 15)
+	c.Timestamp += (c.CycleCount * 3)
 
 	return c.CycleCount
 }

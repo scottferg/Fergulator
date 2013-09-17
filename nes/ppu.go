@@ -67,6 +67,7 @@ type Ppu struct {
 	AttributeLocation [0x400]uint
 	AttributeShift    [0x400]uint
 	A12High           bool
+	Sprite0HitFlag    bool
 
 	Palettebuffer []Pixel
 	Framebuffer   []uint32
@@ -118,6 +119,7 @@ func (p *Ppu) Init() chan []uint32 {
 }
 
 func (p *Ppu) RegRead(a int) (Word, error) {
+	p.Step(cpu.Timestamp)
 	switch a & 0x7 {
 	case 0x2:
 		return p.ReadStatus()
@@ -131,6 +133,7 @@ func (p *Ppu) RegRead(a int) (Word, error) {
 }
 
 func (p *Ppu) RegWrite(v Word, a int) {
+	p.Step(cpu.Timestamp)
 	switch a & 0x7 {
 	case 0x0:
 		p.WriteControl(v)
@@ -200,86 +203,87 @@ func (p *Ppu) raster() {
 	p.Output <- p.Framebuffer
 }
 
-func (p *Ppu) Step() {
-	switch {
-	case p.Scanline == 240:
-		switch p.Cycle {
-		case 1:
-			if !p.SuppressVbl {
-				// We're in VBlank
-				p.setStatus(StatusVblankStarted)
-			}
-
-			// $2000.7 enables/disables NMIs
-			if p.NmiOnVblank == 0x1 && !p.SuppressNmi {
-				// Request NMI
-				cpu.RequestInterrupt(InterruptNmi)
-			}
-			p.raster()
-		}
-	case p.Scanline == 260: // End of vblank
-		switch p.Cycle {
-		case 1:
-			// Clear VBlank flag
-			p.clearStatus(StatusVblankStarted)
-		case 341:
-			p.Scanline = -1
-			p.Cycle = 1
-			p.FrameCount++
-			return
-		}
-	case p.Scanline < 240 && p.Scanline > -1:
-		switch p.Cycle {
-		case 254:
-			if p.ShowBackground {
-				// Swap in MMC5 bg RAM
-				if m, ok := rom.(*Mmc5); ok {
-					m.SwapBgVram()
+func (p *Ppu) Step(cycleCount int) {
+	for _ = p.Timestamp; p.Timestamp < cycleCount; p.Timestamp++ {
+		switch {
+		case p.Scanline == 240:
+			switch p.Cycle {
+			case 1:
+				if !p.SuppressVbl {
+					// We're in VBlank
+					p.setStatus(StatusVblankStarted)
 				}
-				p.renderTileRow()
-			}
 
-			if p.ShowSprites {
-				// Swap in MMC5 sprite RAM
-				if m, ok := rom.(*Mmc5); ok {
-					m.SwapSpriteVram()
+				// $2000.7 enables/disables NMIs
+				if p.NmiOnVblank == 0x1 && !p.SuppressNmi {
+					// Request NMI
+					cpu.RequestInterrupt(InterruptNmi)
 				}
-				p.evaluateScanlineSprites(p.Scanline)
+				p.raster()
 			}
+		case p.Scanline == 260: // End of vblank
+			switch p.Cycle {
+			case 1:
+				// Clear VBlank flag
+				p.clearStatus(StatusVblankStarted)
+			case 341:
+				p.Scanline = -1
+				p.Cycle = 1
+				p.FrameCount++
+				return
+			}
+		case p.Scanline < 240 && p.Scanline > -1:
+			switch p.Cycle {
+			case 254:
+				if p.ShowBackground {
+					// Swap in MMC5 bg RAM
+					if m, ok := rom.(*Mmc5); ok {
+						m.SwapBgVram()
+					}
+					p.renderTileRow()
+				}
 
+				if p.ShowSprites {
+					// Swap in MMC5 sprite RAM
+					if m, ok := rom.(*Mmc5); ok {
+						m.SwapSpriteVram()
+					}
+					p.evaluateScanlineSprites(p.Scanline)
+				}
+			case 256:
+				if p.ShowBackground {
+					p.updateEndScanlineRegisters()
+				}
+			case 260:
+				if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
+					if v, ok := rom.(*Mmc3); ok {
+						v.Hook()
+					}
+				}
+			}
+		case p.Scanline == -1:
+			switch p.Cycle {
+			case 1:
+				p.clearStatus(StatusSprite0Hit)
+				p.clearStatus(StatusSpriteOverflow)
+			case 304:
+				// Copy scroll latch into VRAMADDR register
+				if p.ShowBackground || p.ShowSprites {
+					p.VramAddress = p.VramLatch
+				}
+			}
+		}
+
+		if p.Cycle == 341 {
 			if m, ok := rom.(*Mmc5); ok {
 				m.NotifyScanline()
 			}
-		case 256:
-			if p.ShowBackground {
-				p.updateEndScanlineRegisters()
-			}
-		case 260:
-			if p.SpritePatternAddress == 0x1 && p.BackgroundPatternAddress == 0x0 {
-				if v, ok := rom.(*Mmc3); ok {
-					v.Hook()
-				}
-			}
+			p.Cycle = 0
+			p.Scanline++
 		}
-	case p.Scanline == -1:
-		switch p.Cycle {
-		case 1:
-			p.clearStatus(StatusSprite0Hit)
-			p.clearStatus(StatusSpriteOverflow)
-		case 304:
-			// Copy scroll latch into VRAMADDR register
-			if p.ShowBackground || p.ShowSprites {
-				p.VramAddress = p.VramLatch
-			}
-		}
-	}
 
-	if p.Cycle == 341 {
-		p.Cycle = 0
-		p.Scanline++
+		p.Cycle++
 	}
-
-	p.Cycle++
 }
 
 func (p *Ppu) renderingEnabled() bool {
@@ -395,6 +399,7 @@ func (p *Ppu) clearStatus(s Word) {
 	case StatusSpriteOverflow:
 		current = current & 0xDF
 	case StatusSprite0Hit:
+		p.Sprite0HitFlag = false
 		current = current & 0xBF
 	case StatusVblankStarted:
 		current = current & 0x7F
@@ -410,12 +415,17 @@ func (p *Ppu) setStatus(s Word) {
 	case StatusSpriteOverflow:
 		current = current | 0x20
 	case StatusSprite0Hit:
+		p.Sprite0HitFlag = true
 		current = current | 0x40
 	case StatusVblankStarted:
 		current = current | 0x80
 	}
 
 	Ram.WriteMirroredRam(current, 0x2002)
+}
+
+func (p *Ppu) inScanline() bool {
+	return p.Scanline < 241
 }
 
 // $2002
