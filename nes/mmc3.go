@@ -102,7 +102,7 @@ func (m *Mmc3) Load() {
 	if m.ChrRomCount > 0 {
 		m.VromBanks = make([]Word, (m.ChrRomCount*8)*0x0400)
 	} else {
-		m.VromBanks = make([]Word, 2*0x0400)
+		m.VromBanks = make([]Word, 8*0x0400)
 	}
 
 	for i := 0; i < m.ChrRomCount*8; i++ {
@@ -163,64 +163,72 @@ func (m *Mmc3) Write(v Word, a int) {
 }
 
 func (m *Mmc3) WriteVram(v Word, a int) {
+	var addr int
+
 	switch {
-	case a >= 0x1C00:
-		m.VromBanks[(0x0400*m.Chr1C00Bank)+a&0x3FF] = v
-	case a >= 0x1800:
-		m.VromBanks[(0x0400*m.Chr1800Bank)+a&0x3FF] = v
-	case a >= 0x1400:
-		m.VromBanks[(0x0400*m.Chr1400Bank)+a&0x3FF] = v
-	case a >= 0x1000:
-		m.VromBanks[(0x0400*m.Chr1000Bank)+a&0x3FF] = v
-	case a >= 0x0C00:
-		m.VromBanks[(0x0400*m.ChrC00Bank)+a&0x3FF] = v
-	case a >= 0x0800:
-		m.VromBanks[(0x0400*m.Chr800Bank)+a&0x3FF] = v
-	case a >= 0x0400:
-		m.VromBanks[(0x0400*m.Chr400Bank)+a&0x3FF] = v
+	case a&0x1C00 == 0x1C00:
+		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
+	case a&0x1800 == 0x1800:
+		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
+	case a&0x1400 == 0x1400:
+		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
+	case a&0x1000 == 0x1000:
+		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
+	case a&0x0C00 == 0x0C00:
+		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
+	case a&0x0800 == 0x0800:
+		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
+	case a&0x0400 == 0x0400:
+		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
 	default:
-		m.VromBanks[(0x0400*m.Chr000Bank)+a&0x3FF] = v
+		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
 	}
+
+	m.VromBanks[addr] = v
 }
 
 func (m *Mmc3) ReadVram(a int) Word {
+	var addr int
+
 	switch {
-	case a >= 0x1C00:
-		return m.VromBanks[(0x0400*m.Chr1C00Bank)+a&0x3FF]
-	case a >= 0x1800:
-		return m.VromBanks[(0x0400*m.Chr1800Bank)+a&0x3FF]
-	case a >= 0x1400:
-		return m.VromBanks[(0x0400*m.Chr1400Bank)+a&0x3FF]
-	case a >= 0x1000:
-		return m.VromBanks[(0x0400*m.Chr1000Bank)+a&0x3FF]
-	case a >= 0x0C00:
-		return m.VromBanks[(0x0400*m.ChrC00Bank)+a&0x3FF]
-	case a >= 0x0800:
-		return m.VromBanks[(0x0400*m.Chr800Bank)+a&0x3FF]
-	case a >= 0x0400:
-		return m.VromBanks[(0x0400*m.Chr400Bank)+a&0x3FF]
+	case a&0x1C00 == 0x1C00:
+		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
+	case a&0x1800 == 0x1800:
+		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
+	case a&0x1400 == 0x1400:
+		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
+	case a&0x1000 == 0x1000:
+		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
+	case a&0x0C00 == 0x0C00:
+		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
+	case a&0x0800 == 0x0800:
+		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
+	case a&0x0400 == 0x0400:
+		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
 	default:
-		return m.VromBanks[(0x0400*m.Chr000Bank)+a&0x3FF]
+		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
 	}
+
+	return m.VromBanks[addr]
 }
 
 func (m *Mmc3) ReadTile(a int) []Word {
 	var addr int
 
 	switch {
-	case a >= 0x1C00:
+	case a&0x1C00 == 0x1C00:
 		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
-	case a >= 0x1800:
+	case a&0x1800 == 0x1800:
 		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
-	case a >= 0x1400:
+	case a&0x1400 == 0x1400:
 		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
-	case a >= 0x1000:
+	case a&0x1000 == 0x1000:
 		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
-	case a >= 0x0C00:
+	case a&0x0C00 == 0x0C00:
 		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
-	case a >= 0x0800:
+	case a&0x0800 == 0x0800:
 		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
-	case a >= 0x0400:
+	case a&0x0400 == 0x0400:
 		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
 	default:
 		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
@@ -230,18 +238,20 @@ func (m *Mmc3) ReadTile(a int) []Word {
 }
 
 func (m *Mmc3) Read(a int) Word {
+	var addr int
+
 	switch {
-	case a >= 0xE000:
-		return m.RomBanks[((m.PrgUpperHighBank)*0x2000)+a&0x1FFF]
-	case a >= 0xC000:
-		return m.RomBanks[((m.PrgUpperLowBank)*0x2000)+a&0x1FFF]
-	case a >= 0xA000:
-		return m.RomBanks[((m.PrgLowerHighBank)*0x2000)+a&0x1FFF]
-	case a >= 0x8000:
-		return m.RomBanks[((m.PrgLowerLowBank)*0x2000)+a&0x1FFF]
+	case a&0xE000 == 0xE000:
+		addr = ((m.PrgUpperHighBank) * 0x2000) + a&0x1FFF
+	case a&0xC000 == 0xC000:
+		addr = ((m.PrgUpperLowBank) * 0x2000) + a&0x1FFF
+	case a&0xA000 == 0xA000:
+		addr = ((m.PrgLowerHighBank) * 0x2000) + a&0x1FFF
+	case a&0x8000 == 0x8000:
+		addr = ((m.PrgLowerLowBank) * 0x2000) + a&0x1FFF
 	}
 
-	return 0
+	return m.RomBanks[addr]
 }
 
 func (m *Mmc3) RegisterNumber(a int) int {

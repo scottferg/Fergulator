@@ -188,10 +188,6 @@ func (p *Ppu) raster() {
 
 		width = 240
 
-		if len(p.Framebuffer) == 0xF000 {
-			p.Framebuffer = make([]uint32, 0xEFE0)
-		}
-
 		p.Framebuffer[(y*width)+x] = color << 8
 		bufpx.Value = 0
 		bufpx.Pindex = -1
@@ -692,7 +688,7 @@ func (p *Ppu) renderTileRow() {
 			// part of the shift register, use the buffered
 			// palette, not the current one
 			if current >= 8 {
-				palette = p.bgPaletteEntry(attr, pixel)
+				palette = p.bgPaletteEntry(attr, pixel) % 64
 			} else {
 				palette = p.bgPaletteEntry(attrBuf, pixel)
 			}
@@ -716,23 +712,17 @@ func (p *Ppu) renderTileRow() {
 func (p *Ppu) evaluateScanlineSprites(line int) {
 	spriteCount := 0
 
-	for i, y := range p.SpriteData.YCoordinates {
-		spriteHeight := 8
-		if p.SpriteSize&0x1 == 0x1 {
-			spriteHeight = 16
-		}
+	spriteHeight := 8
+	if p.SpriteSize&0x1 == 0x1 {
+		spriteHeight = 16
+	}
 
+	for i, y := range p.SpriteData.YCoordinates {
 		if int(y) > (line-1)-spriteHeight && int(y)+(spriteHeight-1) < (line-1)+spriteHeight {
 			attrValue := p.Attributes[i] & 0x3
 			t := p.SpriteData.Tiles[i]
 
 			c := (line - 1) - int(y)
-
-			// TODO: Hack to fix random sprite appearing in upper
-			// left. It should be cropped by overscan.
-			if p.XCoordinates[i] == 0 && p.YCoordinates[i] == 0 {
-				continue
-			}
 
 			var ycoord int
 
