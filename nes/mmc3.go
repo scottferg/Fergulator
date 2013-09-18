@@ -31,8 +31,8 @@ const (
 )
 
 type Mmc3 struct {
-	RomBanks  [][]Word
-	VromBanks [][]Word
+	RomBanks  []Word
+	VromBanks []Word
 
 	PrgBankCount int
 	ChrRomCount  int
@@ -68,8 +68,6 @@ type Mmc3 struct {
 
 func NewMmc3(r *Nrom) *Mmc3 {
 	m := &Mmc3{
-		RomBanks:     r.RomBanks,
-		VromBanks:    r.VromBanks,
 		PrgBankCount: r.PrgBankCount,
 		ChrRomCount:  r.ChrRomCount,
 		Battery:      r.Battery,
@@ -89,34 +87,26 @@ func (m *Mmc3) Load() {
 	// 2x the banks since we're storing 8k per bank
 	// instead of 16k
 	fmt.Printf("  Emulated PRG banks: %d\n", 2*m.PrgBankCount)
-	m.RomBanks = make([][]Word, 2*m.PrgBankCount)
+	m.RomBanks = make([]Word, (2*m.PrgBankCount)*0x2000)
 	for i := 0; i < 2*m.PrgBankCount; i++ {
 		// Move 8kb chunk to 8kb bank
-		bank := make([]Word, 0x2000)
 		for x := 0; x < 0x2000; x++ {
-			bank[x] = Word(m.Data[(0x2000*i)+x])
+			m.RomBanks[(i*0x2000)+x] = Word(m.Data[(0x2000*i)+x])
 		}
-
-		m.RomBanks[i] = bank
 	}
 
 	// Everything after PRG-ROM
-	chrRom := m.Data[0x2000*len(m.RomBanks):]
+	chrRom := m.Data[0x2000*2*m.PrgBankCount:]
 
 	// CHR is stored in 1k banks
 	if m.ChrRomCount > 0 {
-		m.VromBanks = make([][]Word, m.ChrRomCount*8)
+		m.VromBanks = make([]Word, (m.ChrRomCount*8)*0x0400)
 	} else {
-		m.VromBanks = make([][]Word, 2)
+		m.VromBanks = make([]Word, 2*0x0400)
 	}
 
-	for i := 0; i < cap(m.VromBanks); i++ {
+	for i := 0; i < m.ChrRomCount*8; i++ {
 		// Move 16kb chunk to 16kb bank
-		m.VromBanks[i] = make([]Word, 0x0400)
-
-		// If the game doesn't have CHR banks we
-		// just need to allocate VRAM
-
 		for x := 0; x < 0x0400; x++ {
 			var val Word
 			if m.ChrRomCount == 0 {
@@ -124,7 +114,7 @@ func (m *Mmc3) Load() {
 			} else {
 				val = Word(chrRom[(0x0400*i)+x])
 			}
-			m.VromBanks[i][x] = val
+			m.VromBanks[(0x0400*i)+x] = val
 		}
 	}
 
@@ -137,7 +127,8 @@ func (m *Mmc3) Load() {
 
 	// Write hardwired PRG banks (0xC000 and 0xE000)
 	// Second to last bank
-	m.PrgUpperHighBank = (((len(m.RomBanks) - 1) * 2) + 1) >> 1
+
+	m.PrgUpperHighBank = ((((2 * m.PrgBankCount) - 1) * 2) + 1) >> 1
 	m.PrgUpperLowBank = m.PrgUpperHighBank - 1
 	// Last bank
 
@@ -174,76 +165,80 @@ func (m *Mmc3) Write(v Word, a int) {
 func (m *Mmc3) WriteVram(v Word, a int) {
 	switch {
 	case a >= 0x1C00:
-		m.VromBanks[m.Chr1C00Bank][a&0x3FF] = v
+		m.VromBanks[(0x0400*m.Chr1C00Bank)+a&0x3FF] = v
 	case a >= 0x1800:
-		m.VromBanks[m.Chr1800Bank][a&0x3FF] = v
+		m.VromBanks[(0x0400*m.Chr1800Bank)+a&0x3FF] = v
 	case a >= 0x1400:
-		m.VromBanks[m.Chr1400Bank][a&0x3FF] = v
+		m.VromBanks[(0x0400*m.Chr1400Bank)+a&0x3FF] = v
 	case a >= 0x1000:
-		m.VromBanks[m.Chr1000Bank][a&0x3FF] = v
+		m.VromBanks[(0x0400*m.Chr1000Bank)+a&0x3FF] = v
 	case a >= 0x0C00:
-		m.VromBanks[m.ChrC00Bank][a&0x3FF] = v
+		m.VromBanks[(0x0400*m.ChrC00Bank)+a&0x3FF] = v
 	case a >= 0x0800:
-		m.VromBanks[m.Chr800Bank][a&0x3FF] = v
+		m.VromBanks[(0x0400*m.Chr800Bank)+a&0x3FF] = v
 	case a >= 0x0400:
-		m.VromBanks[m.Chr400Bank][a&0x3FF] = v
+		m.VromBanks[(0x0400*m.Chr400Bank)+a&0x3FF] = v
 	default:
-		m.VromBanks[m.Chr000Bank][a&0x3FF] = v
+		m.VromBanks[(0x0400*m.Chr000Bank)+a&0x3FF] = v
 	}
 }
 
 func (m *Mmc3) ReadVram(a int) Word {
 	switch {
 	case a >= 0x1C00:
-		return m.VromBanks[m.Chr1C00Bank][a&0x3FF]
+		return m.VromBanks[(0x0400*m.Chr1C00Bank)+a&0x3FF]
 	case a >= 0x1800:
-		return m.VromBanks[m.Chr1800Bank][a&0x3FF]
+		return m.VromBanks[(0x0400*m.Chr1800Bank)+a&0x3FF]
 	case a >= 0x1400:
-		return m.VromBanks[m.Chr1400Bank][a&0x3FF]
+		return m.VromBanks[(0x0400*m.Chr1400Bank)+a&0x3FF]
 	case a >= 0x1000:
-		return m.VromBanks[m.Chr1000Bank][a&0x3FF]
+		return m.VromBanks[(0x0400*m.Chr1000Bank)+a&0x3FF]
 	case a >= 0x0C00:
-		return m.VromBanks[m.ChrC00Bank][a&0x3FF]
+		return m.VromBanks[(0x0400*m.ChrC00Bank)+a&0x3FF]
 	case a >= 0x0800:
-		return m.VromBanks[m.Chr800Bank][a&0x3FF]
+		return m.VromBanks[(0x0400*m.Chr800Bank)+a&0x3FF]
 	case a >= 0x0400:
-		return m.VromBanks[m.Chr400Bank][a&0x3FF]
+		return m.VromBanks[(0x0400*m.Chr400Bank)+a&0x3FF]
 	default:
-		return m.VromBanks[m.Chr000Bank][a&0x3FF]
+		return m.VromBanks[(0x0400*m.Chr000Bank)+a&0x3FF]
 	}
 }
 
 func (m *Mmc3) ReadTile(a int) []Word {
+	var addr int
+
 	switch {
 	case a >= 0x1C00:
-		return m.VromBanks[m.Chr1C00Bank][a&0x3FF : a&0x3FF+16]
+		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
 	case a >= 0x1800:
-		return m.VromBanks[m.Chr1800Bank][a&0x3FF : a&0x3FF+16]
+		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
 	case a >= 0x1400:
-		return m.VromBanks[m.Chr1400Bank][a&0x3FF : a&0x3FF+16]
+		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
 	case a >= 0x1000:
-		return m.VromBanks[m.Chr1000Bank][a&0x3FF : a&0x3FF+16]
+		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
 	case a >= 0x0C00:
-		return m.VromBanks[m.ChrC00Bank][a&0x3FF : a&0x3FF+16]
+		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
 	case a >= 0x0800:
-		return m.VromBanks[m.Chr800Bank][a&0x3FF : a&0x3FF+16]
+		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
 	case a >= 0x0400:
-		return m.VromBanks[m.Chr400Bank][a&0x3FF : a&0x3FF+16]
+		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
 	default:
-		return m.VromBanks[m.Chr000Bank][a&0x3FF : a&0x3FF+16]
+		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
 	}
+
+	return m.VromBanks[addr : addr+16]
 }
 
 func (m *Mmc3) Read(a int) Word {
 	switch {
 	case a >= 0xE000:
-		return m.RomBanks[m.PrgUpperHighBank][a&0x1FFF]
+		return m.RomBanks[((m.PrgUpperHighBank)*0x2000)+a&0x1FFF]
 	case a >= 0xC000:
-		return m.RomBanks[m.PrgUpperLowBank][a&0x1FFF]
+		return m.RomBanks[((m.PrgUpperLowBank)*0x2000)+a&0x1FFF]
 	case a >= 0xA000:
-		return m.RomBanks[m.PrgLowerHighBank][a&0x1FFF]
+		return m.RomBanks[((m.PrgLowerHighBank)*0x2000)+a&0x1FFF]
 	case a >= 0x8000:
-		return m.RomBanks[m.PrgLowerLowBank][a&0x1FFF]
+		return m.RomBanks[((m.PrgLowerLowBank)*0x2000)+a&0x1FFF]
 	}
 
 	return 0
@@ -295,8 +290,8 @@ func (m *Mmc3) BankData(v int) {
 	loadHardBanks := func() {
 		if m.AddressChanged {
 			// TODO: +1?
-			b := (len(m.RomBanks) - 1) * 2
-			b = ((b >> 1) % len(m.RomBanks)) - 1
+			b := ((2 * m.PrgBankCount) - 1) * 2
+			b = ((b >> 1) % (2 * m.PrgBankCount)) - 1
 
 			if m.PrgBankMode == PrgBankSwapModeLow {
 				if m.RamProtectDest[0xC000>>12] == b {
@@ -322,7 +317,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % len(m.VromBanks)
+		b := v % (m.ChrRomCount * 8)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr000Bank = b
 			m.Chr400Bank = b + 1
@@ -335,7 +330,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % len(m.VromBanks)
+		b := v % (m.ChrRomCount * 8)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr800Bank = b
 			m.ChrC00Bank = b + 1
@@ -348,7 +343,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % len(m.VromBanks)
+		b := v % (m.ChrRomCount * 8)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr1000Bank = b
 		} else {
@@ -359,7 +354,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % len(m.VromBanks)
+		b := v % (m.ChrRomCount * 8)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr1400Bank = b
 		} else {
@@ -370,7 +365,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % len(m.VromBanks)
+		b := v % (m.ChrRomCount * 8)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr1800Bank = b
 		} else {
@@ -381,14 +376,14 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % len(m.VromBanks)
+		b := v % (m.ChrRomCount * 8)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr1C00Bank = b
 		} else {
 			m.ChrC00Bank = b
 		}
 	case PrgBank8k8000:
-		b := v % len(m.RomBanks)
+		b := v % (2 * m.PrgBankCount)
 
 		if m.PrgBankMode == PrgBankSwapModeLow {
 			if m.RamProtectDest[0x8000>>12] == b {
@@ -407,7 +402,8 @@ func (m *Mmc3) BankData(v int) {
 
 		loadHardBanks()
 	case PrgBank8kA000:
-		b := v % len(m.RomBanks)
+		b := v % (2 * m.PrgBankCount)
+
 		if m.RamProtectDest[0xA000>>12] == b {
 			return
 		}

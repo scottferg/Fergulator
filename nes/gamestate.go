@@ -219,4 +219,3 @@ func Init(contents []byte, audioBuf func(int16), getter GetButtonFunc) (chan []u
 
 	return videoTick, nil
 }
-

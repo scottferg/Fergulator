@@ -10,11 +10,11 @@ const (
 )
 
 var (
-	SquareLookup = [][]int{
-		[]int{0, 1, 0, 0, 0, 0, 0, 0},
-		[]int{0, 1, 1, 0, 0, 0, 0, 0},
-		[]int{0, 1, 1, 1, 1, 0, 0, 0},
-		[]int{1, 0, 0, 1, 1, 1, 1, 1},
+	SquareLookup = []int{
+		0, 1, 0, 0, 0, 0, 0, 0,
+		0, 1, 1, 0, 0, 0, 0, 0,
+		0, 1, 1, 1, 1, 0, 0, 0,
+		1, 0, 0, 1, 1, 1, 1, 1,
 	}
 
 	TriangleLookup = []int16{
@@ -200,7 +200,7 @@ func (s *Square) Clock() {
 
 		if s.Timer < 8 {
 			s.UpdateSample(0)
-		} else if SquareLookup[s.DutyCycle][s.DutyCount] == 1 {
+		} else if SquareLookup[(s.DutyCycle*8)+s.DutyCount] == 1 {
 			s.UpdateSample(int16(s.Volume))
 		} else {
 			s.UpdateSample(0)
