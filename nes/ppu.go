@@ -685,19 +685,19 @@ func (p *Ppu) renderTileRow() {
 			}
 
 			current := (15 - b - uint(p.FineX))
-			pixel := (p.LowBitShift >> current) & 0x01
-			pixel += ((p.HighBitShift >> current) & 0x01) << 1
+			pixel := (p.LowBitShift>>current)&0x01 |
+				((p.HighBitShift>>current)&0x01)<<1
 
 			// If we're grabbing the pixel from the high
 			// part of the shift register, use the buffered
 			// palette, not the current one
-			if current < 8 {
-				palette = p.bgPaletteEntry(attrBuf, pixel)
-			} else {
+			if current >= 8 {
 				palette = p.bgPaletteEntry(attr, pixel)
+			} else {
+				palette = p.bgPaletteEntry(attrBuf, pixel)
 			}
 
-			px.Color = PaletteRgb[palette%64]
+			px.Color = PaletteRgb[palette]
 			px.Value = int(pixel)
 			px.Pindex = -1
 		}
