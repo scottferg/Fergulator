@@ -688,12 +688,12 @@ func (p *Ppu) renderTileRow() {
 			// part of the shift register, use the buffered
 			// palette, not the current one
 			if current >= 8 {
-				palette = p.bgPaletteEntry(attr, pixel) % 64
+				palette = p.bgPaletteEntry(attr, pixel)
 			} else {
 				palette = p.bgPaletteEntry(attrBuf, pixel)
 			}
 
-			px.Color = PaletteRgb[palette]
+			px.Color = PaletteRgb[palette%64]
 			px.Value = int(pixel)
 			px.Pindex = -1
 		}
