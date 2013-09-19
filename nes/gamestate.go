@@ -160,40 +160,6 @@ func saveBatteryFile() {
 	fmt.Println("Battery RAM saved to disk")
 }
 
-// Main system runloop. This should be run on it's own goroutine
-func RunSystem() {
-	var lastApuTick int
-	var cycles int
-	var flip int
-
-	for {
-		cycles = cpu.Step()
-		totalCpuCycles += cycles
-
-		for i := 0; i < 3*cycles; i++ {
-			ppu.Step()
-		}
-
-		for i := 0; i < cycles; i++ {
-			apu.Step()
-		}
-
-		if AudioEnabled {
-			if totalCpuCycles-apu.LastFrameTick >= (cpuClockSpeed / 240) {
-				apu.FrameSequencerStep()
-				apu.LastFrameTick = totalCpuCycles
-			}
-
-			if totalCpuCycles-lastApuTick >= ((cpuClockSpeed / 44100) + flip) {
-				apu.PushSample()
-				lastApuTick = totalCpuCycles
-
-				flip = (flip + 1) & 0x1
-			}
-		}
-	}
-}
-
 func Init(contents []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint32, error) {
 	// Init the hardware, get communication channels
 	// from the PPU and APU
