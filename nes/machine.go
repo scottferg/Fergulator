@@ -11,9 +11,9 @@ var (
 
 // Main system runloop. This should be run on it's own goroutine
 func RunSystem() {
-	var lastApuTick int
 	var cycles int
-	var flip int
+	// var lastApuTick int
+	// var flip int
 
 	for {
 		var frame int

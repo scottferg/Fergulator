@@ -168,8 +168,8 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 func (p *Ppu) raster() {
 	length := len(p.Palettebuffer)
 	for i := length - 1; i >= 0; i-- {
-		y := i / 256
-		x := i - (y * 256)
+		y := i >> 8
+		x := i - (y << 8)
 
 		bufpx := &p.Palettebuffer[i]
 
@@ -454,7 +454,7 @@ func (p *Ppu) WriteDma(v Word) {
 	cpu.CyclesToWait = 512
 
 	// Fill sprite RAM
-	addr := int(v) * 0x100
+	addr := int(v) << 8
 	for i := 0; i < 0x100; i++ {
 		d, _ := Ram.Read(uint16(addr + i))
 		p.SpriteRam[i] = d
@@ -595,9 +595,9 @@ func (p *Ppu) sprPatternTableAddress(i int) int {
 	if p.SpriteSize&0x01 != 0x0 {
 		// 8x16 Sprites
 		if i&0x01 != 0 {
-			return 0x1000 | ((int(i) >> 1) * 0x20)
+			return 0x1000 | ((int(i) >> 1) << 5)
 		} else {
-			return ((int(i) >> 1) * 0x20)
+			return ((int(i) >> 1) << 5)
 		}
 
 	}
@@ -610,7 +610,7 @@ func (p *Ppu) sprPatternTableAddress(i int) int {
 		a = 0x0
 	}
 
-	return int(i)*0x10 + a
+	return int(i)<<4 + a
 }
 
 func (p *Ppu) bgPatternTableAddress(i Word) int {
@@ -671,7 +671,7 @@ func (p *Ppu) renderTileRow() {
 
 		var b uint
 		for b = 0; b < 8; b++ {
-			fbRow := p.Scanline*256 + ((x * 8) + int(b))
+			fbRow := (p.Scanline << 8) + (x << 3) + int(b)
 			px := &p.Palettebuffer[fbRow]
 
 			if px.Value != 0 {
@@ -800,7 +800,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, s
 			continue
 		}
 
-		fbRow := y*256 + xcoord
+		fbRow := (y << 8) + xcoord
 
 		// Store the bit 0/1
 		pixel := (t[0] >> b) & 0x01
@@ -836,7 +836,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, s
 				continue
 			}
 
-			pal := p.PaletteRam[0x10+(palIndex*0x4)+uint(pixel)]
+			pal := p.PaletteRam[0x10+(palIndex<<2)+uint(pixel)]
 
 			px.Color = PaletteRgb[int(pal)%64]
 			px.Value = int(pixel)
