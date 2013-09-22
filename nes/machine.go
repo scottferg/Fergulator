@@ -7,6 +7,8 @@ var (
 	rom  Mapper
 	Ram  Memory
 	Pads [2]*Controller
+
+	Running = true
 )
 
 // Main system runloop. This should be run on it's own goroutine
@@ -15,7 +17,7 @@ func RunSystem() {
 	// var lastApuTick int
 	// var flip int
 
-	for {
+	for Running {
 		var frame int
 		for frame < 81840 {
 			for cycles <= 114 {
