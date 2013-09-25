@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/scottferg/Fergulator/nes"
-	"github.com/scottferg/Go-SDL/sdl"
+	"github.com/scottferg/Go-SDL2/sdl"
 )
 
 func GetKey(ev interface{}) int {
