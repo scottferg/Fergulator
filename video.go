@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/go-gl/gl"
 	"github.com/scottferg/Fergulator/nes"
-	"github.com/scottferg/Go-SDL2/gfx"
-	"github.com/scottferg/Go-SDL2/sdl"
+	"github.com/scottferg/Go-SDL/gfx"
+	"github.com/scottferg/Go-SDL/sdl"
 	"log"
 	"math"
 	"os"
@@ -14,7 +14,7 @@ import (
 
 type Video struct {
 	videoTick     <-chan []uint32
-	wind          *sdl.Window
+	screen        *sdl.Surface
 	fpsmanager    *gfx.FPSmanager
 	prog          gl.Program
 	texture       gl.Texture
@@ -65,17 +65,16 @@ func (v *Video) Init(t <-chan []uint32, n string) {
 		log.Fatal(sdl.GetError())
 	}
 
-	v.wind = sdl.CreateWindow("SDL2 Sample", sdl.WINDOWPOS_UNDEFINED,
-		sdl.WINDOWPOS_UNDEFINED, 512, 480, sdl.WINDOW_SHOWN|sdl.WINDOW_OPENGL)
-	if v.wind == nil {
+	v.screen = sdl.SetVideoMode(512, 480, 32,
+		sdl.OPENGL|sdl.RESIZABLE|sdl.GL_DOUBLEBUFFER)
+	if v.screen == nil {
 		log.Fatal(sdl.GetError())
 	}
 
-	v.wind.GL_CreateContext()
-	v.wind.SetTitle(fmt.Sprintf("Fergulator - %s", n))
+	sdl.WM_SetCaption(fmt.Sprintf("Fergulator - %s", n), "")
 
 	v.initGL()
-	// v.Reshape(int(v.wind.W), int(v.wind.H))
+	v.Reshape(int(v.screen.W), int(v.screen.H))
 
 	v.fpsmanager = gfx.NewFramerate()
 	v.fpsmanager.SetFramerate(60)
@@ -85,7 +84,7 @@ func (v *Video) Init(t <-chan []uint32, n string) {
 
 func (v *Video) initGL() {
 	if gl.Init() != 0 {
-		log.Fatalf(sdl.GetError())
+		panic(sdl.GetError())
 	}
 
 	gl.ClearColor(0.0, 0.0, 0.0, 1.0)
@@ -123,12 +122,12 @@ func (v *Video) initGL() {
 }
 
 func (v *Video) ResizeEvent(w, h int) {
-	// v.wind = sdl.SetVideoMode(w, h, 32, sdl.OPENGL|sdl.RESIZABLE)
+	v.screen = sdl.SetVideoMode(w, h, 32, sdl.OPENGL|sdl.RESIZABLE)
 	v.Reshape(w, h)
 }
 
 func (v *Video) FullscreenEvent() {
-	// v.screen = sdl.SetVideoMode(1440, 900, 32, sdl.OPENGL|sdl.FULLSCREEN)
+	v.screen = sdl.SetVideoMode(1440, 900, 32, sdl.OPENGL|sdl.FULLSCREEN)
 	v.Reshape(1440, 900)
 }
 
@@ -175,8 +174,10 @@ func (v *Video) Render() {
 
 			gl.DrawArrays(gl.TRIANGLES, 0, 6)
 
-			v.wind.GL_SwapWindow()
-			v.fpsmanager.FramerateDelay()
+			if v.screen != nil {
+				sdl.GL_SwapBuffers()
+				v.fpsmanager.FramerateDelay()
+			}
 		case ev := <-sdl.Events:
 			switch e := ev.(type) {
 			case sdl.ResizeEvent:

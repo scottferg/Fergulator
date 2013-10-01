@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"github.com/scottferg/Go-SDL2/sdl"
-	sdl_audio "github.com/scottferg/Go-SDL2/sdl/audio"
+	"github.com/scottferg/Go-SDL/sdl"
+	sdl_audio "github.com/scottferg/Go-SDL/sdl/audio"
 	"log"
 	"sync"
 )
