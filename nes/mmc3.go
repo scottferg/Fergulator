@@ -167,21 +167,21 @@ func (m *Mmc3) WriteVram(v Word, a int) {
 
 	switch {
 	case a&0x1C00 == 0x1C00:
-		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
+		addr = (m.Chr1C00Bank << 0xA) + a&0x3FF
 	case a&0x1800 == 0x1800:
-		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
+		addr = (m.Chr1800Bank << 0xA) + a&0x3FF
 	case a&0x1400 == 0x1400:
-		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
+		addr = (m.Chr1400Bank << 0xA) + a&0x3FF
 	case a&0x1000 == 0x1000:
-		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
+		addr = (m.Chr1000Bank << 0xA) + a&0x3FF
 	case a&0x0C00 == 0x0C00:
-		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
+		addr = (m.ChrC00Bank << 0xA) + a&0x3FF
 	case a&0x0800 == 0x0800:
-		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
+		addr = (m.Chr800Bank << 0xA) + a&0x3FF
 	case a&0x0400 == 0x0400:
-		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
+		addr = (m.Chr400Bank << 0xA) + a&0x3FF
 	default:
-		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
+		addr = (m.Chr000Bank << 0xA) + a&0x3FF
 	}
 
 	m.VromBanks[addr] = v
@@ -192,21 +192,21 @@ func (m *Mmc3) ReadVram(a int) Word {
 
 	switch {
 	case a&0x1C00 == 0x1C00:
-		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
+		addr = (m.Chr1C00Bank << 0xA) + a&0x3FF
 	case a&0x1800 == 0x1800:
-		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
+		addr = (m.Chr1800Bank << 0xA) + a&0x3FF
 	case a&0x1400 == 0x1400:
-		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
+		addr = (m.Chr1400Bank << 0xA) + a&0x3FF
 	case a&0x1000 == 0x1000:
-		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
+		addr = (m.Chr1000Bank << 0xA) + a&0x3FF
 	case a&0x0C00 == 0x0C00:
-		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
+		addr = (m.ChrC00Bank << 0xA) + a&0x3FF
 	case a&0x0800 == 0x0800:
-		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
+		addr = (m.Chr800Bank << 0xA) + a&0x3FF
 	case a&0x0400 == 0x0400:
-		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
+		addr = (m.Chr400Bank << 0xA) + a&0x3FF
 	default:
-		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
+		addr = (m.Chr000Bank << 0xA) + a&0x3FF
 	}
 
 	return m.VromBanks[addr]
@@ -217,21 +217,21 @@ func (m *Mmc3) ReadTile(a int) []Word {
 
 	switch {
 	case a&0x1C00 == 0x1C00:
-		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
+		addr = (m.Chr1C00Bank << 0xA) + a&0x3FF
 	case a&0x1800 == 0x1800:
-		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
+		addr = (m.Chr1800Bank << 0xA) + a&0x3FF
 	case a&0x1400 == 0x1400:
-		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
+		addr = (m.Chr1400Bank << 0xA) + a&0x3FF
 	case a&0x1000 == 0x1000:
-		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
+		addr = (m.Chr1000Bank << 0xA) + a&0x3FF
 	case a&0x0C00 == 0x0C00:
-		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
+		addr = (m.ChrC00Bank << 0xA) + a&0x3FF
 	case a&0x0800 == 0x0800:
-		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
+		addr = (m.Chr800Bank << 0xA) + a&0x3FF
 	case a&0x0400 == 0x0400:
-		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
+		addr = (m.Chr400Bank << 0xA) + a&0x3FF
 	default:
-		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
+		addr = (m.Chr000Bank << 0xA) + a&0x3FF
 	}
 
 	return m.VromBanks[addr : addr+16]
@@ -242,13 +242,13 @@ func (m *Mmc3) Read(a int) Word {
 
 	switch {
 	case a&0xE000 == 0xE000:
-		addr = ((m.PrgUpperHighBank) * 0x2000) + a&0x1FFF
+		addr = (m.PrgUpperHighBank << 0xD) + a&0x1FFF
 	case a&0xC000 == 0xC000:
-		addr = ((m.PrgUpperLowBank) * 0x2000) + a&0x1FFF
+		addr = (m.PrgUpperLowBank << 0xD) + a&0x1FFF
 	case a&0xA000 == 0xA000:
-		addr = ((m.PrgLowerHighBank) * 0x2000) + a&0x1FFF
+		addr = (m.PrgLowerHighBank << 0xD) + a&0x1FFF
 	case a&0x8000 == 0x8000:
-		addr = ((m.PrgLowerLowBank) * 0x2000) + a&0x1FFF
+		addr = (m.PrgLowerLowBank << 0xD) + a&0x1FFF
 	}
 
 	return m.RomBanks[addr]
@@ -327,7 +327,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % (m.ChrRomCount * 8)
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr000Bank = b
 			m.Chr400Bank = b + 1
@@ -340,7 +340,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % (m.ChrRomCount * 8)
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr800Bank = b
 			m.ChrC00Bank = b + 1
@@ -353,7 +353,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % (m.ChrRomCount * 8)
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr1000Bank = b
 		} else {
@@ -364,7 +364,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % (m.ChrRomCount * 8)
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr1400Bank = b
 		} else {
@@ -375,7 +375,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % (m.ChrRomCount * 8)
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr1800Bank = b
 		} else {
@@ -386,7 +386,7 @@ func (m *Mmc3) BankData(v int) {
 			break
 		}
 
-		b := v % (m.ChrRomCount * 8)
+		b := v % len(m.VromBanks)
 		if m.ChrA12Inversion == ChrA12InversionModeLow {
 			m.Chr1C00Bank = b
 		} else {
