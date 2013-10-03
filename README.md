@@ -24,12 +24,9 @@ Requires Go 1.1
 
 From your GOPATH:
 
-        $ brew install sdl sdl_gfx sdl_image glew
+        $ brew install sdl --with-x11-driver
+        $ brew install sdl_gfx sdl_image glew
         $ brew edit sdl
-
-Remove the line that says: `args << '--without-x'`
-
-        $ brew reinstall sdl
         $ go get github.com/scottferg/Fergulator
 
 ## Run the emulator
