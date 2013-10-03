@@ -972,8 +972,8 @@ func (c *Cpu) Step() int {
 	case InterruptIrq:
 		if !c.getIrqDisable() {
 			c.PerformIrq()
+			c.InterruptRequested = InterruptNone
 		}
-		c.InterruptRequested = InterruptNone
 	case InterruptNmi:
 		c.PerformNmi()
 		c.InterruptRequested = InterruptNone

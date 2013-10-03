@@ -94,6 +94,11 @@ func (m Memory) Read(a uint16) (Word, error) {
 		return apu.RegRead(int(a))
 	case a >= 0x8000 && a <= 0xFFFF:
 		return rom.Read(int(a)), nil
+	case a >= 0x5100 && a <= 0x6000:
+		if _, ok := rom.(*Mmc5); ok {
+			// MMC5 register handling
+			return rom.Read(int(a)), nil
+		}
 	}
 
 	return m[a], nil

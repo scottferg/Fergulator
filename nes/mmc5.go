@@ -28,6 +28,7 @@ type Mmc5 struct {
 	IrqLatch   int
 	IrqCounter int
 	IrqEnabled bool
+	IrqStatus  Word
 
 	PrgUpperHighBank int
 	PrgUpperLowBank  int
@@ -552,6 +553,17 @@ func (m *Mmc5) Read(a int) Word {
 		return m.RomBanks[m.PrgLowerHighBank][a&0x1FFF]
 	case a >= 0x8000:
 		return m.RomBanks[m.PrgLowerLowBank][a&0x1FFF]
+	case a >= 0x5000:
+		switch {
+		case a == 0x5204:
+			return m.ReadIrqStatus()
+		case a >= 0x5C00 && a <= 0x5FFF:
+			if m.ExtendedRamMode == 0x2 || m.ExtendedRamMode == 0x3 {
+				return m.ExtendedRam[a-0x5C00]
+			}
+
+			return Ram[a]
+		}
 	}
 
 	return 0
@@ -571,12 +583,14 @@ func (m *Mmc5) SetNametableMapping(v Word) {
 		case 1:
 			ppu.Nametables.LogicalTables[i] = &ppu.Nametables.Nametable1
 		case 2:
-			ppu.Nametables.LogicalTables[i] = &m.ExtendedRam
+			if m.ExtendedRamMode <= 0x1 {
+				ppu.Nametables.LogicalTables[i] = &m.ExtendedRam
+			} else {
+				var fillmode [0x400]Word
+				ppu.Nametables.LogicalTables[i] = &fillmode
+			}
 		case 3:
 			var fillmode [0x400]Word
-			for x := range fillmode {
-				fillmode[x] = 0x0
-			}
 			ppu.Nametables.LogicalTables[i] = &fillmode
 		}
 	}
@@ -594,16 +608,24 @@ func (m *Mmc5) SwapBgVram() {
 	}
 }
 
+func (m *Mmc5) ReadIrqStatus() Word {
+	result := m.IrqStatus
+	m.IrqStatus &= 0x7F
+	cpu.RequestInterrupt(InterruptNone)
+
+	return result
+}
+
 func (m *Mmc5) NotifyScanline() {
-	if Ram[0x5204]&0x40 == 0x40 {
+	if m.IrqStatus&0x40 == 0x40 {
 		// If In-Frame flag is set
 		m.IrqCounter++
 		if m.IrqEnabled && m.IrqCounter == m.IrqLatch {
-			Ram[0x5204] |= 0x80
+			m.IrqStatus |= 0x80
 			cpu.RequestInterrupt(InterruptIrq)
 		}
 	} else {
-		Ram[0x5204] = 0x40
+		m.IrqStatus = 0x40
 		m.IrqCounter = 0
 	}
 }
