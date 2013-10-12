@@ -617,15 +617,23 @@ func (m *Mmc5) ReadIrqStatus() Word {
 }
 
 func (m *Mmc5) NotifyScanline() {
-	if m.IrqStatus&0x40 == 0x40 {
-		// If In-Frame flag is set
-		m.IrqCounter++
-		if m.IrqEnabled && m.IrqCounter == m.IrqLatch {
-			m.IrqStatus |= 0x80
-			cpu.RequestInterrupt(InterruptIrq)
+	if ppu.Scanline < 240 && ppu.Scanline > -1 {
+		if m.IrqStatus&0x40 == 0x40 {
+			// If In-Frame flag is set
+			m.IrqCounter++
+			if m.IrqCounter == m.IrqLatch {
+				m.IrqStatus |= 0x80
+
+				if m.IrqEnabled {
+					cpu.RequestInterrupt(InterruptIrq)
+				}
+			}
+		} else {
+			m.IrqStatus = 0x40
+			m.IrqCounter = 0
+			cpu.RequestInterrupt(InterruptNone)
 		}
 	} else {
-		m.IrqStatus = 0x40
-		m.IrqCounter = 0
+		m.IrqStatus &= 0xBF
 	}
 }

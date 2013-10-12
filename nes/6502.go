@@ -970,7 +970,12 @@ func (c *Cpu) Step() int {
 	// Check if an interrupt was requested
 	switch c.InterruptRequested {
 	case InterruptIrq:
-		if !c.getIrqDisable() {
+		if v, ok := rom.(*Mmc5); ok {
+			if !c.getIrqDisable() && v.IrqStatus&0x80 == 0x80 {
+				c.PerformIrq()
+				c.InterruptRequested = InterruptNone
+			}
+		} else if !c.getIrqDisable() {
 			c.PerformIrq()
 			c.InterruptRequested = InterruptNone
 		}

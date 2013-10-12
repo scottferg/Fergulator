@@ -242,10 +242,6 @@ func (p *Ppu) Step() {
 				}
 				p.evaluateScanlineSprites(p.Scanline)
 			}
-
-			if m, ok := rom.(*Mmc5); ok {
-				m.NotifyScanline()
-			}
 		case 256:
 			if p.ShowBackground {
 				p.updateEndScanlineRegisters()
@@ -273,6 +269,10 @@ func (p *Ppu) Step() {
 	if p.Cycle == 341 {
 		p.Cycle = 0
 		p.Scanline++
+
+		if m, ok := rom.(*Mmc5); ok {
+			m.NotifyScanline()
+		}
 	}
 
 	p.Cycle++

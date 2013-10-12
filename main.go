@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/scottferg/Fergulator/nes"
 	"io/ioutil"
+	"log"
 	"os"
 	"runtime"
 	"runtime/pprof"
 	"strings"
-	"log"
 )
 
 var (
