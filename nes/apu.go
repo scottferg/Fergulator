@@ -163,8 +163,8 @@ func (s *Square) WriteControl(v Word) {
 
 func (s *Square) WriteSweeps(v Word) {
 	s.SweepEnabled = v&0x80 == 0x80
-	s.SweepPeriod = (v & 0x7) >> 4
-	s.SweepMode = (v & 1) >> 3
+	s.SweepPeriod = (v >> 4) & 0x7
+	s.SweepMode = (v >> 3) & 1
 	s.Negative = v&0x10 == 0x10
 	s.Shift = v & 0x7
 
