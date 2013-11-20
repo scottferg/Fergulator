@@ -1,12 +1,23 @@
 package nes
 
 var (
+<<<<<<< HEAD
 	cpu     Cpu
 	ppu     Ppu
 	apu     Apu
 	rom     Mapper
 	Ram     Memory
 	Pads    [2]*Controller
+=======
+	cpu  Cpu
+	ppu  Ppu
+	apu  Apu
+	rom  Mapper
+	Ram  Memory
+	Pads [2]*Controller
+
+	Running = true
+>>>>>>> 4c75604944e216dde4f118842923b7ed5c982af7
 )
 
 // Main system runloop. This should be run on it's own goroutine
@@ -15,7 +26,7 @@ func RunSystem() {
 	// var lastApuTick int
 	// var flip int
 
-	for {
+	for Running {
 		var frame int
 		for frame < 81840 {
 			for cycles <= 114 {
