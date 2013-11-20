@@ -1,12 +1,12 @@
 package nes
 
 var (
-	cpu  Cpu
-	ppu  Ppu
-	apu  Apu
-	rom  Mapper
-	Ram  Memory
-	Pads [2]*Controller
+	cpu     Cpu
+	ppu     Ppu
+	apu     Apu
+	rom     Mapper
+	Ram     Memory
+	Pads    [2]*Controller
 )
 
 // Main system runloop. This should be run on it's own goroutine

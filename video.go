@@ -65,7 +65,7 @@ func (v *Video) Init(t <-chan []uint32, n string) {
 		log.Fatal(sdl.GetError())
 	}
 
-	v.screen = sdl.SetVideoMode(512, 480, 32,
+	v.screen = sdl.SetVideoMode(512, 512, 32,
 		sdl.OPENGL|sdl.RESIZABLE|sdl.GL_DOUBLEBUFFER)
 	if v.screen == nil {
 		log.Fatal(sdl.GetError())
@@ -169,7 +169,7 @@ func (v *Video) Render() {
 			gl.ActiveTexture(gl.TEXTURE0)
 			v.texture.Bind(gl.TEXTURE_2D)
 
-			gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 240, 224, 0, gl.RGBA,
+			gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 256, 256, 0, gl.RGBA,
 				gl.UNSIGNED_INT_8_8_8_8, buf)
 
 			gl.DrawArrays(gl.TRIANGLES, 0, 6)
@@ -207,19 +207,19 @@ func (v *Video) Render() {
 					}
 				case sdl.K_1:
 					if e.Type == sdl.KEYDOWN {
-						v.ResizeEvent(256, 240)
+						v.ResizeEvent(256, 256)
 					}
 				case sdl.K_2:
 					if e.Type == sdl.KEYDOWN {
-						v.ResizeEvent(512, 480)
+						v.ResizeEvent(512, 512)
 					}
 				case sdl.K_3:
 					if e.Type == sdl.KEYDOWN {
-						v.ResizeEvent(768, 720)
+						v.ResizeEvent(768, 768)
 					}
 				case sdl.K_4:
 					if e.Type == sdl.KEYDOWN {
-						v.ResizeEvent(1024, 960)
+						v.ResizeEvent(1024, 1024)
 					}
 				}
 

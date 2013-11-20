@@ -63,6 +63,12 @@ type Mmc3 struct {
 	Chr1800Bank int
 	Chr1C00Bank int
 
+	RamReadDest  int
+	RamReadCache int
+
+	VramReadDest  int
+	VramReadCache int
+
 	RamProtectDest [16]int
 }
 
@@ -72,6 +78,8 @@ func NewMmc3(r *Nrom) *Mmc3 {
 		ChrRomCount:  r.ChrRomCount,
 		Battery:      r.Battery,
 		Data:         r.Data,
+		RamReadCache: 0,
+		RamReadDest:  0xFFFF,
 	}
 
 	// This just needs to be non-zero and not a 1
@@ -162,96 +170,71 @@ func (m *Mmc3) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc3) WriteVram(v Word, a int) {
-	var addr int
-
-	switch {
-	case a&0x1C00 == 0x1C00:
-		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
-	case a&0x1800 == 0x1800:
-		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
-	case a&0x1400 == 0x1400:
-		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
-	case a&0x1000 == 0x1000:
-		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
-	case a&0x0C00 == 0x0C00:
-		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
-	case a&0x0800 == 0x0800:
-		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
-	case a&0x0400 == 0x0400:
-		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
-	default:
-		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
+func (m *Mmc3) VramAddress(a int) int {
+	if (a-m.VramReadDest) > 0x03FF || (a-m.VramReadDest) < 0 {
+		switch {
+		case a&0x1C00 == 0x1C00:
+			m.VramReadCache = (0x0400 * m.Chr1C00Bank)
+			m.VramReadDest = 0x1C00
+		case a&0x1800 == 0x1800:
+			m.VramReadCache = (0x0400 * m.Chr1800Bank)
+			m.VramReadDest = 0x1800
+		case a&0x1400 == 0x1400:
+			m.VramReadCache = (0x0400 * m.Chr1400Bank)
+			m.VramReadDest = 0x1400
+		case a&0x1000 == 0x1000:
+			m.VramReadCache = (0x0400 * m.Chr1000Bank)
+			m.VramReadDest = 0x1000
+		case a&0x0C00 == 0x0C00:
+			m.VramReadCache = (0x0400 * m.ChrC00Bank)
+			m.VramReadDest = 0x0C00
+		case a&0x0800 == 0x0800:
+			m.VramReadCache = (0x0400 * m.Chr800Bank)
+			m.VramReadDest = 0x0800
+		case a&0x0400 == 0x0400:
+			m.VramReadCache = (0x0400 * m.Chr400Bank)
+			m.VramReadDest = 0x0400
+		default:
+			m.VramReadCache = (0x0400 * m.Chr000Bank)
+			m.VramReadDest = 0x0000
+		}
 	}
 
-	m.VromBanks[addr] = v
+	return m.VramReadCache + a&0x3FF
+}
+
+func (m *Mmc3) WriteVram(v Word, a int) {
+	m.VromBanks[m.VramAddress(a)] = v
 }
 
 func (m *Mmc3) ReadVram(a int) Word {
-	var addr int
-
-	switch {
-	case a&0x1C00 == 0x1C00:
-		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
-	case a&0x1800 == 0x1800:
-		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
-	case a&0x1400 == 0x1400:
-		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
-	case a&0x1000 == 0x1000:
-		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
-	case a&0x0C00 == 0x0C00:
-		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
-	case a&0x0800 == 0x0800:
-		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
-	case a&0x0400 == 0x0400:
-		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
-	default:
-		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
-	}
-
-	return m.VromBanks[addr]
+	return m.VromBanks[m.VramAddress(a)]
 }
 
 func (m *Mmc3) ReadTile(a int) []Word {
-	var addr int
-
-	switch {
-	case a&0x1C00 == 0x1C00:
-		addr = (0x0400 * m.Chr1C00Bank) + a&0x3FF
-	case a&0x1800 == 0x1800:
-		addr = (0x0400 * m.Chr1800Bank) + a&0x3FF
-	case a&0x1400 == 0x1400:
-		addr = (0x0400 * m.Chr1400Bank) + a&0x3FF
-	case a&0x1000 == 0x1000:
-		addr = (0x0400 * m.Chr1000Bank) + a&0x3FF
-	case a&0x0C00 == 0x0C00:
-		addr = (0x0400 * m.ChrC00Bank) + a&0x3FF
-	case a&0x0800 == 0x0800:
-		addr = (0x0400 * m.Chr800Bank) + a&0x3FF
-	case a&0x0400 == 0x0400:
-		addr = (0x0400 * m.Chr400Bank) + a&0x3FF
-	default:
-		addr = (0x0400 * m.Chr000Bank) + a&0x3FF
-	}
-
+	addr := m.VramAddress(a)
 	return m.VromBanks[addr : addr+16]
 }
 
 func (m *Mmc3) Read(a int) Word {
-	var addr int
-
-	switch {
-	case a&0xE000 == 0xE000:
-		addr = ((m.PrgUpperHighBank) * 0x2000) + a&0x1FFF
-	case a&0xC000 == 0xC000:
-		addr = ((m.PrgUpperLowBank) * 0x2000) + a&0x1FFF
-	case a&0xA000 == 0xA000:
-		addr = ((m.PrgLowerHighBank) * 0x2000) + a&0x1FFF
-	case a&0x8000 == 0x8000:
-		addr = ((m.PrgLowerLowBank) * 0x2000) + a&0x1FFF
+	if (a-m.RamReadDest) > 0x1FFF || (a-m.RamReadDest) < 0 {
+		switch {
+		case a&0xE000 == 0xE000:
+			m.RamReadCache = ((m.PrgUpperHighBank) * 0x2000)
+			m.RamReadDest = 0xE000
+		case a&0xC000 == 0xC000:
+			m.RamReadCache = ((m.PrgUpperLowBank) * 0x2000)
+			m.RamReadDest = 0xC000
+		case a&0xA000 == 0xA000:
+			m.RamReadCache = ((m.PrgLowerHighBank) * 0x2000)
+			m.RamReadDest = 0xA000
+		case a&0x8000 == 0x8000:
+			m.RamReadCache = ((m.PrgLowerLowBank) * 0x2000)
+			m.RamReadDest = 0x8000
+		}
 	}
 
-	return m.RomBanks[addr]
+	return m.RomBanks[m.RamReadCache+a&0x1FFF]
 }
 
 func (m *Mmc3) RegisterNumber(a int) int {

@@ -7,10 +7,10 @@ const (
 )
 
 type SpriteData struct {
-	Tiles        [256]Word
-	YCoordinates [256]Word
-	Attributes   [256]Word
-	XCoordinates [256]Word
+	Tiles        []Word
+	YCoordinates []int
+	Attributes   []Word
+	XCoordinates []Word
 }
 
 type Flags struct {
@@ -24,7 +24,7 @@ type Flags struct {
 }
 
 type Pixel struct {
-	Color  uint32
+	Color  int
 	Value  int
 	Pindex int
 }
@@ -60,12 +60,11 @@ type Ppu struct {
 	Flags
 	Masks
 	SpriteData
-	Vram              [0xFFFF]Word
-	SpriteRam         [0x100]Word
+	SpriteRam         []Word
 	Nametables        Nametable
-	PaletteRam        [0x20]Word
-	AttributeLocation [0x400]uint
-	AttributeShift    [0x400]uint
+	PaletteRam        []Word
+	AttributeLocation []uint
+	AttributeShift    []uint
 	A12High           bool
 
 	Palettebuffer []Pixel
@@ -95,15 +94,17 @@ func (p *Ppu) Init() chan []uint32 {
 	p.Scanline = 241
 	p.FrameCount = 0
 
+	p.SpriteData.Tiles = make([]Word, 256)
+	p.SpriteData.YCoordinates = make([]int, 256)
+	p.SpriteData.Attributes = make([]Word, 256)
+	p.SpriteData.XCoordinates = make([]Word, 256)
+
+	p.SpriteRam = make([]Word, 0x100)
+	p.PaletteRam = make([]Word, 0x20)
+	p.AttributeLocation = make([]uint, 0x400)
+	p.AttributeShift = make([]uint, 0x400)
+
 	p.VblankTime = 20 * 341 * 5 // NTSC
-
-	for i, _ := range p.Vram {
-		p.Vram[i] = 0x00
-	}
-
-	for i, _ := range p.SpriteRam {
-		p.SpriteRam[i] = 0x00
-	}
 
 	for i, _ := range p.AttributeShift {
 		x := uint(i)
@@ -112,7 +113,7 @@ func (p *Ppu) Init() chan []uint32 {
 	}
 
 	p.Palettebuffer = make([]Pixel, 0xF000)
-	p.Framebuffer = make([]uint32, 0xEFE0)
+	p.Framebuffer = make([]uint32, 256*256)
 
 	return p.Output
 }
@@ -171,13 +172,6 @@ func (p *Ppu) raster() {
 		y := i >> 8
 		x := i - (y << 8)
 
-		bufpx := &p.Palettebuffer[i]
-
-		var color uint32
-		color = bufpx.Color
-
-		width := 256
-
 		// Always use overscan
 		if y < 8 || y > 231 || x < 8 || x > 247 {
 			continue
@@ -186,9 +180,9 @@ func (p *Ppu) raster() {
 			x -= 8
 		}
 
-		width = 240
+		bufpx := &p.Palettebuffer[i]
 
-		p.Framebuffer[(y*width)+x] = color << 8
+		p.Framebuffer[y*256+x] = PaletteRgb[bufpx.Color%64]
 		bufpx.Value = 0
 		bufpx.Pindex = -1
 	}
@@ -467,7 +461,7 @@ func (p *Ppu) updateBufferedSpriteMem(a int, v Word) {
 
 	switch a % 4 {
 	case 0x0:
-		p.SpriteData.YCoordinates[i] = v
+		p.SpriteData.YCoordinates[i] = int(v)
 	case 0x1:
 		p.SpriteData.Tiles[i] = v
 	case 0x2:
@@ -526,7 +520,7 @@ func (p *Ppu) WriteData(v Word) {
 			v.LatchTrigger(t)
 		}
 	} else {
-		p.Vram[p.VramAddress&0x3FFF] = v
+		rom.WriteVram(v, p.VramAddress&0x3FFF)
 	}
 
 	p.incrementVramAddress()
@@ -550,7 +544,7 @@ func (p *Ppu) ReadData() (r Word, err error) {
 				v.LatchTrigger(t)
 			}
 		} else {
-			p.VramDataBuffer = p.Vram[p.VramAddress]
+			p.VramDataBuffer = rom.ReadVram(p.VramAddress)
 		}
 	} else {
 		bufferAddress := p.VramAddress - 0x1000
@@ -558,7 +552,7 @@ func (p *Ppu) ReadData() (r Word, err error) {
 		case bufferAddress >= 0x2000 && bufferAddress < 0x3000:
 			p.VramDataBuffer = p.Nametables.readNametableData(bufferAddress)
 		default:
-			p.VramDataBuffer = p.Vram[bufferAddress]
+			p.VramDataBuffer = rom.ReadVram(bufferAddress)
 		}
 
 		a := p.VramAddress
@@ -625,20 +619,22 @@ func (p *Ppu) bgPatternTableAddress(i Word) int {
 }
 
 func (p *Ppu) fetchTileAttributes() (uint16, uint16, Word) {
-	attrAddr := 0x23C0 | (p.VramAddress & 0xC00) | int(p.AttributeLocation[p.VramAddress&0x3FF])
-	shift := p.AttributeShift[p.VramAddress&0x3FF]
+	vramaddr := &p.VramAddress
+
+	attrAddr := 0x23C0 | (*vramaddr & 0xC00) | int(p.AttributeLocation[*vramaddr&0x3FF])
+	shift := p.AttributeShift[*vramaddr&0x3FF]
 	attr := ((p.Nametables.readNametableData(attrAddr) >> shift) & 0x03) << 2
 
-	index := p.Nametables.readNametableData(p.VramAddress)
+	index := p.Nametables.readNametableData(*vramaddr)
 	t := p.bgPatternTableAddress(index)
 
 	// Flip bit 10 on wraparound
-	if p.VramAddress&0x1F == 0x1F {
+	if *vramaddr&0x1F == 0x1F {
 		// If rendering is enabled, at the end of a scanline
 		// copy bits 10 and 4-0 from VRAM latch into VRAMADDR
-		p.VramAddress ^= 0x41F
+		*vramaddr ^= 0x41F
 	} else {
-		p.VramAddress++
+		*vramaddr++
 	}
 
 	// MMC2 latch trigger
@@ -666,12 +662,19 @@ func (p *Ppu) renderTileRow() {
 	p.LowBitShift = (p.LowBitShift << 8) | low
 	p.HighBitShift = (p.HighBitShift << 8) | high
 
+	lowb := &p.LowBitShift
+	highb := &p.HighBitShift
+
+	ycoord := (p.Scanline << 8)
+
 	for x := 0; x < 32; x++ {
 		var palette int
 
+		xcoord := (x << 3)
+
 		var b uint
 		for b = 0; b < 8; b++ {
-			fbRow := (p.Scanline << 8) + (x << 3) + int(b)
+			fbRow := ycoord + xcoord + int(b)
 			px := &p.Palettebuffer[fbRow]
 
 			if px.Value != 0 {
@@ -681,8 +684,7 @@ func (p *Ppu) renderTileRow() {
 			}
 
 			current := (15 - b - uint(p.FineX))
-			pixel := (p.LowBitShift>>current)&0x01 |
-				((p.HighBitShift>>current)&0x01)<<1
+			pixel := (*lowb>>current)&0x01 | ((*highb>>current)&0x01)<<1
 
 			// If we're grabbing the pixel from the high
 			// part of the shift register, use the buffered
@@ -693,7 +695,7 @@ func (p *Ppu) renderTileRow() {
 				palette = p.bgPaletteEntry(attrBuf, pixel)
 			}
 
-			px.Color = PaletteRgb[palette%64]
+			px.Color = palette
 			px.Value = int(pixel)
 			px.Pindex = -1
 		}
@@ -704,9 +706,12 @@ func (p *Ppu) renderTileRow() {
 		// Shift the first tile out, bring the new tile in
 		low, high, attrBuf = p.fetchTileAttributes()
 
-		p.LowBitShift = (p.LowBitShift << 8) | low
-		p.HighBitShift = (p.HighBitShift << 8) | high
+		*lowb = (*lowb << 8) | low
+		*highb = (*highb << 8) | high
 	}
+
+	p.LowBitShift = *lowb
+	p.HighBitShift = *highb
 }
 
 func (p *Ppu) evaluateScanlineSprites(line int) {
@@ -717,20 +722,29 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 		spriteHeight = 16
 	}
 
-	for i, y := range p.SpriteData.YCoordinates {
-		if int(y) > (line-1)-spriteHeight && int(y)+(spriteHeight-1) < (line-1)+spriteHeight {
+	height := (line - 1) - spriteHeight
+	topheight := (line - 1) + spriteHeight
+
+	spriteHeight -= 1
+
+	coords := &p.SpriteData.YCoordinates
+	for i, y := range *coords {
+		scanline := y
+		top := scanline + spriteHeight
+
+		if scanline > height && top < topheight {
 			attrValue := p.Attributes[i] & 0x3
 			t := p.SpriteData.Tiles[i]
 
-			c := (line - 1) - int(y)
+			c := (line - 1) - scanline
 
 			var ycoord int
 
 			yflip := (p.Attributes[i]>>7)&0x1 == 0x1
 			if yflip {
-				ycoord = int(p.YCoordinates[i]) + ((spriteHeight - 1) - c)
+				ycoord = p.YCoordinates[i] + (spriteHeight - c)
 			} else {
-				ycoord = int(p.YCoordinates[i]) + c + 1
+				ycoord = p.YCoordinates[i] + c + 1
 			}
 
 			if p.SpriteSize&0x01 != 0x0 {
@@ -755,7 +769,8 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 
 				sprite0 := i == 0
 
-				p.decodePatternTile([]Word{tile[c%8], tile[(c%8)+8]},
+				c %= 8
+				p.decodePatternTile([]Word{tile[c], tile[c+8]},
 					int(p.XCoordinates[i]),
 					ycoord,
 					uint(attrValue),
@@ -838,7 +853,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, s
 
 			pal := p.PaletteRam[0x10+(palIndex<<2)+uint(pixel)]
 
-			px.Color = PaletteRgb[int(pal)%64]
+			px.Color = int(pal)
 			px.Value = int(pixel)
 			px.Pindex = index
 		}
