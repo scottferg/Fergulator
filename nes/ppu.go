@@ -172,14 +172,6 @@ func (p *Ppu) raster() {
 		y := i >> 8
 		x := i - (y << 8)
 
-		// Always use overscan
-		if y < 8 || y > 231 || x < 8 || x > 247 {
-			continue
-		} else {
-			y -= 8
-			x -= 8
-		}
-
 		bufpx := &p.Palettebuffer[i]
 
 		p.Framebuffer[y*256+x] = PaletteRgb[bufpx.Color%64]
