@@ -167,18 +167,7 @@ func (p *Ppu) writeMirroredVram(a int, v Word) {
 }
 
 func (p *Ppu) raster() {
-	length := len(p.Palettebuffer)
-	for i := length - 1; i >= 0; i-- {
-		y := i >> 8
-		x := i - (y << 8)
-
-		bufpx := &p.Palettebuffer[i]
-
-		p.Framebuffer[y*256+x] = int32(bufpx.Color)
-		bufpx.Value = 0
-		bufpx.Pindex = -1
-	}
-
+	p.Palettebuffer = make([]Pixel, 0xF000)
 	p.Output <- p.Framebuffer
 }
 
@@ -654,9 +643,9 @@ func (p *Ppu) renderPixelRow(xcoord, ycoord int, highb, lowb uint16, attr, attrB
 				palette = p.bgPaletteEntry(attrBuf, pixel)
 			}
 
-			px.Color = palette
+			p.Framebuffer[fbRow] = int32(palette)
 			px.Value = int(pixel)
-			px.Pindex = -1
+			px.Pindex = 0
 		}
 	}
 }
@@ -763,7 +752,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 					int(p.XCoordinates[i]),
 					ycoord,
 					uint(attrValue),
-					&p.Attributes[i], sprite0, i)
+					&p.Attributes[i], sprite0, i+1)
 			} else {
 				// 8x8 Sprite
 				s := p.sprPatternTableAddress(int(t))
@@ -773,7 +762,7 @@ func (p *Ppu) evaluateScanlineSprites(line int) {
 					int(p.XCoordinates[i]),
 					ycoord,
 					uint(attrValue),
-					&p.Attributes[i], i == 0, i)
+					&p.Attributes[i], i == 0, i+1)
 			}
 
 			spriteCount++
@@ -829,7 +818,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, s
 				p.setStatus(StatusSprite0Hit)
 			}
 
-			if px.Pindex > -1 && px.Pindex < index {
+			if px.Pindex > 0 && px.Pindex < index {
 				// Pixel with a higher sprite priority (lower index)
 				// is already here, so don't render this pixel
 				continue
@@ -842,7 +831,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, s
 
 			pal := p.PaletteRam[0x10+(palIndex<<2)+uint(pixel)]
 
-			px.Color = int(pal)
+			p.Framebuffer[fbRow] = int32(pal)
 			px.Value = int(pixel)
 			px.Pindex = index
 		}
