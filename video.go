@@ -94,6 +94,7 @@ func (v *Video) initGL() {
 	v.prog = createProgram(vertShaderSrcDef, fragShaderSrcDef)
 	posAttrib := v.prog.GetAttribLocation("vPosition")
 	texCoordAttr := v.prog.GetAttribLocation("vTexCoord")
+	paletteLoc := v.prog.GetUniformLocation("palette")
 	v.textureUni = v.prog.GetAttribLocation("texture")
 
 	v.texture = gl.GenTexture()
@@ -106,6 +107,8 @@ func (v *Video) initGL() {
 	v.prog.Use()
 	posAttrib.EnableArray()
 	texCoordAttr.EnableArray()
+
+	paletteLoc.Uniform1iv(len(nes.ShaderPalette), []int32(nes.ShaderPalette))
 
 	vertVBO := gl.GenBuffer()
 	vertVBO.Bind(gl.ARRAY_BUFFER)
