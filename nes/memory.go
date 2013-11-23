@@ -81,9 +81,8 @@ func (m Memory) Write(address interface{}, val Word) error {
 
 func (m Memory) Read(a uint16) (Word, error) {
 	switch {
-	case a >= 0x2008 && a < 0x4000:
-		offset := a % 0x8
-		return ppu.RegRead(int(0x2000 + offset))
+	case a >= 0x8000 && a <= 0xFFFF:
+		return rom.Read(int(a)), nil
 	case a <= 0x2007 && a >= 0x2000:
 		return ppu.RegRead(int(a))
 	case a == 0x4016:
@@ -92,8 +91,9 @@ func (m Memory) Read(a uint16) (Word, error) {
 		return Pads[1].Read(), nil
 	case a&0xF000 == 0x4000:
 		return apu.RegRead(int(a))
-	case a >= 0x8000 && a <= 0xFFFF:
-		return rom.Read(int(a)), nil
+	case a >= 0x2008 && a < 0x4000:
+		offset := a % 0x8
+		return ppu.RegRead(int(0x2000 + offset))
 	}
 
 	return m[a], nil

@@ -53,12 +53,12 @@ func LoadGameState() {
 		ppu.SpriteRam[i] = Word(v)
 	}
 
-    /*
-	// Pattern VRAM
-	for i, v := range state[0x2107:0x4107] {
-		ppu.Vram[i] = Word(v)
-	}
-    */
+	/*
+		// Pattern VRAM
+		for i, v := range state[0x2107:0x4107] {
+			ppu.Vram[i] = Word(v)
+		}
+	*/
 
 	// Nametable VRAM
 	for i, v := range state[0x4107:0x4507] {
@@ -107,11 +107,11 @@ func SaveGameState() {
 	}
 
 	// Pattern VRAM
-    /*
-	for _, v := range ppu.Vram[:0x2000] {
-		buf.WriteByte(byte(v))
-	}
-    */
+	/*
+		for _, v := range ppu.Vram[:0x2000] {
+			buf.WriteByte(byte(v))
+		}
+	*/
 
 	// Nametable VRAM
 	for _, v := range ppu.Nametables.LogicalTables[0] {

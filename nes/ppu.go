@@ -636,6 +636,31 @@ func (p *Ppu) fetchTileAttributes() (uint16, uint16, Word) {
 	return uint16(rom.ReadVram(t)), uint16(rom.ReadVram(t + 8)), attr
 }
 
+func (p *Ppu) renderPixelRow(xcoord, ycoord int, highb, lowb uint16, attr, attrBuf Word) {
+	var b uint
+	for b = 0; b < 8; b++ {
+		fbRow := ycoord + xcoord + int(b)
+		if px := &p.Palettebuffer[fbRow]; px.Value == 0 {
+			current := (15 - b - uint(p.FineX))
+			pixel := (lowb>>current)&0x01 | ((highb>>current)&0x01)<<1
+
+			var palette int
+			// If we're grabbing the pixel from the high
+			// part of the shift register, use the buffered
+			// palette, not the current one
+			if current >= 8 {
+				palette = p.bgPaletteEntry(attr, pixel)
+			} else {
+				palette = p.bgPaletteEntry(attrBuf, pixel)
+			}
+
+			px.Color = palette
+			px.Value = int(pixel)
+			px.Pindex = -1
+		}
+	}
+}
+
 func (p *Ppu) renderTileRow() {
 	// Generates each tile, one scanline at a time
 	// and applies the palette
@@ -660,37 +685,9 @@ func (p *Ppu) renderTileRow() {
 	ycoord := (p.Scanline << 8)
 
 	for x := 0; x < 32; x++ {
-		var palette int
-
 		xcoord := (x << 3)
 
-		var b uint
-		for b = 0; b < 8; b++ {
-			fbRow := ycoord + xcoord + int(b)
-			px := &p.Palettebuffer[fbRow]
-
-			if px.Value != 0 {
-				// Pixel is already rendered and priority
-				// 1 means show behind background
-				continue
-			}
-
-			current := (15 - b - uint(p.FineX))
-			pixel := (*lowb>>current)&0x01 | ((*highb>>current)&0x01)<<1
-
-			// If we're grabbing the pixel from the high
-			// part of the shift register, use the buffered
-			// palette, not the current one
-			if current >= 8 {
-				palette = p.bgPaletteEntry(attr, pixel)
-			} else {
-				palette = p.bgPaletteEntry(attrBuf, pixel)
-			}
-
-			px.Color = palette
-			px.Value = int(pixel)
-			px.Pindex = -1
-		}
+		p.renderPixelRow(xcoord, ycoord, *highb, *lowb, attr, attrBuf)
 
 		// xcoord = p.VramAddress & 0x1F
 		attr = attrBuf
