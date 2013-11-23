@@ -68,9 +68,9 @@ type Ppu struct {
 	A12High           bool
 
 	Palettebuffer []Pixel
-	Framebuffer   []uint32
+	Framebuffer   []int
 
-	Output      chan []uint32
+	Output      chan []int
 	Cycle       int
 	Scanline    int
 	Timestamp   int
@@ -84,9 +84,9 @@ type Ppu struct {
 	SpriteLimitEnabled bool
 }
 
-func (p *Ppu) Init() chan []uint32 {
+func (p *Ppu) Init() chan []int {
 	p.WriteLatch = true
-	p.Output = make(chan []uint32)
+	p.Output = make(chan []int)
 
 	p.OverscanEnabled = true
 	p.SpriteLimitEnabled = true
@@ -113,7 +113,7 @@ func (p *Ppu) Init() chan []uint32 {
 	}
 
 	p.Palettebuffer = make([]Pixel, 0xF000)
-	p.Framebuffer = make([]uint32, 256*256)
+	p.Framebuffer = make([]int, 256*256)
 
 	return p.Output
 }
@@ -174,7 +174,7 @@ func (p *Ppu) raster() {
 
 		bufpx := &p.Palettebuffer[i]
 
-		p.Framebuffer[y*256+x] = PaletteRgb[bufpx.Color%64]
+		p.Framebuffer[y*256+x] = bufpx.Color
 		bufpx.Value = 0
 		bufpx.Pindex = -1
 	}
