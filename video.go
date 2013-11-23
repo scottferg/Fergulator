@@ -172,7 +172,7 @@ func (v *Video) Render() {
 			gl.ActiveTexture(gl.TEXTURE0)
 			v.texture.Bind(gl.TEXTURE_2D)
 
-			gl.TexImage2D(gl.TEXTURE_2D, 0, 3, 256, 256, 0, gl.RGBA,
+			gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 256, 0, gl.RGBA,
 				gl.UNSIGNED_INT_8_8_8_8, buf)
 
 			gl.DrawArrays(gl.TRIANGLES, 0, 6)
