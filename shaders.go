@@ -6,7 +6,7 @@ const vertShaderSrcDef = `
 	varying vec2 texCoord;
 
 	void main() {
-        texCoord = vec2(vTexCoord.x * .9375, -(vTexCoord.y * .875) - .125);
+        texCoord = vec2(vTexCoord.x * .9375 +.03125, -(vTexCoord.y * .875) -.09375);
 		gl_Position = vec4((vPosition.xy * 2.0) - 1.0, vPosition.zw);
 	}
 `
