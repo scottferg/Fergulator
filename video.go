@@ -108,7 +108,7 @@ func (v *Video) initGL() {
 	posAttrib.EnableArray()
 	texCoordAttr.EnableArray()
 
-	paletteLoc.Uniform1iv(len(nes.ShaderPalette), []int32(nes.ShaderPalette))
+	paletteLoc.Uniform3iv(64, nes.ShaderPalette)
 
 	vertVBO := gl.GenBuffer()
 	vertVBO.Bind(gl.ARRAY_BUFFER)
