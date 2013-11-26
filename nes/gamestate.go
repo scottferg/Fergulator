@@ -166,7 +166,7 @@ func saveBatteryFile() {
 	fmt.Println("Battery RAM saved to disk")
 }
 
-func Init(contents []byte, audioBuf func(int16), getter GetButtonFunc) (chan []int32, error) {
+func Init(contents []byte, audioBuf func(int16), getter GetButtonFunc) (chan []int16, error) {
 	// Init the hardware, get communication channels
 	// from the PPU and APU
 	Ram = NewMemory()
