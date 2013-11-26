@@ -68,9 +68,9 @@ type Ppu struct {
 	A12High           bool
 
 	Palettebuffer []Pixel
-	Framebuffer   []int16
+	Framebuffer   []int32
 
-	Output      chan []int16
+	Output      chan []int32
 	Cycle       int
 	Scanline    int
 	Timestamp   int
@@ -84,9 +84,9 @@ type Ppu struct {
 	SpriteLimitEnabled bool
 }
 
-func (p *Ppu) Init() chan []int16 {
+func (p *Ppu) Init() chan []int32 {
 	p.WriteLatch = true
-	p.Output = make(chan []int16)
+	p.Output = make(chan []int32)
 
 	p.OverscanEnabled = true
 	p.SpriteLimitEnabled = true
@@ -113,7 +113,7 @@ func (p *Ppu) Init() chan []int16 {
 	}
 
 	p.Palettebuffer = make([]Pixel, 0xF000)
-	p.Framebuffer = make([]int16, 256*256)
+	p.Framebuffer = make([]int32, 256*256)
 
 	return p.Output
 }
@@ -643,7 +643,7 @@ func (p *Ppu) renderPixelRow(xcoord, ycoord int, highb, lowb uint16, attr, attrB
 				palette = p.bgPaletteEntry(attrBuf, pixel)
 			}
 
-			p.Framebuffer[fbRow] = int16(palette)
+			p.Framebuffer[fbRow] = int32(palette)
 			px.Value = int(pixel)
 			px.Pindex = 0
 		}
@@ -831,7 +831,7 @@ func (p *Ppu) decodePatternTile(t []Word, x, y int, palIndex uint, attr *Word, s
 
 			pal := p.PaletteRam[0x10+(palIndex<<2)+uint(pixel)]
 
-			p.Framebuffer[fbRow] = int16(pal)
+			p.Framebuffer[fbRow] = int32(pal)
 			px.Value = int(pixel)
 			px.Pindex = index
 		}

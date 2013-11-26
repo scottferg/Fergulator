@@ -13,7 +13,7 @@ import (
 )
 
 type Video struct {
-	videoTick     <-chan []int16
+	videoTick     <-chan []int32
 	screen        *sdl.Surface
 	fpsmanager    *gfx.FPSmanager
 	prog          gl.Program
@@ -58,7 +58,7 @@ func loadShader(shaderType gl.GLenum, source string) gl.Shader {
 	return shader
 }
 
-func (v *Video) Init(t <-chan []int16, n string) {
+func (v *Video) Init(t <-chan []int32, n string) {
 	v.videoTick = t
 
 	if sdl.Init(sdl.INIT_VIDEO|sdl.INIT_JOYSTICK|sdl.INIT_AUDIO) != 0 {
