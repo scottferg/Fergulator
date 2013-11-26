@@ -18,7 +18,7 @@ const fragShaderSrcDef = `
 
 	void main() {
 		vec4 t = texture2D(texture, texCoord);
-		int i = int(t.a * 256.0);
+		int i = int(t.b * 15.0) * 16 + int(t.a * 15.0);
 		i = i - ((i / 64) * 64);
 
 		vec3 color = vec3(palette[i]) / 256.0;

@@ -173,7 +173,7 @@ func (v *Video) Render() {
 			v.texture.Bind(gl.TEXTURE_2D)
 
 			gl.TexImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 256, 256, 0, gl.RGBA,
-				gl.UNSIGNED_INT_8_8_8_8, buf)
+				gl.UNSIGNED_SHORT_4_4_4_4, buf)
 
 			gl.DrawArrays(gl.TRIANGLES, 0, 6)
 
