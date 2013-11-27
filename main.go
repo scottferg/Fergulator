@@ -70,6 +70,7 @@ func main() {
 	// This needs to happen on the main thread for OSX
 	runtime.LockOSThread()
 
+	defer nes.SaveBatteryFile()
 	defer videoOut.Close()
 	videoOut.Render()
 

@@ -151,7 +151,7 @@ func loadBatteryRam() {
 	}
 }
 
-func saveBatteryFile() {
+func SaveBatteryFile() {
 	buf := new(bytes.Buffer)
 
 	// Battery/Work RAM
@@ -184,7 +184,6 @@ func Init(contents []byte, audioBuf func(int16), getter GetButtonFunc) (chan []i
 
 	if rom.BatteryBacked() {
 		loadBatteryRam()
-		defer saveBatteryFile()
 	}
 
 	cpu.SetResetVector()
