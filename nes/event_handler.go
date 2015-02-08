@@ -45,7 +45,7 @@ func NewEventHandler(filename string) *EventHandler {
 	return &handler
 }
 
-func (handler *EventHandler) HandlePause() {
+func (handler *EventHandler) Handle(event string) {
 	state := map[string]interface{}{
 		"ram": func(call otto.FunctionCall) otto.Value {
 			ram, _ := handler.vm.ToValue(Ram)
@@ -54,24 +54,7 @@ func (handler *EventHandler) HandlePause() {
 	}
 
 	ottoState, _ := handler.vm.ToValue(state)
-	for _, x := range handler.handlers["pause"] {
-		_, err := x.Call(otto.Value{}, ottoState)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-	}
-}
-
-func (handler *EventHandler) HandleUnpause() {
-	state := map[string]interface{}{
-		"ram": func(call otto.FunctionCall) otto.Value {
-			ram, _ := handler.vm.ToValue(Ram)
-			return ram
-		},
-	}
-
-	ottoState, _ := handler.vm.ToValue(state)
-	for _, x := range handler.handlers["unpause"] {
+	for _, x := range handler.handlers[event] {
 		_, err := x.Call(otto.Value{}, ottoState)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)

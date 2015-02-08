@@ -209,6 +209,11 @@ func (v *Video) Render() {
 					if e.Type == sdl.KEYDOWN {
 						nes.TogglePause()
 					}
+				case sdl.K_BACKSLASH:
+					if e.Type == sdl.KEYDOWN {
+						nes.Pause()
+						nes.StepFrame()
+					}
 				case sdl.K_1:
 					if e.Type == sdl.KEYDOWN {
 						v.ResizeEvent(256, 240)

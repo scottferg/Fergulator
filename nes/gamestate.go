@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"time"
 )
 
 var (
@@ -18,7 +19,8 @@ var (
 
 	Handler *EventHandler
 
-	paused = false
+	paused    = false
+	stepFrame = false
 )
 
 const (
@@ -26,16 +28,26 @@ const (
 	LoadState
 )
 
+func Pause() {
+	if !paused {
+		TogglePause()
+	}
+}
+
 func TogglePause() {
 	paused = !paused
 	// TODO: Provide noop events so don't need to check
 	if Handler != nil {
 		if paused {
-			Handler.HandlePause()
+			Handler.Handle("pause")
 		} else {
-			Handler.HandleUnpause()
+			Handler.Handle("unpause")
 		}
 	}
+}
+
+func StepFrame() {
+	stepFrame = true
 }
 
 func LoadGameState() {
@@ -183,7 +195,8 @@ func RunSystem() {
 	var flip int
 
 	for {
-		if paused {
+		if paused && !stepFrame {
+			time.Sleep(0)
 			continue
 		}
 

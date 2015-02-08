@@ -206,6 +206,11 @@ func (p *Ppu) Step() {
 				p.setStatus(StatusVblankStarted)
 			}
 
+			Handler.Handle("vblank")
+			if stepFrame {
+				stepFrame = false
+			}
+
 			// $2000.7 enables/disables NMIs
 			if p.NmiOnVblank == 0x1 && !p.SuppressNmi {
 				// Request NMI
