@@ -26,7 +26,6 @@ From your GOPATH:
 
         $ brew install sdl --with-x11-driver
         $ brew install sdl_gfx sdl_image glew
-        $ brew edit sdl
         $ go get github.com/scottferg/Fergulator
 
 ## Run the emulator
