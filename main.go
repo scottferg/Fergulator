@@ -19,7 +19,12 @@ var (
 	audioOut *Audio
 
 	cpuprofile = flag.String("cprof", "", "write cpu profile to file")
+	debugfile  string
 )
+
+func init() {
+	flag.StringVar(&debugfile, "debug", "", "JS debugging file")
+}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -28,6 +33,10 @@ func main() {
 	}
 
 	flag.Parse()
+
+	// TODO: Why don't flags work? Don't want to hardcode this.
+	debugfile = "debug.js"
+
 	if *cpuprofile != "" {
 		f, err := os.Create(*cpuprofile)
 		if err != nil {
@@ -40,7 +49,7 @@ func main() {
 		runtime.GOMAXPROCS(runtime.NumCPU())
 	}
 
-	contents, err := ioutil.ReadFile(os.Args[len(os.Args)-1])
+	contents, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
 		fmt.Println(err.Error())
 		return
@@ -50,6 +59,10 @@ func main() {
 	nes.GameName = strings.Split(path[len(path)-1], ".")[0]
 	nes.SaveStateFile = fmt.Sprintf(".%s.state", nes.GameName)
 	nes.BatteryRamFile = fmt.Sprintf(".%s.battery", nes.GameName)
+
+	if debugfile != "" {
+		nes.Handler = nes.NewEventHandler(debugfile)
+	}
 
 	log.Println(nes.GameName, nes.SaveStateFile)
 

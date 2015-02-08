@@ -207,7 +207,7 @@ func (v *Video) Render() {
 					}
 				case sdl.K_p:
 					if e.Type == sdl.KEYDOWN {
-						nes.Paused = !nes.Paused
+						nes.TogglePause()
 					}
 				case sdl.K_1:
 					if e.Type == sdl.KEYDOWN {

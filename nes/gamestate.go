@@ -16,13 +16,27 @@ var (
 	SaveStateFile  string
 	BatteryRamFile string
 
-	Paused = false
+	Handler *EventHandler
+
+	paused = false
 )
 
 const (
 	SaveState = iota
 	LoadState
 )
+
+func TogglePause() {
+	paused = !paused
+	// TODO: Provide noop events so don't need to check
+	if Handler != nil {
+		if paused {
+			Handler.HandlePause()
+		} else {
+			Handler.HandleUnpause()
+		}
+	}
+}
 
 func LoadGameState() {
 	fmt.Println("Loading state")
@@ -169,7 +183,7 @@ func RunSystem() {
 	var flip int
 
 	for {
-		if Paused {
+		if paused {
 			continue
 		}
 
