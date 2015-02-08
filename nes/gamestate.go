@@ -15,6 +15,8 @@ var (
 	GameName       string
 	SaveStateFile  string
 	BatteryRamFile string
+
+	Paused = false
 )
 
 const (
@@ -167,6 +169,10 @@ func RunSystem() {
 	var flip int
 
 	for {
+		if Paused {
+			continue
+		}
+
 		cycles = cpu.Step()
 		totalCpuCycles += cycles
 

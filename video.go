@@ -205,6 +205,10 @@ func (v *Video) Render() {
 					if e.Type == sdl.KEYDOWN {
 						nes.AudioEnabled = !nes.AudioEnabled
 					}
+				case sdl.K_p:
+					if e.Type == sdl.KEYDOWN {
+						nes.Paused = !nes.Paused
+					}
 				case sdl.K_1:
 					if e.Type == sdl.KEYDOWN {
 						v.ResizeEvent(256, 240)

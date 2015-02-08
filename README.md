@@ -53,6 +53,7 @@ From your GOPATH:
 
         Emulate overscan - O
         Toggle audio - I
+        Toggle pause - P
 
 ## Supported Mappers
 
