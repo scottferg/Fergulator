@@ -9,6 +9,7 @@ import (
 
 type EventHandler struct {
 	handlers map[string][]otto.Value
+	vm       *otto.Otto
 }
 
 func NewEventHandler(filename string) *EventHandler {
@@ -39,18 +40,41 @@ func NewEventHandler(filename string) *EventHandler {
 	if err != nil {
 		fmt.Println(err)
 	}
+	handler.vm = vm
 
 	return &handler
 }
 
 func (handler *EventHandler) HandlePause() {
+	state := map[string]interface{}{
+		"ram": func(call otto.FunctionCall) otto.Value {
+			ram, _ := handler.vm.ToValue(Ram)
+			return ram
+		},
+	}
+
+	ottoState, _ := handler.vm.ToValue(state)
 	for _, x := range handler.handlers["pause"] {
-		x.Call(otto.Value{})
+		_, err := x.Call(otto.Value{}, ottoState)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 }
 
 func (handler *EventHandler) HandleUnpause() {
+	state := map[string]interface{}{
+		"ram": func(call otto.FunctionCall) otto.Value {
+			ram, _ := handler.vm.ToValue(Ram)
+			return ram
+		},
+	}
+
+	ottoState, _ := handler.vm.ToValue(state)
 	for _, x := range handler.handlers["unpause"] {
-		x.Call(otto.Value{})
+		_, err := x.Call(otto.Value{}, ottoState)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
 	}
 }
