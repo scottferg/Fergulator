@@ -209,6 +209,14 @@ func (v *Video) Render() {
 					if e.Type == sdl.KEYDOWN {
 						nes.TogglePause()
 					}
+				case sdl.K_d:
+					if e.Type == sdl.KEYDOWN {
+						nes.Handler.ReloadFile(debugfile)
+					}
+				case sdl.K_m:
+					if e.Type == sdl.KEYDOWN {
+						nes.Handler.Handle("debug-mode")
+					}
 				case sdl.K_BACKSLASH:
 					if e.Type == sdl.KEYDOWN {
 						nes.Pause()

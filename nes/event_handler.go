@@ -12,18 +12,33 @@ type EventHandler struct {
 	vm       *otto.Otto
 }
 
-func NewEventHandler(filename string) *EventHandler {
-	js, err := ioutil.ReadFile(filename)
+func (handler *EventHandler) ReloadFile(filename string) {
+	fmt.Println("Reloading", filename)
 
-	handler := EventHandler{
-		handlers: map[string][]otto.Value{},
-	}
+	js, err := ioutil.ReadFile(filename)
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, filename, "not readable, not loaded")
-		return &handler
+		return
 	}
-	fmt.Println(filename, "loaded")
+
+	// Clear out handlers so we don't end up with double callbacks.
+	// Keep variables though, they are useful.
+	handler.handlers = map[string][]otto.Value{}
+
+	_, err = handler.vm.Run(js)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	handler.Handle("reload")
+}
+
+func NewEventHandler(filename string) *EventHandler {
+	handler := EventHandler{
+		handlers: map[string][]otto.Value{},
+		vm:       otto.New(),
+	}
 
 	vm := otto.New()
 	vm.Set("handle", func(call otto.FunctionCall) otto.Value {
@@ -35,12 +50,9 @@ func NewEventHandler(filename string) *EventHandler {
 		handler.handlers[event] = append(handler.handlers[event], call.Argument(1))
 		return otto.Value{}
 	})
-	_, err = vm.Run(js)
-
-	if err != nil {
-		fmt.Println(err)
-	}
 	handler.vm = vm
+	handler.ReloadFile(filename)
+	handler.Handle("init")
 
 	return &handler
 }
@@ -50,6 +62,17 @@ func (handler *EventHandler) Handle(event string) {
 		"ram": func(call otto.FunctionCall) otto.Value {
 			ram, _ := handler.vm.ToValue(Ram)
 			return ram
+		},
+		"writeRam": func(call otto.FunctionCall) otto.Value {
+			idx, _ := call.Argument(0).ToInteger()
+			val, _ := call.Argument(1).ToInteger()
+
+			err := Ram.Write(Word(idx), Word(val))
+			if err != nil {
+				fmt.Println(err)
+			}
+
+			return otto.Value{}
 		},
 	}
 

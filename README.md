@@ -56,6 +56,8 @@ From your GOPATH:
 
         Toggle pause - P
         Frame Advance - \
+        Reload Debug JS - D
+        Trigger Mode Event - M
 
 ## Supported Mappers
 
