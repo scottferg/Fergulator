@@ -60,7 +60,7 @@ func NewEventHandler(filename string) *EventHandler {
 func (handler *EventHandler) Handle(event string) {
 	state := map[string]interface{}{
 		"ram": func(call otto.FunctionCall) otto.Value {
-			ram, _ := handler.vm.ToValue(Ram)
+			ram, _ := handler.vm.ToValue(Ram[0:0x800])
 			return ram
 		},
 		"writeRam": func(call otto.FunctionCall) otto.Value {
