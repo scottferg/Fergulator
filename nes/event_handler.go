@@ -7,12 +7,16 @@ import (
 	"os"
 )
 
-type EventHandler struct {
-	handlers map[string][]otto.Value
-	vm       *otto.Otto
+type EventHandler interface {
+	Handle(event string)
 }
 
-func (handler *EventHandler) ReloadFile(filename string) {
+type JsEventHandler struct {
+	callbacks map[string][]otto.Value
+	vm        *otto.Otto
+}
+
+func (handler *JsEventHandler) ReloadFile(filename string) {
 	fmt.Println("Reloading", filename)
 
 	js, err := ioutil.ReadFile(filename)
@@ -22,9 +26,9 @@ func (handler *EventHandler) ReloadFile(filename string) {
 		return
 	}
 
-	// Clear out handlers so we don't end up with double callbacks.
+	// Clear out callbacks so we don't end up with double callbacks.
 	// Keep variables though, they are useful.
-	handler.handlers = map[string][]otto.Value{}
+	handler.callbacks = map[string][]otto.Value{}
 
 	_, err = handler.vm.Run(js)
 
@@ -34,10 +38,10 @@ func (handler *EventHandler) ReloadFile(filename string) {
 	handler.Handle("reload")
 }
 
-func NewEventHandler(filename string) *EventHandler {
-	handler := EventHandler{
-		handlers: map[string][]otto.Value{},
-		vm:       otto.New(),
+func NewJsEventHandler(filename string) *JsEventHandler {
+	handler := JsEventHandler{
+		callbacks: map[string][]otto.Value{},
+		vm:        otto.New(),
 	}
 
 	vm := otto.New()
@@ -47,7 +51,7 @@ func NewEventHandler(filename string) *EventHandler {
 			// TODO: Handle this
 			panic(err)
 		}
-		handler.handlers[event] = append(handler.handlers[event], call.Argument(1))
+		handler.callbacks[event] = append(handler.callbacks[event], call.Argument(1))
 		return otto.Value{}
 	})
 	handler.vm = vm
@@ -57,7 +61,7 @@ func NewEventHandler(filename string) *EventHandler {
 	return &handler
 }
 
-func (handler *EventHandler) Handle(event string) {
+func (handler *JsEventHandler) Handle(event string) {
 	state := map[string]interface{}{
 		"ram": func(call otto.FunctionCall) otto.Value {
 			ram, _ := handler.vm.ToValue(Ram[0:0x800])
@@ -77,7 +81,7 @@ func (handler *EventHandler) Handle(event string) {
 	}
 
 	ottoState, _ := handler.vm.ToValue(state)
-	for _, x := range handler.handlers[event] {
+	for _, x := range handler.callbacks[event] {
 		_, err := x.Call(otto.Value{}, ottoState)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)

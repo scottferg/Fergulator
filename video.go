@@ -211,7 +211,7 @@ func (v *Video) Render() {
 					}
 				case sdl.K_d:
 					if e.Type == sdl.KEYDOWN {
-						nes.Handler.ReloadFile(debugfile)
+						jsHandler.ReloadFile(debugfile)
 					}
 				case sdl.K_m:
 					if e.Type == sdl.KEYDOWN {

@@ -17,7 +17,7 @@ var (
 	SaveStateFile  string
 	BatteryRamFile string
 
-	Handler *EventHandler
+	Handler EventHandler
 
 	paused    = false
 	stepFrame = false

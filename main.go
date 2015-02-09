@@ -20,6 +20,7 @@ var (
 
 	cpuprofile = flag.String("cprof", "", "write cpu profile to file")
 	debugfile  string
+	jsHandler  *nes.JsEventHandler
 )
 
 func init() {
@@ -61,7 +62,8 @@ func main() {
 	nes.BatteryRamFile = fmt.Sprintf(".%s.battery", nes.GameName)
 
 	if debugfile != "" {
-		nes.Handler = nes.NewEventHandler(debugfile)
+		jsHandler = nes.NewJsEventHandler(debugfile)
+		nes.Handler = jsHandler
 	}
 
 	log.Println(nes.GameName, nes.SaveStateFile)
