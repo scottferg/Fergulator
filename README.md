@@ -53,6 +53,11 @@ From your GOPATH:
         Emulate overscan - O
         Toggle audio - I
 
+        Toggle pause - P
+        Frame Advance - \
+        Reload Debug JS - D
+        Trigger Mode Event - M
+
 ## Supported Mappers
 
 * NROM

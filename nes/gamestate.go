@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io/ioutil"
+	"time"
 )
 
 var (
@@ -15,12 +16,37 @@ var (
 	GameName       string
 	SaveStateFile  string
 	BatteryRamFile string
+
+	Handler EventHandler
+
+	paused    = false
+	stepFrame = false
 )
 
 const (
 	SaveState = iota
 	LoadState
 )
+
+func Pause() {
+	if !paused {
+		TogglePause()
+	}
+}
+
+func TogglePause() {
+	paused = !paused
+
+	if paused {
+		Handler.Handle("pause")
+	} else {
+		Handler.Handle("unpause")
+	}
+}
+
+func StepFrame() {
+	stepFrame = true
+}
 
 func LoadGameState() {
 	fmt.Println("Loading state")
@@ -167,6 +193,11 @@ func RunSystem() {
 	var flip int
 
 	for {
+		if paused && !stepFrame {
+			time.Sleep(0)
+			continue
+		}
+
 		cycles = cpu.Step()
 		totalCpuCycles += cycles
 
