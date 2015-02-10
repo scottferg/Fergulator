@@ -11,6 +11,9 @@ type EventHandler interface {
 	Handle(event string)
 }
 
+type NoopEventHandler struct {
+}
+
 type JsEventHandler struct {
 	callbacks map[string][]otto.Value
 	vm        *otto.Otto
@@ -36,6 +39,10 @@ func (handler *JsEventHandler) ReloadFile(filename string) {
 		fmt.Println(err)
 	}
 	handler.Handle("reload")
+}
+
+func NewNoopEventHandler() *NoopEventHandler {
+	return &NoopEventHandler{}
 }
 
 func NewJsEventHandler(filename string) *JsEventHandler {
@@ -87,4 +94,7 @@ func (handler *JsEventHandler) Handle(event string) {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
+}
+
+func (handler *NoopEventHandler) Handle(event string) {
 }

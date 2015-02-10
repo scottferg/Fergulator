@@ -36,13 +36,11 @@ func Pause() {
 
 func TogglePause() {
 	paused = !paused
-	// TODO: Provide noop events so don't need to check
-	if Handler != nil {
-		if paused {
-			Handler.Handle("pause")
-		} else {
-			Handler.Handle("unpause")
-		}
+
+	if paused {
+		Handler.Handle("pause")
+	} else {
+		Handler.Handle("unpause")
 	}
 }
 

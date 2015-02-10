@@ -64,6 +64,8 @@ func main() {
 	if debugfile != "" {
 		jsHandler = nes.NewJsEventHandler(debugfile)
 		nes.Handler = jsHandler
+	} else {
+		nes.Handler = nes.NewNoopEventHandler()
 	}
 
 	log.Println(nes.GameName, nes.SaveStateFile)
