@@ -38,18 +38,6 @@ func main() {
 	// TODO: Why don't flags work? Don't want to hardcode this.
 	debugfile = "debug.js"
 
-	if *cpuprofile != "" {
-		f, err := os.Create(*cpuprofile)
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		pprof.StartCPUProfile(f)
-		defer pprof.StopCPUProfile()
-	} else {
-		runtime.GOMAXPROCS(runtime.NumCPU())
-	}
-
 	contents, err := ioutil.ReadFile(os.Args[1])
 	if err != nil {
 		fmt.Println(err.Error())
@@ -79,6 +67,21 @@ func main() {
 	}
 
 	videoOut.Init(videoTick, nes.GameName)
+
+	// Only increase the number of processors we can use after initialization,
+	// due to an unidentified race condition documented in issue #13. This
+	// workaround is effective yet unsatisfying.
+	if *cpuprofile != "" {
+		f, err := os.Create(*cpuprofile)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	} else {
+		runtime.GOMAXPROCS(runtime.NumCPU())
+	}
 
 	// Main runloop, in a separate goroutine so that
 	// the video rendering can happen on this one
