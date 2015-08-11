@@ -9,9 +9,9 @@ const (
 
 type Nametable struct {
 	Mirroring     int
-	LogicalTables [4]*[0x400]Word
-	Nametable0    [0x400]Word
-	Nametable1    [0x400]Word
+	LogicalTables [4]*[0x400]word
+	Nametable0    [0x400]word
+	Nametable1    [0x400]word
 }
 
 func (n *Nametable) SetMirroring(m int) {
@@ -41,10 +41,10 @@ func (n *Nametable) SetMirroring(m int) {
 	}
 }
 
-func (n *Nametable) writeNametableData(a int, v Word) {
+func (n *Nametable) writeNametableData(a int, v word) {
 	n.LogicalTables[(a&0xC00)>>10][a&0x3FF] = v
 }
 
-func (n *Nametable) readNametableData(a int) Word {
+func (n *Nametable) readNametableData(a int) word {
 	return n.LogicalTables[(a&0xC00)>>10][a&0x3FF]
 }

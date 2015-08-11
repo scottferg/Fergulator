@@ -38,7 +38,7 @@ func indirectAbsoluteAddress() (result int) {
 	return
 }
 
-func absoluteIndexedAddress(index Word) (result int) {
+func absoluteIndexedAddress(index word) (result int) {
 	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(pc + 1)
@@ -47,7 +47,7 @@ func absoluteIndexedAddress(index Word) (result int) {
 	return (int(high) << 8) + int(low) + int(index)
 }
 
-func zeroPageIndexedAddress(index Word) int {
+func zeroPageIndexedAddress(index word) int {
 	location, _ := Ram.Read(pc)
 	return int(location + index)
 }
@@ -83,7 +83,7 @@ func accumulatorAddress() int {
 	return 0
 }
 
-func Disassemble(opcode Word, cpu *Cpu, p uint16) {
+func Disassemble(opcode word, cpu *Cpu, p uint16) {
 	c = cpu
 	pc = p
 

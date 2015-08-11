@@ -11,18 +11,18 @@ const (
 	ButtonRight
 )
 
-type GetButtonFunc func(interface{}) int
+type getButtonFunc func(int) int
 
 type Controller struct {
-	ButtonState [16]Word
+	ButtonState [16]word
 	StrobeState int
-	LastWrite   Word
+	LastWrite   word
 	LastYAxis   [2]int
 	LastXAxis   [2]int
-	getter      GetButtonFunc
+	getter      getButtonFunc
 }
 
-func (c *Controller) SetButtonState(button int, v Word, offset int) {
+func (c *Controller) SetButtonState(button int, v word, offset int) {
 	switch button {
 	case ButtonA: // A
 		c.ButtonState[0+offset] = v
@@ -43,15 +43,15 @@ func (c *Controller) SetButtonState(button int, v Word, offset int) {
 	}
 }
 
-func (c *Controller) KeyDown(e interface{}, offset int) {
+func (c *Controller) KeyDown(e int, offset int) {
 	c.SetButtonState(c.getter(e), 0x41, offset)
 }
 
-func (c *Controller) KeyUp(e interface{}, offset int) {
+func (c *Controller) KeyUp(e int, offset int) {
 	c.SetButtonState(c.getter(e), 0x40, offset)
 }
 
-func (c *Controller) Write(v Word) {
+func (c *Controller) Write(v word) {
 	if v == 0 && c.LastWrite == 1 {
 		// 0x4016 writes manage strobe state for
 		// both controllers. 0x4017 is reserved for
@@ -63,7 +63,7 @@ func (c *Controller) Write(v Word) {
 	c.LastWrite = v
 }
 
-func (c *Controller) Read() (r Word) {
+func (c *Controller) Read() (r word) {
 	if c.StrobeState < 8 {
 		r = ((c.ButtonState[c.StrobeState+8] & 1) << 1) | c.ButtonState[c.StrobeState]
 	} else if c.StrobeState == 18 {
@@ -83,7 +83,7 @@ func (c *Controller) Read() (r Word) {
 	return
 }
 
-func NewController(getter GetButtonFunc) *Controller {
+func NewController(getter getButtonFunc) *Controller {
 	c := &Controller{
 		getter: getter,
 	}

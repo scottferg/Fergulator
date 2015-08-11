@@ -58,7 +58,7 @@ func LoadGameState() {
 	}
 
 	for i, v := range state[:0x2000] {
-		Ram[i] = Word(v)
+		Ram[i] = word(v)
 	}
 
 	pchigh := uint16(state[0x2000])
@@ -66,39 +66,39 @@ func LoadGameState() {
 
 	cpu.ProgramCounter = (pchigh << 8) | pclow
 
-	cpu.A = Word(state[0x2002])
-	cpu.X = Word(state[0x2003])
-	cpu.Y = Word(state[0x2004])
-	cpu.P = Word(state[0x2005])
-	cpu.StackPointer = Word(state[0x2006])
+	cpu.A = word(state[0x2002])
+	cpu.X = word(state[0x2003])
+	cpu.Y = word(state[0x2004])
+	cpu.P = word(state[0x2005])
+	cpu.StackPointer = word(state[0x2006])
 
 	// Sprite RAM
 	for i, v := range state[0x2007:0x2107] {
-		ppu.SpriteRam[i] = Word(v)
+		ppu.SpriteRam[i] = word(v)
 	}
 
 	// Pattern VRAM
 	for i, v := range state[0x2107:0x4107] {
-		ppu.Vram[i] = Word(v)
+		ppu.Vram[i] = word(v)
 	}
 
 	// Nametable VRAM
 	for i, v := range state[0x4107:0x4507] {
-		ppu.Nametables.LogicalTables[0][i] = Word(v)
+		ppu.Nametables.LogicalTables[0][i] = word(v)
 	}
 	for i, v := range state[0x4507:0x4907] {
-		ppu.Nametables.LogicalTables[1][i] = Word(v)
+		ppu.Nametables.LogicalTables[1][i] = word(v)
 	}
 	for i, v := range state[0x4907:0x4D07] {
-		ppu.Nametables.LogicalTables[2][i] = Word(v)
+		ppu.Nametables.LogicalTables[2][i] = word(v)
 	}
 	for i, v := range state[0x4D07:0x5107] {
-		ppu.Nametables.LogicalTables[3][i] = Word(v)
+		ppu.Nametables.LogicalTables[3][i] = word(v)
 	}
 
 	// Palette RAM
 	for i, v := range state[0x5107:0x5126] {
-		ppu.PaletteRam[i] = Word(v)
+		ppu.PaletteRam[i] = word(v)
 	}
 }
 
@@ -167,7 +167,7 @@ func loadBatteryRam() {
 	}
 
 	for i, v := range batteryRam[:0x2000] {
-		Ram[0x6000+i] = Word(v)
+		Ram[0x6000+i] = word(v)
 	}
 }
 
@@ -225,7 +225,7 @@ func RunSystem() {
 	}
 }
 
-func Init(contents []byte, audioBuf func(int16), getter GetButtonFunc) (chan []uint32, error) {
+func Init(contents []byte, audioBuf func(int16), getter getButtonFunc) (chan []uint32, error) {
 	// Init the hardware, get communication channels
 	// from the PPU and APU
 	Ram = NewMemory()

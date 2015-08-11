@@ -8,13 +8,13 @@ const (
 )
 
 type Cpu struct {
-	X            Word
-	Y            Word
-	A            Word
-	P            Word
+	X            word
+	Y            word
+	A            word
+	P            word
 	CycleCount   int
-	StackPointer Word
-	Opcode       Word
+	StackPointer word
+	Opcode       word
 	Verbose      bool
 	Accurate     bool
 	InstrOpcodes [0xFF]func()
@@ -110,19 +110,19 @@ func (c *Cpu) clearNegative() {
 	c.P = c.P & 0x7F
 }
 
-func (c *Cpu) pushToStack(value Word) {
-	Ram.Write(0x100+int(c.StackPointer), value)
+func (c *Cpu) pushToStack(value word) {
+	Ram.write(0x100+int(c.StackPointer), value)
 	c.StackPointer--
 }
 
-func (c *Cpu) pullFromStack() Word {
+func (c *Cpu) pullFromStack() word {
 	c.StackPointer++
 	val, _ := Ram.Read(uint16(0x100 + int(c.StackPointer)))
 
 	return val
 }
 
-func (c *Cpu) testAndSetNegative(value Word) {
+func (c *Cpu) testAndSetNegative(value word) {
 	if value&0x80 == 0x80 {
 		c.setNegative()
 		return
@@ -131,7 +131,7 @@ func (c *Cpu) testAndSetNegative(value Word) {
 	c.clearNegative()
 }
 
-func (c *Cpu) testAndSetZero(value Word) {
+func (c *Cpu) testAndSetZero(value word) {
 	if value == 0x00 {
 		c.setZero()
 		return
@@ -158,7 +158,7 @@ func (c *Cpu) testAndSetCarrySubtraction(result int) {
 	c.setCarry()
 }
 
-func (c *Cpu) testAndSetOverflowAddition(a Word, b Word, r Word) {
+func (c *Cpu) testAndSetOverflowAddition(a word, b word, r word) {
 	if ((a^b)&0x80 == 0x0) && ((a^r)&0x80 == 0x80) {
 		c.setOverflow()
 	} else {
@@ -166,7 +166,7 @@ func (c *Cpu) testAndSetOverflowAddition(a Word, b Word, r Word) {
 	}
 }
 
-func (c *Cpu) testAndSetOverflowSubtraction(a Word, b Word) {
+func (c *Cpu) testAndSetOverflowSubtraction(a word, b word) {
 	val := a - b - (1 - c.P&0x01)
 	if ((a^val)&0x80) != 0 && ((a^b)&0x80) != 0 {
 		c.setOverflow()
@@ -215,7 +215,7 @@ func (c *Cpu) indirectAbsoluteAddress(addr uint16) (result uint16) {
 	return
 }
 
-func (c *Cpu) absoluteIndexedAddress(index Word) (result uint16) {
+func (c *Cpu) absoluteIndexedAddress(index word) (result uint16) {
 	// Switch to an int (or more appropriately uint16) since we
 	// will overflow when shifting the high byte
 	high, _ := Ram.Read(c.ProgramCounter + 1)
@@ -237,7 +237,7 @@ func (c *Cpu) absoluteIndexedAddress(index Word) (result uint16) {
 	return address
 }
 
-func (c *Cpu) zeroPageIndexedAddress(index Word) uint16 {
+func (c *Cpu) zeroPageIndexedAddress(index word) uint16 {
 	location, _ := Ram.Read(c.ProgramCounter)
 	c.ProgramCounter++
 	return uint16(location + index)
@@ -340,15 +340,15 @@ func (c *Cpu) Ldy(location uint16) {
 }
 
 func (c *Cpu) Sta(location uint16) {
-	Ram.Write(location, c.A)
+	Ram.write(location, c.A)
 }
 
 func (c *Cpu) Stx(location uint16) {
-	Ram.Write(location, c.X)
+	Ram.write(location, c.X)
 }
 
 func (c *Cpu) Sty(location uint16) {
-	Ram.Write(location, c.Y)
+	Ram.write(location, c.Y)
 }
 
 func (c *Cpu) Jmp(location uint16) {
@@ -560,7 +560,7 @@ func (c *Cpu) Plp() {
 	c.P = (val | 0x30) - 0x10
 }
 
-func (c *Cpu) Compare(register Word, value Word) {
+func (c *Cpu) Compare(register word, value word) {
 	r := register - value
 
 	c.testAndSetZero(r)
@@ -656,7 +656,7 @@ func (c *Cpu) Dec(location uint16) {
 	val, _ := Ram.Read(location)
 	val = val - 1
 
-	Ram.Write(location, val)
+	Ram.write(location, val)
 
 	c.testAndSetNegative(val)
 	c.testAndSetZero(val)
@@ -666,7 +666,7 @@ func (c *Cpu) Inc(location uint16) {
 	val, _ := Ram.Read(location)
 	val = val + 1
 
-	Ram.Write(location, val)
+	Ram.write(location, val)
 
 	c.testAndSetNegative(val)
 	c.testAndSetZero(val)
@@ -685,8 +685,8 @@ func (c *Cpu) Brk() {
 	// 4. JMP ($FFFE)
 	c.ProgramCounter = c.ProgramCounter + 1
 
-	c.pushToStack(Word(c.ProgramCounter >> 8))
-	c.pushToStack(Word(c.ProgramCounter & 0xFF))
+	c.pushToStack(word(c.ProgramCounter >> 8))
+	c.pushToStack(word(c.ProgramCounter & 0xFF))
 
 	c.Php()
 	c.Sei()
@@ -703,8 +703,8 @@ func (c *Cpu) Jsr(location uint16) {
 	high := (c.ProgramCounter - 1) >> 8
 	low := (c.ProgramCounter - 1) & 0xFF
 
-	c.pushToStack(Word(high))
-	c.pushToStack(Word(low))
+	c.pushToStack(word(high))
+	c.pushToStack(word(low))
 
 	c.ProgramCounter = location
 }
@@ -734,7 +734,7 @@ func (c *Cpu) Lsr(location uint16) {
 		c.clearCarry()
 	}
 
-	Ram.Write(location, val>>1)
+	Ram.write(location, val>>1)
 
 	val, _ = Ram.Read(location)
 
@@ -764,7 +764,7 @@ func (c *Cpu) Asl(location uint16) {
 		c.clearCarry()
 	}
 
-	Ram.Write(location, val<<1)
+	Ram.write(location, val<<1)
 
 	val, _ = Ram.Read(location)
 	c.testAndSetNegative(val)
@@ -801,7 +801,7 @@ func (c *Cpu) Rol(location uint16) {
 		c.clearCarry()
 	}
 
-	Ram.Write(location, value)
+	Ram.write(location, value)
 
 	value, _ = Ram.Read(location)
 	c.testAndSetNegative(value)
@@ -844,7 +844,7 @@ func (c *Cpu) Ror(location uint16) {
 		c.clearCarry()
 	}
 
-	Ram.Write(location, value)
+	Ram.write(location, value)
 
 	value, _ = Ram.Read(location)
 	c.testAndSetNegative(value)
@@ -896,8 +896,8 @@ func (c *Cpu) PerformIrq() {
 	high := c.ProgramCounter >> 8
 	low := c.ProgramCounter & 0xFF
 
-	c.pushToStack(Word(high))
-	c.pushToStack(Word(low))
+	c.pushToStack(word(high))
+	c.pushToStack(word(low))
 
 	c.pushToStack(c.P)
 
@@ -912,8 +912,8 @@ func (c *Cpu) PerformNmi() {
 	high := c.ProgramCounter >> 8
 	low := c.ProgramCounter & 0xFF
 
-	c.pushToStack(Word(high))
-	c.pushToStack(Word(low))
+	c.pushToStack(word(high))
+	c.pushToStack(word(low))
 
 	c.pushToStack(c.P)
 

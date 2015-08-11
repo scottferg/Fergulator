@@ -33,7 +33,7 @@ var (
 		142, 128, 106, 84, 72, 54,
 	}
 
-	LengthTable = []Word{
+	LengthTable = []word{
 		10, 254, 20, 2, 40, 4, 80, 6,
 		160, 8, 60, 10, 14, 12, 26, 14,
 		12, 16, 24, 18, 48, 20, 96, 22,
@@ -42,10 +42,10 @@ var (
 )
 
 type Envelope struct {
-	Volume       Word
-	Counter      Word
-	DecayRate    Word
-	DecayCounter Word
+	Volume       word
+	Counter      word
+	DecayRate    word
+	DecayCounter word
 	DecayEnabled bool
 	LoopEnabled  bool
 	Disabled     bool
@@ -55,17 +55,17 @@ type Envelope struct {
 type Square struct {
 	Enabled       bool
 	LengthEnabled bool
-	DutyCycle     Word
-	DutyCount     Word
+	DutyCycle     word
+	DutyCount     word
 	Timer         int
 	TimerCount    int
-	Length        Word
+	Length        word
 	LastTick      int
 	SweepEnabled  bool
-	SweepPeriod   Word
-	SweepCounter  Word
-	SweepMode     Word
-	Shift         Word
+	SweepPeriod   word
+	SweepCounter  word
+	SweepMode     word
+	Shift         word
 	SweepReload   bool
 	Negative      bool
 	Sample        int16
@@ -73,14 +73,14 @@ type Square struct {
 }
 
 type Triangle struct {
-	ReloadValue   Word
+	ReloadValue   word
 	Control       bool
 	Enabled       bool
 	LengthEnabled bool
 	Halt          bool
 	Timer         int
 	TimerCount    int
-	Length        Word
+	Length        word
 	Counter       int
 	LookupCounter int
 	Sample        int16
@@ -89,11 +89,11 @@ type Triangle struct {
 type Noise struct {
 	LengthEnabled bool
 	Enabled       bool
-	BaseEnvelope  Word
+	BaseEnvelope  word
 	Mode          bool
 	Timer         int
 	TimerCount    int
-	Length        Word
+	Length        word
 	Shift         int
 	Sample        int16
 	Envelope
@@ -107,7 +107,7 @@ type Dmc struct {
 	RateCounter    int
 	DirectLoad     int
 	DirectCounter  int
-	Data           Word
+	Data           word
 	Sample         int16
 	SampleAddress  int
 	CurrentAddress uint16
@@ -140,7 +140,7 @@ type Apu struct {
 	Buffer func(int16)
 }
 
-func (s *Square) WriteControl(v Word) {
+func (s *Square) WriteControl(v word) {
 	// 76543210
 	// ||||||||
 	// ||||++++- Envelope
@@ -161,7 +161,7 @@ func (s *Square) WriteControl(v Word) {
 	}
 }
 
-func (s *Square) WriteSweeps(v Word) {
+func (s *Square) WriteSweeps(v word) {
 	s.SweepEnabled = v&0x80 == 0x80
 	s.SweepPeriod = (v >> 4) & 0x7
 	s.SweepMode = (v >> 3) & 1
@@ -171,11 +171,11 @@ func (s *Square) WriteSweeps(v Word) {
 	s.SweepReload = true
 }
 
-func (s *Square) WriteLow(v Word) {
+func (s *Square) WriteLow(v word) {
 	s.Timer = (s.Timer & 0x700) | int(v)
 }
 
-func (s *Square) WriteHigh(v Word) {
+func (s *Square) WriteHigh(v word) {
 	s.Timer = (s.Timer & 0xFF) | (int(v&0x7) << 8)
 
 	if s.Enabled {
@@ -497,7 +497,7 @@ func (a *Apu) FrameSequencerStep() {
 	}
 }
 
-func (a *Apu) RegRead(addr int) (Word, error) {
+func (a *Apu) RegRead(addr int) (word, error) {
 	switch addr {
 	case 0x4015:
 		return a.ReadStatus(), nil
@@ -506,7 +506,7 @@ func (a *Apu) RegRead(addr int) (Word, error) {
 	return 0, nil
 }
 
-func (a *Apu) RegWrite(v Word, addr int) {
+func (a *Apu) RegWrite(v word, addr int) {
 	switch addr & 0xFF {
 	case 0x0:
 		a.WriteSquare1Control(v)
@@ -552,7 +552,7 @@ func (a *Apu) RegWrite(v Word, addr int) {
 }
 
 // $4015 (w)
-func (a *Apu) WriteControlFlags1(v Word) {
+func (a *Apu) WriteControlFlags1(v word) {
 	// 76543210
 	//    |||||
 	//    ||||+- Square 1 (0: disable; 1: enable)
@@ -600,9 +600,9 @@ func (a *Apu) WriteControlFlags1(v Word) {
 }
 
 // $4015 (r)
-func (a *Apu) ReadStatus() Word {
+func (a *Apu) ReadStatus() word {
 	// if-d nt21   DMC IRQ, frame IRQ, length counter statuses
-	var status Word
+	var status word
 
 	status |= a.Square1.Length
 	status |= a.Square2.Length << 1
@@ -624,7 +624,7 @@ func (a *Apu) ReadStatus() Word {
 }
 
 // $4017
-func (a *Apu) WriteControlFlags2(v Word) {
+func (a *Apu) WriteControlFlags2(v word) {
 	// fd-- ----   5-frame cycle, disable frame interrupt
 	if v&0x80 == 0x80 {
 		a.FrameCounter = 5
@@ -637,47 +637,47 @@ func (a *Apu) WriteControlFlags2(v Word) {
 }
 
 // $4000
-func (a *Apu) WriteSquare1Control(v Word) {
+func (a *Apu) WriteSquare1Control(v word) {
 	a.Square1.WriteControl(v)
 }
 
 // $4001
-func (a *Apu) WriteSquare1Sweeps(v Word) {
+func (a *Apu) WriteSquare1Sweeps(v word) {
 	a.Square1.WriteSweeps(v)
 }
 
 // $4002
-func (a *Apu) WriteSquare1Low(v Word) {
+func (a *Apu) WriteSquare1Low(v word) {
 	a.Square1.WriteLow(v)
 }
 
 // $4003
-func (a *Apu) WriteSquare1High(v Word) {
+func (a *Apu) WriteSquare1High(v word) {
 	a.Square1.WriteHigh(v)
 }
 
 // $4004
-func (a *Apu) WriteSquare2Control(v Word) {
+func (a *Apu) WriteSquare2Control(v word) {
 	a.Square2.WriteControl(v)
 }
 
 // $4005
-func (a *Apu) WriteSquare2Sweeps(v Word) {
+func (a *Apu) WriteSquare2Sweeps(v word) {
 	a.Square2.WriteSweeps(v)
 }
 
 // $4006
-func (a *Apu) WriteSquare2Low(v Word) {
+func (a *Apu) WriteSquare2Low(v word) {
 	a.Square2.WriteLow(v)
 }
 
 // $4007
-func (a *Apu) WriteSquare2High(v Word) {
+func (a *Apu) WriteSquare2High(v word) {
 	a.Square2.WriteHigh(v)
 }
 
 // $4008
-func (a *Apu) WriteTriangleControl(v Word) {
+func (a *Apu) WriteTriangleControl(v word) {
 	// 76543210
 	// ||||||||
 	// |+++++++- ReloadValue
@@ -688,12 +688,12 @@ func (a *Apu) WriteTriangleControl(v Word) {
 }
 
 // $400A
-func (a *Apu) WriteTriangleLow(v Word) {
+func (a *Apu) WriteTriangleLow(v word) {
 	a.Triangle.Timer = (a.Triangle.Timer & 0x700) | int(v)
 }
 
 // $400B
-func (a *Apu) WriteTriangleHigh(v Word) {
+func (a *Apu) WriteTriangleHigh(v word) {
 	a.Triangle.Timer = (a.Triangle.Timer & 0xFF) | (int(v&0xF) << 8)
 
 	if a.Triangle.Enabled {
@@ -704,7 +704,7 @@ func (a *Apu) WriteTriangleHigh(v Word) {
 }
 
 // $400C
-func (a *Apu) WriteNoiseBase(v Word) {
+func (a *Apu) WriteNoiseBase(v word) {
 	// --LC NNNN	 Envelope loop / length counter disable (L), constant volume (C), volume/envelope (V)
 	a.Noise.LengthEnabled = (v & 0x20) != 0x20
 	a.Noise.Envelope.Counter = v & 0x1F
@@ -721,7 +721,7 @@ func (a *Apu) WriteNoiseBase(v Word) {
 }
 
 // $400E
-func (a *Apu) WriteNoisePeriod(v Word) {
+func (a *Apu) WriteNoisePeriod(v word) {
 	// L--- PPPP	 Mode noise (L), noise period (P)
 	a.Noise.Mode = v&0x80 == 0x80
 	a.Noise.Timer = NoiseLookup[v&0xF]
@@ -729,13 +729,13 @@ func (a *Apu) WriteNoisePeriod(v Word) {
 }
 
 // $400F
-func (a *Apu) WriteNoiseLength(v Word) {
+func (a *Apu) WriteNoiseLength(v word) {
 	// LLLL L---	 Length counter load (L)
 	a.Noise.Length = LengthTable[v>>3]
 }
 
 // $4010
-func (a *Apu) WriteDmcFlags(v Word) {
+func (a *Apu) WriteDmcFlags(v word) {
 	a.Dmc.IrqEnabled = v&0x80 == 0x80
 	a.Dmc.LoopEnabled = v&0x40 == 0x40
 	a.Dmc.RateIndex = int(v & 0xF)
@@ -743,7 +743,7 @@ func (a *Apu) WriteDmcFlags(v Word) {
 }
 
 // $4011
-func (a *Apu) WriteDmcDirectLoad(v Word) {
+func (a *Apu) WriteDmcDirectLoad(v word) {
 	a.Dmc.DirectLoad = int(v & 0x7F)
 	a.Dmc.DirectCounter = a.Dmc.DirectLoad
 
@@ -751,12 +751,12 @@ func (a *Apu) WriteDmcDirectLoad(v Word) {
 }
 
 // $4012
-func (a *Apu) WriteDmcSampleAddress(v Word) {
+func (a *Apu) WriteDmcSampleAddress(v word) {
 	a.Dmc.SampleAddress = int(v) << 6
 }
 
 // $4013
-func (a *Apu) WriteDmcSampleLength(v Word) {
+func (a *Apu) WriteDmcSampleLength(v word) {
 	a.Dmc.SampleLength = (int(v) << 4) + 1
 	a.Dmc.SampleCounter = a.Dmc.SampleLength
 }

@@ -8,7 +8,7 @@ var (
 	p *Ppu
 )
 
-func verifyValue(a int, v Word, test *testing.T) {
+func verifyValue(a int, v word, test *testing.T) {
 	if p.Nametables.readNametableData(a) != v {
 		test.Errorf("0x%X was 0x%X, expected 0x%X\n", a, p.Vram[0x2000], v)
 	}

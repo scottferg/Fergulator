@@ -1,8 +1,8 @@
 package nes
 
 type Anrom struct {
-	RomBanks  [][]Word
-	VromBanks [][]Word
+	RomBanks  [][]word
+	VromBanks [][]word
 
 	PrgBankCount int
 	ChrRomCount  int
@@ -13,7 +13,7 @@ type Anrom struct {
 	PrgLowerBank int
 }
 
-func (m *Anrom) Write(v Word, a int) {
+func (m *Anrom) Write(v word, a int) {
 	if v&0x10 == 0x10 {
 		ppu.Nametables.SetMirroring(MirroringSingleUpper)
 	} else {
@@ -26,7 +26,7 @@ func (m *Anrom) Write(v Word, a int) {
 	m.PrgLowerBank = bank
 }
 
-func (m *Anrom) Read(a int) Word {
+func (m *Anrom) Read(a int) word {
 	if a >= 0xC000 {
 		return m.RomBanks[m.PrgUpperBank][a&0x3FFF]
 	}
@@ -38,7 +38,7 @@ func (m *Anrom) BatteryBacked() bool {
 	return m.Battery
 }
 
-func (m *Anrom) WriteVram(v Word, a int) {
+func (m *Anrom) WriteVram(v word, a int) {
 	if a >= 0x1000 {
 		m.VromBanks[len(m.VromBanks)-1][a&0xFFF] = v
 		return
@@ -47,7 +47,7 @@ func (m *Anrom) WriteVram(v Word, a int) {
 	m.VromBanks[0][a&0xFFF] = v
 }
 
-func (m *Anrom) ReadVram(a int) Word {
+func (m *Anrom) ReadVram(a int) word {
 	if a >= 0x1000 {
 		return m.VromBanks[len(m.VromBanks)-1][a&0xFFF]
 	}
@@ -55,7 +55,7 @@ func (m *Anrom) ReadVram(a int) Word {
 	return m.VromBanks[0][a&0xFFF]
 }
 
-func (m *Anrom) ReadTile(a int) []Word {
+func (m *Anrom) ReadTile(a int) []word {
 	if a >= 0x1000 {
 		a &= 0xFFF
 		return m.VromBanks[len(m.VromBanks)-1][a : a+16]

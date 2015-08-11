@@ -1,8 +1,8 @@
 package nes
 
 type Cnrom struct {
-	RomBanks  [][]Word
-	VromBanks [][]Word
+	RomBanks  [][]word
+	VromBanks [][]word
 
 	PrgBankCount int
 	ChrRomCount  int
@@ -12,11 +12,11 @@ type Cnrom struct {
 	ActiveBank int
 }
 
-func (m *Cnrom) Write(v Word, a int) {
+func (m *Cnrom) Write(v word, a int) {
 	m.ActiveBank = int(v&0x3) * 2
 }
 
-func (m *Cnrom) Read(a int) Word {
+func (m *Cnrom) Read(a int) word {
 	if a >= 0xC000 {
 		return m.RomBanks[len(m.RomBanks)-1][a&0x3FFF]
 	}
@@ -24,7 +24,7 @@ func (m *Cnrom) Read(a int) Word {
 	return m.RomBanks[0][a&0x3FFF]
 }
 
-func (m *Cnrom) WriteVram(v Word, a int) {
+func (m *Cnrom) WriteVram(v word, a int) {
 	if a >= 0x1000 {
 		m.VromBanks[m.ActiveBank+1][a&0xFFF] = v
 		return
@@ -33,7 +33,7 @@ func (m *Cnrom) WriteVram(v Word, a int) {
 	m.VromBanks[m.ActiveBank][a&0xFFF] = v
 }
 
-func (m *Cnrom) ReadVram(a int) Word {
+func (m *Cnrom) ReadVram(a int) word {
 	if a >= 0x1000 {
 		return m.VromBanks[m.ActiveBank+1][a&0xFFF]
 	}
@@ -41,7 +41,7 @@ func (m *Cnrom) ReadVram(a int) Word {
 	return m.VromBanks[m.ActiveBank][a&0xFFF]
 }
 
-func (m *Cnrom) ReadTile(a int) []Word {
+func (m *Cnrom) ReadTile(a int) []word {
 	if a >= 0x1000 {
 		return m.VromBanks[m.ActiveBank+1][a&0xFFF : a+16]
 	}

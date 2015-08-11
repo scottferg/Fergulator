@@ -31,8 +31,8 @@ const (
 )
 
 type Mmc3 struct {
-	RomBanks  []Word
-	VromBanks []Word
+	RomBanks  []word
+	VromBanks []word
 
 	PrgBankCount int
 	ChrRomCount  int
@@ -44,8 +44,8 @@ type Mmc3 struct {
 	ChrA12Inversion int
 	AddressChanged  bool
 	IrqEnabled      bool
-	IrqLatchValue   Word
-	IrqCounter      Word
+	IrqLatchValue   word
+	IrqCounter      word
 	IrqReset        bool
 	IrqResetVbl     bool
 
@@ -87,11 +87,11 @@ func (m *Mmc3) Load() {
 	// 2x the banks since we're storing 8k per bank
 	// instead of 16k
 	fmt.Printf("  Emulated PRG banks: %d\n", 2*m.PrgBankCount)
-	m.RomBanks = make([]Word, (2*m.PrgBankCount)*0x2000)
+	m.RomBanks = make([]word, (2*m.PrgBankCount)*0x2000)
 	for i := 0; i < 2*m.PrgBankCount; i++ {
 		// Move 8kb chunk to 8kb bank
 		for x := 0; x < 0x2000; x++ {
-			m.RomBanks[(i*0x2000)+x] = Word(m.Data[(0x2000*i)+x])
+			m.RomBanks[(i*0x2000)+x] = word(m.Data[(0x2000*i)+x])
 		}
 	}
 
@@ -100,19 +100,19 @@ func (m *Mmc3) Load() {
 
 	// CHR is stored in 1k banks
 	if m.ChrRomCount > 0 {
-		m.VromBanks = make([]Word, (m.ChrRomCount*8)*0x0400)
+		m.VromBanks = make([]word, (m.ChrRomCount*8)*0x0400)
 	} else {
-		m.VromBanks = make([]Word, 8*0x0400)
+		m.VromBanks = make([]word, 8*0x0400)
 	}
 
 	for i := 0; i < m.ChrRomCount*8; i++ {
 		// Move 16kb chunk to 16kb bank
 		for x := 0; x < 0x0400; x++ {
-			var val Word
+			var val word
 			if m.ChrRomCount == 0 {
 				val = 0
 			} else {
-				val = Word(chrRom[(0x0400*i)+x])
+				val = word(chrRom[(0x0400*i)+x])
 			}
 			m.VromBanks[(0x0400*i)+x] = val
 		}
@@ -141,7 +141,7 @@ func (m *Mmc3) BatteryBacked() bool {
 	return m.Battery
 }
 
-func (m *Mmc3) Write(v Word, a int) {
+func (m *Mmc3) Write(v word, a int) {
 	switch m.RegisterNumber(a) {
 	case RegisterBankSelect:
 		m.BankSelect(int(v))
@@ -162,7 +162,7 @@ func (m *Mmc3) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc3) WriteVram(v Word, a int) {
+func (m *Mmc3) WriteVram(v word, a int) {
 	var addr int
 
 	switch {
@@ -187,7 +187,7 @@ func (m *Mmc3) WriteVram(v Word, a int) {
 	m.VromBanks[addr] = v
 }
 
-func (m *Mmc3) ReadVram(a int) Word {
+func (m *Mmc3) ReadVram(a int) word {
 	var addr int
 
 	switch {
@@ -212,7 +212,7 @@ func (m *Mmc3) ReadVram(a int) Word {
 	return m.VromBanks[addr]
 }
 
-func (m *Mmc3) ReadTile(a int) []Word {
+func (m *Mmc3) ReadTile(a int) []word {
 	var addr int
 
 	switch {
@@ -237,7 +237,7 @@ func (m *Mmc3) ReadTile(a int) []Word {
 	return m.VromBanks[addr : addr+16]
 }
 
-func (m *Mmc3) Read(a int) Word {
+func (m *Mmc3) Read(a int) word {
 	var addr int
 
 	switch {
@@ -440,7 +440,7 @@ func (m *Mmc3) RamProtection(v int) {
 
 func (m *Mmc3) IrqLatch(v int) {
 	// $C000
-	m.IrqLatchValue = Word(v)
+	m.IrqLatchValue = word(v)
 }
 
 func (m *Mmc3) IrqReload(v int) {

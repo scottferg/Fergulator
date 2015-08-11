@@ -6,11 +6,11 @@ import (
 )
 
 type Mapper interface {
-	Write(v Word, a int)
-	Read(a int) Word
-	WriteVram(v Word, a int)
-	ReadVram(a int) Word
-	ReadTile(a int) []Word
+	Write(v word, a int)
+	Read(a int) word
+	WriteVram(v word, a int)
+	ReadVram(a int) word
+	ReadTile(a int) []word
 	BatteryBacked() bool
 }
 
@@ -50,7 +50,7 @@ func LoadRom(rom []byte) (m Mapper, e error) {
 	r.Data = rom[16:]
 
 	// Check mapper, get the proper type
-	mapper := (Word(rom[6])>>4 | (Word(rom[7]) & 0xF0))
+	mapper := (word(rom[6])>>4 | (word(rom[7]) & 0xF0))
 	fmt.Printf("Mapper: 0x%X -> ", mapper)
 	switch mapper {
 	case 0x00:

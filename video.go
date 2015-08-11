@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-gl/gl"
-	"github.com/scottferg/Fergulator/nes"
-	"github.com/scottferg/Go-SDL/gfx"
-	"github.com/scottferg/Go-SDL/sdl"
 	"log"
 	"math"
 	"os"
 	"unsafe"
+
+	"github.com/go-gl-legacy/gl"
+	"github.com/scottferg/Fergulator/nes"
+	"github.com/scottferg/Go-SDL/gfx"
+	"github.com/scottferg/Go-SDL/sdl"
 )
 
 type Video struct {

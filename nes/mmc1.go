@@ -13,8 +13,8 @@ const (
 )
 
 type Mmc1 struct {
-	RomBanks  [][]Word
-	VromBanks [][]Word
+	RomBanks  [][]word
+	VromBanks [][]word
 
 	PrgBankCount int
 	ChrRomCount  int
@@ -47,7 +47,7 @@ func NewMmc1(r *Nrom) *Mmc1 {
 	}
 }
 
-func (m *Mmc1) Write(v Word, a int) {
+func (m *Mmc1) Write(v word, a int) {
 	// If reset bit is set
 	if v&0x80 != 0 {
 		m.BufferCounter = 0
@@ -71,7 +71,7 @@ func (m *Mmc1) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc1) Read(a int) Word {
+func (m *Mmc1) Read(a int) word {
 	if a >= 0xC000 {
 		return m.RomBanks[m.PrgUpperBank][a&0x3FFF]
 	}
@@ -79,7 +79,7 @@ func (m *Mmc1) Read(a int) Word {
 	return m.RomBanks[m.PrgLowerBank][a&0x3FFF]
 }
 
-func (m *Mmc1) WriteVram(v Word, a int) {
+func (m *Mmc1) WriteVram(v word, a int) {
 	if a >= 0x1000 {
 		m.VromBanks[m.ChrUpperBank][a&0xFFF] = v
 		return
@@ -88,7 +88,7 @@ func (m *Mmc1) WriteVram(v Word, a int) {
 	m.VromBanks[m.ChrLowerBank][a&0xFFF] = v
 }
 
-func (m *Mmc1) ReadVram(a int) Word {
+func (m *Mmc1) ReadVram(a int) word {
 	if a >= 0x1000 {
 		return m.VromBanks[m.ChrUpperBank][a&0xFFF]
 	}
@@ -96,7 +96,7 @@ func (m *Mmc1) ReadVram(a int) Word {
 	return m.VromBanks[m.ChrLowerBank][a&0xFFF]
 }
 
-func (m *Mmc1) ReadTile(a int) []Word {
+func (m *Mmc1) ReadTile(a int) []word {
 	if a >= 0x1000 {
 		return m.VromBanks[m.ChrUpperBank][a&0xFFF : a&0xFFF+16]
 	}

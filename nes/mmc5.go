@@ -5,30 +5,30 @@ import (
 )
 
 type Mmc5 struct {
-	RomBanks  [][]Word
-	VromBanks [][]Word
+	RomBanks  [][]word
+	VromBanks [][]word
 
-	ExtendedRam [0x400]Word
+	ExtendedRam [0x400]word
 
 	PrgBankCount int
 	ChrRomCount  int
 	Battery      bool
 	Data         []byte
 
-	PrgSwitchMode   Word
-	ChrSwitchMode   Word
-	ExtendedRamMode Word
-	ChrUpperBits    Word
+	PrgSwitchMode   word
+	ChrSwitchMode   word
+	ExtendedRamMode word
+	ChrUpperBits    word
 
-	FillModeTile  Word
-	FillModeColor Word
+	FillModeTile  word
+	FillModeColor word
 
-	SelectedPrgRamChip Word
+	SelectedPrgRamChip word
 
 	IrqLatch   int
 	IrqCounter int
 	IrqEnabled bool
-	IrqStatus  Word
+	IrqStatus  word
 
 	PrgUpperHighBank int
 	PrgUpperLowBank  int
@@ -69,12 +69,12 @@ func (m *Mmc5) Load() {
 	// 2x the banks since we're storing 8k per bank
 	// instead of 16k
 	fmt.Printf("  Emulated PRG banks: %d\n", 2*m.PrgBankCount)
-	m.RomBanks = make([][]Word, 2*m.PrgBankCount)
+	m.RomBanks = make([][]word, 2*m.PrgBankCount)
 	for i := 0; i < 2*m.PrgBankCount; i++ {
 		// Move 8kb chunk to 8kb bank
-		bank := make([]Word, 0x2000)
+		bank := make([]word, 0x2000)
 		for x := 0; x < 0x2000; x++ {
-			bank[x] = Word(m.Data[(0x2000*i)+x])
+			bank[x] = word(m.Data[(0x2000*i)+x])
 		}
 
 		m.RomBanks[i] = bank
@@ -85,24 +85,24 @@ func (m *Mmc5) Load() {
 
 	// CHR is stored in 1k banks
 	if m.ChrRomCount > 0 {
-		m.VromBanks = make([][]Word, m.ChrRomCount*8)
+		m.VromBanks = make([][]word, m.ChrRomCount*8)
 	} else {
-		m.VromBanks = make([][]Word, 2)
+		m.VromBanks = make([][]word, 2)
 	}
 
 	for i := 0; i < cap(m.VromBanks); i++ {
 		// Move 16kb chunk to 16kb bank
-		m.VromBanks[i] = make([]Word, 0x0400)
+		m.VromBanks[i] = make([]word, 0x0400)
 
 		// If the game doesn't have CHR banks we
 		// just need to allocate VRAM
 
 		for x := 0; x < 0x0400; x++ {
-			var val Word
+			var val word
 			if m.ChrRomCount == 0 {
 				val = 0
 			} else {
-				val = Word(chrRom[(0x0400*i)+x])
+				val = word(chrRom[(0x0400*i)+x])
 			}
 			m.VromBanks[i][x] = val
 		}
@@ -126,7 +126,7 @@ func (m *Mmc5) Load() {
 	m.PrgLowerHighBank = 1
 }
 
-func (m *Mmc5) Write(v Word, a int) {
+func (m *Mmc5) Write(v word, a int) {
 	switch a {
 	case 0x5100:
 		// PRG Switching mode
@@ -480,7 +480,7 @@ func (m *Mmc5) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc5) WriteVram(v Word, a int) {
+func (m *Mmc5) WriteVram(v word, a int) {
 	switch {
 	case a >= 0x1C00:
 		m.VromBanks[m.Chr1C00Bank][a&0x3FF] = v
@@ -501,7 +501,7 @@ func (m *Mmc5) WriteVram(v Word, a int) {
 	}
 }
 
-func (m *Mmc5) ReadVram(a int) Word {
+func (m *Mmc5) ReadVram(a int) word {
 	switch {
 	case a >= 0x1C00:
 		return m.VromBanks[m.Chr1C00Bank][a&0x3FF]
@@ -522,7 +522,7 @@ func (m *Mmc5) ReadVram(a int) Word {
 	}
 }
 
-func (m *Mmc5) ReadTile(a int) []Word {
+func (m *Mmc5) ReadTile(a int) []word {
 	switch {
 	case a >= 0x1C00:
 		return m.VromBanks[m.Chr1C00Bank][a&0x3FF : a&0x3FF+16]
@@ -543,7 +543,7 @@ func (m *Mmc5) ReadTile(a int) []Word {
 	}
 }
 
-func (m *Mmc5) Read(a int) Word {
+func (m *Mmc5) Read(a int) word {
 	switch {
 	case a >= 0xE000:
 		return m.RomBanks[m.PrgUpperHighBank][a&0x1FFF]
@@ -573,8 +573,8 @@ func (m *Mmc5) BatteryBacked() bool {
 	return m.Battery
 }
 
-func (m *Mmc5) SetNametableMapping(v Word) {
-	var i Word
+func (m *Mmc5) SetNametableMapping(v word) {
+	var i word
 	for i = 0; i < 4; i++ {
 		bits := (v >> (i * 2)) & 0x3
 		switch bits {
@@ -586,11 +586,11 @@ func (m *Mmc5) SetNametableMapping(v Word) {
 			if m.ExtendedRamMode <= 0x1 {
 				ppu.Nametables.LogicalTables[i] = &m.ExtendedRam
 			} else {
-				var fillmode [0x400]Word
+				var fillmode [0x400]word
 				ppu.Nametables.LogicalTables[i] = &fillmode
 			}
 		case 3:
-			var fillmode [0x400]Word
+			var fillmode [0x400]word
 			ppu.Nametables.LogicalTables[i] = &fillmode
 		}
 	}
@@ -608,7 +608,7 @@ func (m *Mmc5) SwapBgVram() {
 	}
 }
 
-func (m *Mmc5) ReadIrqStatus() Word {
+func (m *Mmc5) ReadIrqStatus() word {
 	result := m.IrqStatus
 	m.IrqStatus &= 0x7F
 	cpu.RequestInterrupt(InterruptNone)

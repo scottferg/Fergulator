@@ -14,8 +14,8 @@ const (
 )
 
 type Mmc2 struct {
-	RomBanks  [][]Word
-	VromBanks [][]Word
+	RomBanks  [][]word
+	VromBanks [][]word
 
 	PrgBankCount int
 	ChrRomCount  int
@@ -64,12 +64,12 @@ func (m *Mmc2) Load() {
 	// 2x the banks since we're storing 8k per bank
 	// instead of 16k
 	fmt.Printf("  Emulated PRG banks: %d\n", 2*m.PrgBankCount)
-	m.RomBanks = make([][]Word, 2*m.PrgBankCount)
+	m.RomBanks = make([][]word, 2*m.PrgBankCount)
 	for i := 0; i < 2*m.PrgBankCount; i++ {
 		// Move 8kb chunk to 8kb bank
-		bank := make([]Word, 0x2000)
+		bank := make([]word, 0x2000)
 		for x := 0; x < 0x2000; x++ {
-			bank[x] = Word(m.Data[(0x2000*i)+x])
+			bank[x] = word(m.Data[(0x2000*i)+x])
 		}
 
 		m.RomBanks[i] = bank
@@ -79,21 +79,21 @@ func (m *Mmc2) Load() {
 	chrRom := m.Data[0x2000*len(m.RomBanks):]
 
 	// CHR is stored in 4k banks
-	m.VromBanks = make([][]Word, m.ChrRomCount*2)
+	m.VromBanks = make([][]word, m.ChrRomCount*2)
 
 	for i := 0; i < cap(m.VromBanks); i++ {
 		// Move 16kb chunk to 16kb bank
-		m.VromBanks[i] = make([]Word, 0x1000)
+		m.VromBanks[i] = make([]word, 0x1000)
 
 		// If the game doesn't have CHR banks we
 		// just need to allocate VRAM
 
 		for x := 0; x < 0x1000; x++ {
-			var val Word
+			var val word
 			if m.ChrRomCount == 0 {
 				val = 0
 			} else {
-				val = Word(chrRom[(0x1000*i)+x])
+				val = word(chrRom[(0x1000*i)+x])
 			}
 			m.VromBanks[i][x] = val
 		}
@@ -116,7 +116,7 @@ func (m *Mmc2) Load() {
 	m.PrgLowerHighBank = (((len(m.RomBanks) - 2) * 2) + 1) % len(m.RomBanks)
 }
 
-func (m *Mmc2) Write(v Word, a int) {
+func (m *Mmc2) Write(v word, a int) {
 	switch m.RegisterNumber(a) {
 	case RegisterPrgBankSelect:
 		m.PrgBankSelect(v)
@@ -133,7 +133,7 @@ func (m *Mmc2) Write(v Word, a int) {
 	}
 }
 
-func (m *Mmc2) WriteVram(v Word, a int) {
+func (m *Mmc2) WriteVram(v word, a int) {
 	switch {
 	case a >= 0x1000:
 		m.VromBanks[m.ChrHighBank][a&0xFFF] = v
@@ -142,7 +142,7 @@ func (m *Mmc2) WriteVram(v Word, a int) {
 	}
 }
 
-func (m *Mmc2) ReadVram(a int) Word {
+func (m *Mmc2) ReadVram(a int) word {
 	// TODO: Causes some minor glitching in the
 	// Punch Out! title screen. This used to happen
 	// in ppu.fetchTileAttributes()
@@ -157,7 +157,7 @@ func (m *Mmc2) ReadVram(a int) Word {
 	}
 }
 
-func (m *Mmc2) ReadTile(a int) []Word {
+func (m *Mmc2) ReadTile(a int) []word {
 	switch {
 	case a >= 0x1000:
 		return m.VromBanks[m.ChrHighBank][a&0xFFF : a&0xFFF+16]
@@ -166,7 +166,7 @@ func (m *Mmc2) ReadTile(a int) []Word {
 	}
 }
 
-func (m *Mmc2) Read(a int) Word {
+func (m *Mmc2) Read(a int) word {
 	switch {
 	case a >= 0xE000:
 		return m.RomBanks[m.PrgUpperHighBank][a&0x1FFF]
@@ -227,11 +227,11 @@ func (m *Mmc2) RegisterNumber(a int) int {
 	return -1
 }
 
-func (m *Mmc2) PrgBankSelect(v Word) {
+func (m *Mmc2) PrgBankSelect(v word) {
 	m.PrgLowerLowBank = int(v&0xF) % len(m.RomBanks)
 }
 
-func (m *Mmc2) ChrBankSelect(v Word, b int) {
+func (m *Mmc2) ChrBankSelect(v word, b int) {
 	v &= 0x1F
 
 	switch b {
@@ -262,7 +262,7 @@ func (m *Mmc2) ChrBankSelect(v Word, b int) {
 	}
 }
 
-func (m *Mmc2) MirroringSelect(v Word) {
+func (m *Mmc2) MirroringSelect(v word) {
 	if v&0x1 == 0x1 {
 		ppu.Nametables.SetMirroring(MirroringHorizontal)
 	} else {

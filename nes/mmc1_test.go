@@ -8,7 +8,7 @@ var (
 	m *Mmc1
 )
 
-func verifyMirroredValue(a int, v Word, test *testing.T) {
+func verifyMirroredValue(a int, v word, test *testing.T) {
 	if ppu.Nametables.readNametableData(a) != v {
 		test.Errorf("0x%X was 0x%X, expected 0x%X\n", a, ppu.Vram[0x2000], v)
 	}
@@ -16,8 +16,8 @@ func verifyMirroredValue(a int, v Word, test *testing.T) {
 
 func TestVerticalToHorizontal(test *testing.T) {
 	rom = &Mmc1{
-		RomBanks:     make([][]Word, 16),
-		VromBanks:    make([][]Word, 16),
+		RomBanks:     make([][]word, 16),
+		VromBanks:    make([][]word, 16),
 		PrgBankCount: 8,
 		ChrRomCount:  8,
 		Battery:      false,
@@ -99,8 +99,8 @@ func TestVerticalToHorizontal(test *testing.T) {
 
 func TestHorizontalToVertical(test *testing.T) {
 	rom = &Mmc1{
-		RomBanks:     make([][]Word, 16),
-		VromBanks:    make([][]Word, 16),
+		RomBanks:     make([][]word, 16),
+		VromBanks:    make([][]word, 16),
 		PrgBankCount: 8,
 		ChrRomCount:  8,
 		Battery:      false,

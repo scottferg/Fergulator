@@ -103,23 +103,23 @@ func verifyCpuState(pc uint16, c *Cpu, p *Ppu, e CpuState, test *testing.T) {
 		test.Errorf("PC was 0x%X, expected 0x%X\n", pc, e.Op)
 	}
 
-	if c.A != Word(e.A) {
+	if c.A != word(e.A) {
 		test.Errorf("PC: 0x%X Register A was 0x%X, was expecting 0x%X\n", pc, c.A, e.A)
 	}
 
-	if c.X != Word(e.X) {
+	if c.X != word(e.X) {
 		test.Errorf("PC: 0x%X Register X was 0x%X, was expecting 0x%X\n", pc, c.X, e.X)
 	}
 
-	if c.Y != Word(e.Y) {
+	if c.Y != word(e.Y) {
 		test.Errorf("PC: 0x%X Register Y was 0x%X, was expecting 0x%X\n", pc, c.Y, e.Y)
 	}
 
-	if c.P != Word(e.P) {
+	if c.P != word(e.P) {
 		test.Errorf("PC: 0x%X P register was 0x%X, was expecting 0x%X\n", pc, c.P, e.P)
 	}
 
-	if c.StackPointer != Word(e.S) {
+	if c.StackPointer != word(e.S) {
 		test.Errorf("PC: 0x%X Stack pointer was 0x%X, was expecting 0x%X\n", pc, c.StackPointer, e.S)
 	}
 

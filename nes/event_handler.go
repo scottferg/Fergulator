@@ -2,9 +2,10 @@ package nes
 
 import (
 	"fmt"
-	"github.com/robertkrimen/otto"
 	"io/ioutil"
 	"os"
+
+	"github.com/robertkrimen/otto"
 )
 
 type EventHandler interface {
@@ -78,7 +79,7 @@ func (handler *JsEventHandler) Handle(event string) {
 			idx, _ := call.Argument(0).ToInteger()
 			val, _ := call.Argument(1).ToInteger()
 
-			err := Ram.Write(Word(idx), Word(val))
+			err := Ram.write(word(idx), word(val))
 			if err != nil {
 				fmt.Println(err)
 			}

@@ -1,8 +1,8 @@
 package nes
 
-type Word uint8
+type word uint8
 
-type Memory []Word
+type Memory []word
 
 type MemoryError struct {
 	ErrorText string
@@ -14,7 +14,7 @@ func (e MemoryError) Error() string {
 
 func fitAddressSize(addr interface{}) (v int, e error) {
 	switch a := addr.(type) {
-	case Word:
+	case word:
 		v = int(a)
 	case int:
 		v = int(a)
@@ -28,20 +28,20 @@ func fitAddressSize(addr interface{}) (v int, e error) {
 }
 
 func NewMemory() Memory {
-	return make([]Word, 0x10000)
+	return make([]word, 0x10000)
 }
 
-func (m Memory) ReadMirroredRam(a int) Word {
+func (m Memory) ReadMirroredRam(a int) word {
 	offset := a % 0x8
 	return m[0x2000+offset]
 }
 
-func (m Memory) WriteMirroredRam(v Word, a int) {
+func (m Memory) WriteMirroredRam(v word, a int) {
 	offset := a % 0x8
 	m[0x2000+offset] = v
 }
 
-func (m Memory) Write(address interface{}, val Word) error {
+func (m Memory) write(address interface{}, val word) error {
 	if a, err := fitAddressSize(address); err == nil {
 		if a >= 0x2000 && a <= 0x2007 {
 			ppu.RegWrite(val, a)
@@ -79,7 +79,7 @@ func (m Memory) Write(address interface{}, val Word) error {
 	return MemoryError{ErrorText: "Invalid address used"}
 }
 
-func (m Memory) Read(a uint16) (Word, error) {
+func (m Memory) Read(a uint16) (word, error) {
 	switch {
 	case a >= 0x2008 && a < 0x4000:
 		offset := a % 0x8
