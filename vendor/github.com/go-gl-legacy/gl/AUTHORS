@@ -1,0 +1,41 @@
+# This is the official list of go-gl/gl authors for copyright purposes.
+
+# Seed: $ git shortlog -e | egrep '^\S+' | sed -E 's|(.*<.*>).*|\1|g'
+
+# Please keep the list sorted.
+
+# Name <email> (optional github handle)
+
+Arne Doering <arne.doering@gmx.net>
+Chris Jones <chris@cjones.org>
+Christoph Schunk <schunk.christoph@googlemail.com>
+David Aguilar <davvid@gmail.com> (davvid)
+DeedleFake <yisszev@beckforce.com>
+Dennis Honeyman <arcticuno@gmail.com>
+Emil Arfvidsson <emil@arfvidsson.com>
+Fabian Wickborn <fabian@wickborn.net>
+Henry Finucane <h.finucane@gmail.com>
+Jacob Parker <j3parker@uwaterloo.ca>
+Jannis <jannisf@gmail.com>
+Jim Arnold <jim@thoughtworks.com> (jimarnold)
+Jim Teeuwen <jimteeuwen@gmail.com> (jteeuwen)
+Josh Smith <gloume@gmail.com>
+Jragonmiris <Jragonmiris@gmail.com>
+Kirill A. Shutemov <kirill@shutemov.name> (kiryl)
+Laurie Clark-Michalek <bluepeppers@archlinux.us>
+Lawrence E. Bakst <leb@me.com> (tildeleb)
+Matt Kovars <akaskik@gmail.com>
+Miroslav Puda <pakanek@gmail.com> (pakanek)
+Niriel <daneel_libre@yahoo.fr>
+Noel Cower <ncower@gmail.com> (nilium)
+Peter Waller <p@pwaller.net> (pwaller)
+Piotr Praszmo <banthar@gmail.com> (banthar)
+PolyFloyd <floyd@polyfloyd.net> (PolyFloyd)
+Przemyslaw Szczepaniak <przeszczep@gmail.com>
+Tom Myers <tom.stephen.myers@gmail.com>
+Vova <vova616@gmail.com>
+Yohann R. Coppel <yc@leppoc.net>
+pkkp <pk@phutatorius.org>
+rhencke <akidan@gmail.com>
+shogg <lars.heyden@gmail.com>
+tbruyelle <thomas.bruyelle@gmail.com>

@@ -1,0 +1,61 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"path": "github.com/go-gl-legacy/gl",
+			"revision": "df25b1fe668dbfe300dda6ebca5f3c7397e8ce02",
+			"revisionTime": "2015-02-22T20:33:40-07:00"
+		},
+		{
+			"path": "github.com/robertkrimen/otto",
+			"revision": "dea31a3d392779af358ec41f77a07fcc7e9d04ba",
+			"revisionTime": "2014-07-02T21:32:54-07:00"
+		},
+		{
+			"path": "github.com/robertkrimen/otto/ast",
+			"revision": "dea31a3d392779af358ec41f77a07fcc7e9d04ba",
+			"revisionTime": "2014-07-02T21:32:54-07:00"
+		},
+		{
+			"path": "github.com/robertkrimen/otto/dbg",
+			"revision": "dea31a3d392779af358ec41f77a07fcc7e9d04ba",
+			"revisionTime": "2014-07-02T21:32:54-07:00"
+		},
+		{
+			"path": "github.com/robertkrimen/otto/file",
+			"revision": "dea31a3d392779af358ec41f77a07fcc7e9d04ba",
+			"revisionTime": "2014-07-02T21:32:54-07:00"
+		},
+		{
+			"path": "github.com/robertkrimen/otto/parser",
+			"revision": "dea31a3d392779af358ec41f77a07fcc7e9d04ba",
+			"revisionTime": "2014-07-02T21:32:54-07:00"
+		},
+		{
+			"path": "github.com/robertkrimen/otto/registry",
+			"revision": "dea31a3d392779af358ec41f77a07fcc7e9d04ba",
+			"revisionTime": "2014-07-02T21:32:54-07:00"
+		},
+		{
+			"path": "github.com/robertkrimen/otto/token",
+			"revision": "dea31a3d392779af358ec41f77a07fcc7e9d04ba",
+			"revisionTime": "2014-07-02T21:32:54-07:00"
+		},
+		{
+			"path": "github.com/scottferg/Go-SDL/gfx",
+			"revision": "0d190b34634e10542215b00d6fe69f2b7f1254ce",
+			"revisionTime": "2013-09-19T12:59:28-07:00"
+		},
+		{
+			"path": "github.com/scottferg/Go-SDL/sdl",
+			"revision": "0d190b34634e10542215b00d6fe69f2b7f1254ce",
+			"revisionTime": "2013-09-19T12:59:28-07:00"
+		},
+		{
+			"path": "github.com/scottferg/Go-SDL/sdl/audio",
+			"revision": "0d190b34634e10542215b00d6fe69f2b7f1254ce",
+			"revisionTime": "2013-09-19T12:59:28-07:00"
+		}
+	]
+}
